@@ -130,10 +130,19 @@ def main():
         except ValueError:
             print("Please enter a valid number.")
 
+    manual_mode = input("Enable manual mode for matching? [y/N]: ").strip().lower() == 'y'
+
     # 5) load CSV data
     summary_df   = pd.read_csv(os.path.join(snapshot_path, 'summary.csv'))
     unmatched_df = pd.read_csv(os.path.join(snapshot_path, 'unmatched_summary.csv'))
     # matched_df  = pd.read_csv(os.path.join(snapshot_path, 'matched_summary.csv'))  # if needed
+
+    blacklist_path = os.path.join(snapshot_path, 'blacklist.csv')
+    if os.path.exists(blacklist_path):
+        blacklist_df = pd.read_csv(blacklist_path)
+    else:
+        blacklist_df = pd.DataFrame(columns=['Search_Term','Platform','Matched_Title','Score','Global_Sales','URL'])
+    blacklisted_pairs = set(zip(blacklist_df.get('Search_Term', []), blacklist_df.get('Platform', [])))
 
     # initial platforms with zero ROMs
     zero_roms = summary_df[summary_df['ROMs'] == 0]['Platform'].tolist()
@@ -178,6 +187,7 @@ def main():
 
         # filter unmatched with exclusions
         subset = unmatched_df[unmatched_df['Platform'] == ds_code]
+        subset = subset[~subset['Name'].apply(lambda n: (n, ds_code) in blacklisted_pairs)]
         if ds_code in ('PS3', 'X360'):
             pc_names = set(unmatched_df[unmatched_df['Platform'] == 'PC']['Name'])
             subset = subset[~subset['Name'].isin(pc_names)]
@@ -194,19 +204,55 @@ def main():
         for _, row in top_df.iterrows():
             game = row['Name']
             sales = row['Global_Sales']
+            if (game, ds_code) in blacklisted_pairs:
+                continue
             normed = norm(game)
             ts_results = process.extract(normed, list(file_map.keys()), scorer=fuzz.token_sort_ratio, limit=None)
             if not ts_results:
                 print(f"  [SKIP] {game} (no candidates)")
                 continue
-            max_ts = max(score for _, score, _ in ts_results)
-            best_keys = [key for key, score, _ in ts_results if score == max_ts]
-            best_key = max(best_keys, key=lambda k: region_priority(unquote(file_map[k])))
-            pr_score = fuzz.partial_ratio(normed, best_key)
-            score = min(max_ts, pr_score)
-            if score < threshold:
-                print(f"  [SKIP] {game} (score below threshold: {score})")
-                continue
+
+            if manual_mode:
+                options = []
+                print(f"Options for {game}:")
+                for idx, (cand, ts_score, _) in enumerate(ts_results[:3], start=1):
+                    pr_score = fuzz.partial_ratio(normed, cand)
+                    opt_score = min(ts_score, pr_score)
+                    options.append((cand, opt_score))
+                    print(f"  [{idx}] {unquote(file_map[cand])} (score {opt_score})")
+                choice = input("Select 1-3, 'b' to blacklist, or ENTER to skip: ").strip().lower()
+                if choice == 'b':
+                    blacklist_df.loc[len(blacklist_df)] = {
+                        'Search_Term': game,
+                        'Platform': ds_code,
+                        'Matched_Title': '',
+                        'Score': 0,
+                        'Global_Sales': sales,
+                        'URL': ''
+                    }
+                    blacklisted_pairs.add((game, ds_code))
+                    print(f"  Blacklisted {game}")
+                    continue
+                if choice in {'1','2','3'}:
+                    idx = int(choice) - 1
+                    if idx >= len(options):
+                        continue
+                    best_key, score = options[idx]
+                    if score < threshold:
+                        print(f"  [SKIP] {game} (score below threshold: {score})")
+                        continue
+                else:
+                    continue
+            else:
+                max_ts = max(score for _, score, _ in ts_results)
+                best_keys = [key for key, score, _ in ts_results if score == max_ts]
+                best_key = max(best_keys, key=lambda k: region_priority(unquote(file_map[k])))
+                pr_score = fuzz.partial_ratio(normed, best_key)
+                score = min(max_ts, pr_score)
+                if score < threshold:
+                    print(f"  [SKIP] {game} (score below threshold: {score})")
+                    continue
+
             href = file_map[best_key]
             download_url = urljoin(url, href)
             matched_title = unquote(href)
@@ -232,6 +278,10 @@ def main():
     with open(txt_path, 'w') as f:
         f.write("\n".join(links))
     print(f"Wrote download links TXT with {len(links)} URLs to {txt_path}")
+
+    if not blacklist_df.empty:
+        blacklist_df.to_csv(blacklist_path, index=False)
+        print(f"Updated blacklist written to {blacklist_path}")
 
     print(f"Summary: {len(rows)} games matched across {len(platforms)} platforms.")
 
