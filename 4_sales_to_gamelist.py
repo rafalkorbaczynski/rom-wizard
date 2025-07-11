@@ -145,6 +145,7 @@ for root_dir, _, files in os.walk(roms_root):
     root = tree.getroot()
     games = root.findall('game')
     total_games += len(games)
+    matched_count = 0
     for game in games:
         for old in game.findall('rating') + game.findall('ratingMax'):
             game.remove(old)
@@ -162,6 +163,7 @@ for root_dir, _, files in os.walk(roms_root):
             best, score = res[0], res[1]
         gs = key_to_sales[best]
         matched_records.append((ds_plat, best))
+        matched_count += 1
         detailed_matches.append({
             'Dataset_Name': key_to_name[best],
             'Sales_Platform': key_to_platform[best],
@@ -175,8 +177,14 @@ for root_dir, _, files in os.walk(roms_root):
 
     out_xml = os.path.join(out_dir, 'gamelist.xml')
     tree.write(out_xml, encoding='utf-8', xml_declaration=True)
-    console_stats[ds_plat] = {'matched_roms': len([r for r in detailed_matches if r['Sales_Platform']==ds_plat]),
-                               'total_roms': len(games)}
+    if ds_plat in console_stats:
+        console_stats[ds_plat]['matched_roms'] += matched_count
+        console_stats[ds_plat]['total_roms'] += len(games)
+    else:
+        console_stats[ds_plat] = {
+            'matched_roms': matched_count,
+            'total_roms': len(games)
+        }
     print(f"  Wrote updated gamelist for {READABLE_NAMES.get(ds_plat, ds_plat)}: {out_xml}")
 
 # ——— Write CSV summaries once ——————————————————————————————————————
