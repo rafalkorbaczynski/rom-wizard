@@ -46,6 +46,8 @@ args.root_dir = os.path.abspath(args.root_dir)
 
 # ——— Helpers for normalization & preferences —————————————————————————
 _ROMAN = {'ix':9,'viii':8,'vii':7,'vi':6,'iv':4,'iii':3,'ii':2,'i':1}
+# compile regex once with longest tokens first for stable matching
+_ROMAN_RE = re.compile(r'\b(' + '|'.join(sorted(_ROMAN, key=len, reverse=True)) + r')\b')
 STOP_WORDS = {'version','special','edition','rev','s','and','the'}
 SEQUEL_TOKENS = set(['part'] + list(_ROMAN.keys()))
 
@@ -59,8 +61,7 @@ def norm(filename):
     s = re.sub(r'[\(\[].*?[\)\]]', '', s)
     s = re.sub(r'^the\s+', '', s)
     s = s.replace('&', ' and ')
-    s = re.sub(r'\b(' + '|'.join(_ROMAN.keys()) + r')\b',
-               lambda m: str(_ROMAN[m.group(1)]), s)
+    s = _ROMAN_RE.sub(lambda m: str(_ROMAN[m.group(1)]), s)
     s = re.sub(r'[^a-z0-9 ]+', ' ', s)
     return re.sub(r'\s+', ' ', s).strip()
 

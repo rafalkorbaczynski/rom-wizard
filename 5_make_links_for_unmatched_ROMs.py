@@ -46,6 +46,7 @@ def setup_tab_completion():
 
 # ——— Title normalization helper ———————————————————————————————————
 _ROMAN = {'ix':9,'viii':8,'vii':7,'vi':6,'iv':4,'iii':3,'ii':2,'i':1}
+_ROMAN_RE = re.compile(r'\b(' + '|'.join(sorted(_ROMAN, key=len, reverse=True)) + r')\b')
 
 def norm(title):
     s = unicodedata.normalize('NFKD', str(title))
@@ -54,8 +55,7 @@ def norm(title):
     s = re.sub(r'[\(\[].*?[\)\]]', '', s)
     s = re.sub(r'^the\s+', '', s)
     s = s.replace('&', ' and ')
-    s = re.sub(r'\b(' + '|'.join(_ROMAN.keys()) + r')\b',
-               lambda m: str(_ROMAN[m.group(1)]), s)
+    s = _ROMAN_RE.sub(lambda m: str(_ROMAN[m.group(1)]), s)
     s = re.sub(r'[^a-z0-9 ]+', ' ', s)
     return re.sub(r'\s+', ' ', s).strip()
 
