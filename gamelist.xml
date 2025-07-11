@@ -1,0 +1,1526 @@
+<?xml version='1.0' encoding='utf-8'?>
+<gameList>
+	<provider>
+		<System>Playstation 2</System>
+		<software>Skraper</software>
+		<database>ScreenScraper.fr</database>
+		<web>http://www.screenscraper.fr</web>
+	</provider>
+	<game id="22198" source="ScreenScraper.fr">
+		<path>./Ace Combat 5 - The Unsung War (USA) (En,Ja).chd</path>
+		<name>Ace Combat 5 : The Unsung War</name>
+		<desc>Ace Combat 5: The Unsung War is a first person air combat and flight simulator. Like other Ace Combat games, each mission is determined by a level briefing and objectives. There are 32 missions in the main campaign mode, while an additional "arcade" mode puts the player in the role of Mobius One (from Ace Combat 04: Shattered Skies) as he faces endless waves of enemy attacks. Regardless of the mode chosen, once in the air the player will have control over speed, direction, altitude, gun cannon, missiles and special weapon of their aircraft. A new feature from previous Ace Combat games, is the concept of Wingmen and being able to issue simple orders to them in the air. This allows the player to better coordinated group attacks as well as giving each wingman a personality of their own. Additionally, the player as squadron leader will be asked to make decisions ("Yes/No") while flying in the air. Between missions, the story is progressed through a series of cutscenes.</desc>
+		<image>./media/box3d/Ace Combat 5 - The Unsung War (USA) (En,Ja).png</image>
+		<video>./media/videos/Ace Combat 5 - The Unsung War (USA) (En,Ja).mp4</video>
+		<marquee>./images/Ace Combat 5 - The Unsung War (USA) (En,Ja)-marquee.png</marquee>
+		<thumbnail>./images/Ace Combat 5 - The Unsung War (USA) (En,Ja)-thumb.png</thumbnail>
+		<manual>./manuals/Ace Combat 5 - The Unsung War (USA) (En,Ja)-manual.pdf</manual>
+		<releasedate>20041025T000000</releasedate>
+		<developer>Project Aces</developer>
+		<publisher>Sony Computer Entertainment</publisher>
+		<genre>Shooter / Plane</genre>
+		<family>Ace Combat</family>
+		<players>1</players>
+		<playcount>1</playcount>
+		<lastplayed>20250404T004628</lastplayed>
+		<crc32>2D94F286</crc32>
+		<gametime>541</gametime>
+		<lang>en,jp</lang>
+		<region>us</region>
+		<genreid>256</genreid>
+		<scrap name="ScreenScraper" date="20250707T223513" />
+		<rating>2.07</rating><ratingMax>100</ratingMax></game>
+	<game id="22715" source="ScreenScraper.fr">
+		<path>./Alien Hominid (Australia) (En,Fr,De,Es,It,Nl).chd</path>
+		<name>Alien Hominid</name>
+		<desc>You're a little yellow alien.  The FBI has shot down your ship while flying over planet Earth.  And it, quite literally, lands right on their doorstep.  After a series of FBI Agents swipe your ship, what option do you have other than to blow up everything in your path to get it back?
+
+Alien Hominid is a 2D side-scrolling shooter with heavy references to the Metal Slug series of games - from the hand-drawn graphics, huge explosions, right down to the ability to eviscerate FBI Agents when you get up close to them.  The graphics are by featured artist Dan Paladin.  Your goal, is quite simply, to get to the end of the stage, and die as little as possible.  Which is made difficult due to the fact that any bullet is an instant kill.</desc>
+		<image>./media/box3d/Alien Hominid (Australia) (En,Fr,De,Es,It,Nl).png</image>
+		<video>./media/videos/Alien Hominid (Australia) (En,Fr,De,Es,It,Nl).mp4</video>
+		<marquee>./images/Alien Hominid (Australia) (En,Fr,De,Es,It,Nl)-marquee.png</marquee>
+		<thumbnail>./images/Alien Hominid (Australia) (En,Fr,De,Es,It,Nl)-thumb.png</thumbnail>
+		<manual>./manuals/Alien Hominid (Australia) (En,Fr,De,Es,It,Nl)-manual.pdf</manual>
+		<releasedate>20050527T000000</releasedate>
+		<developer>The Behemoth</developer>
+		<publisher>Zoo Digital Publishing</publisher>
+		<genre>Shoot'em Up</genre>
+		<family>Alien Hominid</family>
+		<players>2</players>
+		<crc32>73F37571</crc32>
+		<lang>de,en,es,fr,it,nl</lang>
+		<region>eu</region>
+		<genreid>260</genreid>
+		<scrap name="ScreenScraper" date="20250707T223518" />
+		<rating>0.12</rating><ratingMax>100</ratingMax></game>
+	<game id="23157">
+		<path>./Armored Core - Nexus (Disc 1) (Evolution).iso</path>
+		<name>Armored Core : Nexus</name>
+		<desc>Years have passed since the incident at the Silent Line, and with it the collaborative effort began by the Corporations in response to it is long gone. The battle between the Corporations has re-emerged and continues unabated. Now a new Corporation has entered the scene; this Corporation, Navis, while nowhere near the size of the other Corporations, does have a trump card; it has complete control over a brand new and very useful resource, and they do not intend to share. The other Corporations obviously will not sit back and let that stand, so they set up contracts with Ravens through Raven's Ark. Of course, Navis is employing the use of the Ravens as well, and a full-scale conflict seems apparent on the horizon. Once again, you are thrust into the lines of corporate warfare, but does something even more dangerous lie in wait?  It is the sequel to Silent Line: Armored Core.</desc>
+		<video>./videos/Armored Core - Nexus (Disc 1) (Evolution)-video.mp4</video>
+		<marquee>./images/Armored Core - Nexus (Disc 1) (Evolution)-marquee.png</marquee>
+		<thumbnail>./images/Armored Core - Nexus (Disc 1) (Evolution)-thumb.png</thumbnail>
+		<manual>./manuals/Armored Core - Nexus (Disc 1) (Evolution)-manual.pdf</manual>
+		<releasedate>20040928T000000</releasedate>
+		<developer>From Software</developer>
+		<publisher>Agetec</publisher>
+		<genre>Shooter / Vehicle, TPV</genre>
+		<family>Armored Core</family>
+		<players>2</players>
+		<lang>en</lang>
+		<scrap name="ScreenScraper" date="20250707T223524" />
+		<rating>0.31</rating><ratingMax>100</ratingMax></game>
+	<game id="22956">
+		<path>./Armored Core 3.iso</path>
+		<name>Armored Core 3</name>
+		<desc>Armored Core 3 once again puts you in the shoes of a Raven mercinary, with the task of piloting your own battle machine to use in a range of tasks (from destroying other mechs to seek and destroy missions).
+
+After each missions, you are payed in full. The money raised can then go on towards the purchase of items for your mech. Weapon upgrades, better shields, even the opportunity to purchase what's called an Exceed Orbit, smaller robot gun emplacements that hover around your mech, giving you an added boost of fire power in the crunch.
+
+4 player deathmatch modes are also included, where you each pit your supped-up mechs against each other to see who is the last robot standing.</desc>
+		<video>./videos/Armored Core 3-video.mp4</video>
+		<marquee>./images/Armored Core 3-marquee.png</marquee>
+		<thumbnail>./images/Armored Core 3-thumb.png</thumbnail>
+		<manual>./manuals/Armored Core 3-manual.pdf</manual>
+		<releasedate>20020905T000000</releasedate>
+		<developer>From Software</developer>
+		<publisher>Metro3D</publisher>
+		<genre>Shooter / Vehicle, TPV</genre>
+		<family>Armored Core</family>
+		<players>1-4</players>
+		<lang>en</lang>
+		<scrap name="ScreenScraper" date="20250707T223531" />
+		<rating>0.81</rating><ratingMax>100</ratingMax></game>
+	<game id="22022" source="ScreenScraper.fr">
+		<path>./Black (USA).chd</path>
+		<name>Black</name>
+		<desc>Newton's third law is put to the test in Black, a first-person shooter from the development team behind the acclaimed Burnout franchise. Players are cast in the role of Jack Kelar, member of an elite tactical squad, whose team is assigned to Eastern Europe on a hunt for an American traitor. Rather than slinking through environments making quick, covert strikes, players in Black perform a full-on assault through nine levels of explosive action.
+ A total of 13 cutting-edge weapons are available to eliminate the enemy threat, but the most distinguishing aspect of Black is its physics engine: fully destructible environments allow players the freedom to shoot inanimate targets as well as live ones. Instead of firing at a patrol of soldiers, for example, players can instead target nearby vehicles or barrels to trigger explosions, shoot out windows and balconies, and more. As Kelar blasts through the besieged cities, snow-covered wilderness, and other levels, shell casings, glass, dust, and debris will fly across the screen as plumes of smoke and raging fires dot the war-torn landscapes.</desc>
+		<image>./media/box3d/Black (USA).png</image>
+		<video>./media/videos/Black (USA).mp4</video>
+		<marquee>./images/Black (USA)-marquee.png</marquee>
+		<thumbnail>./images/Black (USA)-thumb.png</thumbnail>
+		<manual>./manuals/Black (USA)-manual.pdf</manual>
+		<releasedate>20060228T000000</releasedate>
+		<developer>Criterion Games</developer>
+		<publisher>EA Games</publisher>
+		<genre>Shooter / FPV</genre>
+		<players>1</players>
+		<crc32>04922699</crc32>
+		<lang>en</lang>
+		<region>us</region>
+		<genreid>259</genreid>
+		<scrap name="ScreenScraper" date="20250707T223536" />
+		<rating>1.51</rating><ratingMax>100</ratingMax></game>
+	<game id="22143" source="ScreenScraper.fr">
+		<path>./Breath of Fire - Dragon Quarter (Europe) (En,Fr,De,Es,It).chd</path>
+		<name>Breath of Fire : Dragon Quarter</name>
+		<desc>Breath of Fire: Dragon Quarter is a radical departure from the previous titles of the Breath of Fire series, and in some ways from standard Japanese-style role-playing games in general. The game is built like a huge dungeon crawler, with no overworld map. The combat is tactical: each character has action points (AP), which can be used to move around the screen during an enemy encounter, and perform a variety of combo attacks. There is no magic in the game, and many of the items found in dungeons are random. All the enemies are visible on screen. Depending on who first initiated a physical contact, the party or the enemies get an extra turn in battles.
+
+The game allows (and even encourages) the player to restart it from the beginning, keeping the items and the party experience. The game also features a special counter - Ryu can use his traditional dragon transformation abilities, but the counter raises with each such transformation, and when the counter reaches 100, the game is over. Raising the D-ratio allows characters to access new areas every time the game is replayed.</desc>
+		<image>./media/box3d/Breath of Fire - Dragon Quarter (Europe) (En,Fr,De,Es,It).png</image>
+		<video>./media/videos/Breath of Fire - Dragon Quarter (Europe) (En,Fr,De,Es,It).mp4</video>
+		<marquee>./images/Breath of Fire - Dragon Quarter (Europe) (En,Fr,De,Es,It)-marquee.png</marquee>
+		<thumbnail>./images/Breath of Fire - Dragon Quarter (Europe) (En,Fr,De,Es,It)-thumb.png</thumbnail>
+		<manual>./manuals/Breath of Fire - Dragon Quarter (Europe) (En,Fr,De,Es,It)-manual.pdf</manual>
+		<releasedate>20031128T000000</releasedate>
+		<developer>Capcom</developer>
+		<publisher>Capcom</publisher>
+		<genre>Role Playing Game / Japanese RPG</genre>
+		<family>Breath of Fire</family>
+		<players>1</players>
+		<crc32>437003A4</crc32>
+		<lang>de,en,es,fr,it</lang>
+		<region>eu</region>
+		<genreid>768</genreid>
+		<scrap name="ScreenScraper" date="20250707T223540" />
+		<rating>0.23</rating><ratingMax>100</ratingMax></game>
+	<game id="128846" source="ScreenScraper.fr">
+		<path>./Bully (USA).chd</path>
+		<name>Bully</name>
+		<desc>Bully is a subtle sandbox game set in a school environment. The player takes control of teenage rebel James "Jimmy" Hopkins, who from the opening cutscene is revealed to be a difficult student with a disruptive background. The game concerns the events that follow Jimmy being dropped off at Bullworth Academy, a fictional New England boarding school. The player is free to explore the school campus in the beginning and, later on in the game, the town, or to complete the main missions. The game makes extensive use of minigames. Some are used to earn money, others to improve Jimmy's abilities or get new items.
+
+School classes themselves are done in the form of minigames, broken into five levels of increasing difficulty. Each completed class brings a benefit to gameplay. English, as an example, is a word scramble minigame, and as Jimmy does well in this minigame, he learns various language-skills, such as the ability to apologize to police for small crimes. Chemistry also an example, is a button pushing minigame, and if Jimmy does well, he gains the ability to create firecrackers, stink bombs, and other items at his chemistry set in his room at the dorm.</desc>
+		<image>./media/box3d/Bully (USA).png</image>
+		<video>./media/videos/Bully (USA).mp4</video>
+		<marquee>./images/Bully (USA)-marquee.png</marquee>
+		<thumbnail>./images/Bully (USA)-thumb.png</thumbnail>
+		<manual>./manuals/Bully (USA)-manual.pdf</manual>
+		<releasedate>20061017T000000</releasedate>
+		<developer>Rockstar Games</developer>
+		<publisher>Rockstar Games</publisher>
+		<genre>Adventure / RealTime 3D</genre>
+		<players>1</players>
+		<crc32>37AE493C</crc32>
+		<lang>en</lang>
+		<region>us</region>
+		<genreid>517</genreid>
+		<scrap name="ScreenScraper" date="20250707T223545" />
+		<rating>1.14</rating><ratingMax>100</ratingMax></game>
+	<game id="128768" source="ScreenScraper.fr">
+		<path>./Chou Jikuu Yousai Macross (Japan).chd</path>
+		<name>Chou Jikuu Yousai Macross</name>
+		<desc>The TV campaign consists of 12 missions while the movie campaign has only 8, but with a higher difficulty. The levels follow the original events closely, allowing the player to experience them from the point of view of a Valkyrie pilot of Skull Squadron. In addition to many of the TV characters making an appearance via voice communication, the game introduces new characters in the player's wing mates Eddie Juutilainen and Bruce Rudel and their tactical officer liaison on the Macross, Emma Granger.</desc>
+		<image>./media/box3d/Chou Jikuu Yousai Macross (Japan).png</image>
+		<video>./media/videos/Chou Jikuu Yousai Macross (Japan).mp4</video>
+		<marquee>./images/Chou Jikuu Yousai Macross (Japan)-marquee.png</marquee>
+		<thumbnail>./images/Chou Jikuu Yousai Macross (Japan)-thumb.png</thumbnail>
+		<releasedate>20031023T000000</releasedate>
+		<developer>SEGA AM2</developer>
+		<publisher>Bandai</publisher>
+		<genre>Shooter / TPV</genre>
+		<crc32>2A33D411</crc32>
+		<lang>jp</lang>
+		<region>jp</region>
+		<genreid>256</genreid>
+		<scrap name="ScreenScraper" date="20250707T223549" />
+	</game>
+	<game id="22174" source="ScreenScraper.fr">
+		<path>./Clock Tower 3 (Europe) (En,Fr,De,Es,It).chd</path>
+		<name>Clock Tower 3</name>
+		<desc>Clock Tower 3 is a survival horror action adventure in which you play as Alyssa, a girl approaching her 15th birthday. She is summoned home from boarding school because of a mysterious phone call from her mother. When she arrives, her mother is gone and only a scary stranger is there to greet her. You as Alyssa must pacify the spooky denizens of the house by returning to them items of sentimental value. The game contains action elements but emphasizes exploration and features no weapons to fight enemies with.</desc>
+		<image>./media/box3d/Clock Tower 3 (Europe) (En,Fr,De,Es,It).png</image>
+		<video>./media/videos/Clock Tower 3 (Europe) (En,Fr,De,Es,It).mp4</video>
+		<marquee>./images/Clock Tower 3 (Europe) (En,Fr,De,Es,It)-marquee.png</marquee>
+		<thumbnail>./images/Clock Tower 3 (Europe) (En,Fr,De,Es,It)-thumb.png</thumbnail>
+		<manual>./manuals/Clock Tower 3 (Europe) (En,Fr,De,Es,It)-manual.pdf</manual>
+		<releasedate>20030625T000000</releasedate>
+		<developer>Capcom</developer>
+		<publisher>Capcom</publisher>
+		<genre>Adventure / Survival Horror</genre>
+		<family>Clock Tower</family>
+		<players>1</players>
+		<crc32>D4B03CEA</crc32>
+		<lang>de,en,es,fr,it</lang>
+		<region>eu</region>
+		<genreid>518</genreid>
+		<scrap name="ScreenScraper" date="20250707T223554" />
+		<rating>0.40</rating><ratingMax>100</ratingMax></game>
+	<game id="21914" source="ScreenScraper.fr">
+		<path>./Devil May Cry (Europe) (En,Fr,De,Es,It).chd</path>
+		<name>Devil May Cry</name>
+		<desc>Half Man. Half Demon. Pure Vengeance. Legends tell of two millennia ago, in the darkest reaches of Hell, a demon swordsman named Sparda awoke to justice and a rebelled against the devil to wage a one-man war to save the human world from damnation. Now, 2000 years later, a dark figure named Dante finds clues that the Devil is rallying to rise up again against mankind. Who was Sparda and how does Dante fit into this gothic puzzle? Deep within Dante's blood lies the power of ancient demons and the key to defeat the hordes of the dark realm. Somewhere between a man and a demon lies our only chance for salvation. If he succeeds, even the Devil May Cry.</desc>
+		<image>./media/box3d/Devil May Cry (Europe) (En,Fr,De,Es,It).png</image>
+		<video>./media/videos/Devil May Cry (Europe) (En,Fr,De,Es,It).mp4</video>
+		<marquee>./images/Devil May Cry (Europe) (En,Fr,De,Es,It)-marquee.png</marquee>
+		<thumbnail>./images/Devil May Cry (Europe) (En,Fr,De,Es,It)-thumb.png</thumbnail>
+		<manual>./manuals/Devil May Cry (Europe) (En,Fr,De,Es,It)-manual.pdf</manual>
+		<releasedate>20011207T000000</releasedate>
+		<developer>Capcom</developer>
+		<publisher>Capcom</publisher>
+		<genre>Shooter</genre>
+		<family>Devil May Cry</family>
+		<players>1</players>
+		<crc32>95FD3BE4</crc32>
+		<lang>de,en,es,fr,it</lang>
+		<region>eu</region>
+		<genreid>263</genreid>
+		<scrap name="ScreenScraper" date="20250707T223559" />
+		<rating>3.61</rating><ratingMax>100</ratingMax></game>
+	<game id="22324">
+		<path>./Downhill Domination (Europe) (En,Fr,De,Es,It).iso</path>
+		<name>Downhill Domination</name>
+		<desc>Downhill Domination is a video game based on a fictional racing event with fictional racers mixed with a few unlockable professional racers. The game was released exclusively for the PlayStation 2.
+
+Downhill Domination includes a very different style of gameplay that differs from standard bike racing games by having the character riding downhill almost exclusively (hence the name), due to the incline of the tracks.</desc>
+		<video>./videos/Downhill Domination (Europe) (En,Fr,De,Es,It)-video.mp4</video>
+		<marquee>./images/Downhill Domination (Europe) (En,Fr,De,Es,It)-marquee.png</marquee>
+		<thumbnail>./images/Downhill Domination (Europe) (En,Fr,De,Es,It)-thumb.png</thumbnail>
+		<manual>./manuals/Downhill Domination (Europe) (En,Fr,De,Es,It)-manual.pdf</manual>
+		<releasedate>20040213T000000</releasedate>
+		<developer>Incog</developer>
+		<publisher>Codemasters</publisher>
+		<genre>Sports / Cycling</genre>
+		<players>1-2</players>
+		<lang>de,en,es,fr,it</lang>
+		<region>eu</region>
+		<scrap name="ScreenScraper" date="20250707T223605" />
+		<rating>0.57</rating><ratingMax>100</ratingMax></game>
+	<game id="21882" source="ScreenScraper.fr">
+		<path>./DragonBall Z - Budokai Tenkaichi 3 (Europe, Australia) (En,Ja,Fr,De,Es,It).chd</path>
+		<name>Dragon Ball Z : Budokai Tenkaichi 3</name>
+		<desc>Budokai Tenkaichi 3 is a 1vs1 fighting game based on the anime/manga Dragon Ball by Akira Toriyama. It includes the apocalyptic battles and the essence of the Dragon Ball series following the main story of the popular manga.
+
+This is the third game of the Budokai Tenkaichi series and features some new things like new characters, Battle Replay to capture your fights and save them to a SD card, night and day stages for more accurate battles following the history made by Akira Toriyama and a Disc Fusion to unlock new modes with the need of previously released games Budokai Tenkaichi and Budokai Tenkaichi 2. There are also new combos and movements as well as the possibility to take control of the Giant Apes for the Saiyans.</desc>
+		<image>./media/box3d/DragonBall Z - Budokai Tenkaichi 3 (Europe, Australia) (En,Ja,Fr,De,Es,It).png</image>
+		<video>./media/videos/DragonBall Z - Budokai Tenkaichi 3 (Europe, Australia) (En,Ja,Fr,De,Es,It).mp4</video>
+		<marquee>./images/DragonBall Z - Budokai Tenkaichi 3 (Europe, Australia) (En,Ja,Fr,De,Es,It)-marquee.png</marquee>
+		<thumbnail>./images/DragonBall Z - Budokai Tenkaichi 3 (Europe, Australia) (En,Ja,Fr,De,Es,It)-thumb.png</thumbnail>
+		<manual>./manuals/DragonBall Z - Budokai Tenkaichi 3 (Europe, Australia) (En,Ja,Fr,De,Es,It)-manual.pdf</manual>
+		<releasedate>20070911T000000</releasedate>
+		<developer>Spike Co</developer>
+		<publisher>Bandai</publisher>
+		<genre>Fighting</genre>
+		<family>Dragon Ball</family>
+		<players>1-2</players>
+		<playcount>2</playcount>
+		<lastplayed>20250407T005357</lastplayed>
+		<crc32>3E56125B</crc32>
+		<gametime>914</gametime>
+		<lang>de,en,jp,es,fr,it</lang>
+		<region>eu</region>
+		<genreid>262</genreid>
+		<scrap name="ScreenScraper" date="20250707T223610" />
+		<rating>3.63</rating><ratingMax>100</ratingMax></game>
+	<game id="21997" source="ScreenScraper.fr">
+		<path>./Fatal Frame (USA).chd</path>
+		<name>Fatal Frame</name>
+		<desc>Miku Hinasaki is young girl with a strange sixth sense. Her brother, Mafuyu, and his mentor, Junsei Takamine, went to investigate a mansion that once was inhabited by a powerful landowner who had absolute control over the area. Unfortunately, they never returned from their investigation. Miku enters the mansion, armed with only an antique camera given to her by her deceased mother, to try to find her brother.
+
+While inside the mansion, Miku will encounter ghosts and other spiritual apparitions. In order to overcome these spirits and survive, she must use the magical camera to capture the ghosts on film, thereby trapping them forever. Ghosts range from invisible fragments hidden in scenery, to memories of the past that appear only for a moment before vanishing, to full body apparitions that will attempt to attack and kill Miku.
+
+In order to defeat an aggressive ghost the Camera Obscura's shot must first be "charged" by keeping the ghost centered while it is visible. If Miku snaps a shot while the ghost is attacking or is vulnerable then she will drain even more energy from it, resulting in more spirit points being earned. Points can then be spent to improve her camera's attributes or give it special abilities, like slowing a ghost or pushing it away. The Camera Obscura can also reveal clues and dispel illusions, which Miku will need to utilize to solve puzzles within the mansion.</desc>
+		<image>./media/box3d/Fatal Frame (USA).png</image>
+		<video>./media/videos/Fatal Frame (USA).mp4</video>
+		<marquee>./images/Fatal Frame (USA)-marquee.png</marquee>
+		<thumbnail>./images/Fatal Frame (USA)-thumb.png</thumbnail>
+		<manual>./manuals/Fatal Frame (USA)-manual.pdf</manual>
+		<releasedate>20020227T000000</releasedate>
+		<developer>Tecmo</developer>
+		<publisher>Wanadoo Edition</publisher>
+		<genre>Adventure / Survival Horror</genre>
+		<family>Project Zero / Fatal Frame</family>
+		<players>1</players>
+		<crc32>D4956DA8</crc32>
+		<lang>en</lang>
+		<region>us</region>
+		<genreid>518</genreid>
+		<scrap name="ScreenScraper" date="20250707T223614" />
+		<rating>0.17</rating><ratingMax>100</ratingMax></game>
+	<game id="21878" source="ScreenScraper.fr">
+		<path>./Final Fantasy X (Europe, Australia).chd</path>
+		<name>Final Fantasy X</name>
+		<desc>Square's acclaimed role-playing series makes its PlayStation 2 debut with Final Fantasy X. Players assume the role of Tidus, an athletic teenager who witnessed the destruction of his home city by an evil entity named Sin. While his life was spared, Tidus' contact with Sin opened a portal through time. Some 1,000 years have passed since the encounter, and Tidus now finds himself in a strange land with unfamiliar faces. As Tidus struggles to find a way back home, he will meet a variety of characters, including Yuna, a girl faced with the daunting task of defeating Sin.
+ Final Fantasy X features a number of new features over previous installments. Backgrounds and characters are rendered entirely in 3D, with real-time facial expressions visible on each character. When characters are surprised, for example, they will raise their eyebrows or open their mouths in astonishment. For the first time in the series, dialogue has been recorded using professional voice actors. The U.S. version features voices in English, with optional English subtitles selectable from the menu screen.</desc>
+		<image>./media/box3d/Final Fantasy X (Europe, Australia).png</image>
+		<video>./media/videos/Final Fantasy X (Europe, Australia).mp4</video>
+		<marquee>./images/Final Fantasy X (Europe, Australia)-marquee.png</marquee>
+		<thumbnail>./images/Final Fantasy X (Europe, Australia)-thumb.png</thumbnail>
+		<manual>./manuals/Final Fantasy X (Europe, Australia)-manual.pdf</manual>
+		<releasedate>20020524T000000</releasedate>
+		<developer>Square Enix</developer>
+		<publisher>Sony Computer Entertainment</publisher>
+		<genre>Role Playing Game</genre>
+		<family>Final Fantasy</family>
+		<players>1</players>
+		<crc32>14118B79</crc32>
+		<lang>en</lang>
+		<region>eu</region>
+		<genreid>768</genreid>
+		<scrap name="ScreenScraper" date="20250707T223619" />
+		<rating>9.73</rating><ratingMax>100</ratingMax></game>
+	<game id="22277" source="ScreenScraper.fr">
+		<path>./Forgotten Realms - Demon Stone (Europe) (En,Fr,De,Es,It).chd</path>
+		<name>Forgotten Realms : Demon Stone</name>
+		<desc>Centuries ago two unspeakably evil forces were entrapped in a Demon Stone while battling each other. Now three adventurers happen to meet by chance and discover the Demon Stone just as it breaks and releases the two spirits: a Githyanki general and a Slaad lord. Now only these three can prevent a war that will sweep over all Faerun.
+ Players guide three distinct heroes through the Advanced Dungeons &amp; Dragons lands known as the Forgotten Realms, to correct a mistake and perhaps save the world in the process. By accidentally meddling in an age-old feud between two powerful, demonic hordes, the player's characters have allowed both abysmal armies into our plane of existence. Now the noble characters are honor-bound to make amends, and banish the demons from Faerun once more.</desc>
+		<image>./media/box3d/Forgotten Realms - Demon Stone (Europe) (En,Fr,De,Es,It).png</image>
+		<video>./media/videos/Forgotten Realms - Demon Stone (Europe) (En,Fr,De,Es,It).mp4</video>
+		<marquee>./images/Forgotten Realms - Demon Stone (Europe) (En,Fr,De,Es,It)-marquee.png</marquee>
+		<thumbnail>./images/Forgotten Realms - Demon Stone (Europe) (En,Fr,De,Es,It)-thumb.png</thumbnail>
+		<manual>./manuals/Forgotten Realms - Demon Stone (Europe) (En,Fr,De,Es,It)-manual.pdf</manual>
+		<releasedate>20040924T000000</releasedate>
+		<developer>Stormfront</developer>
+		<publisher>Atari SA</publisher>
+		<genre>Beat'em Up</genre>
+		<family>Dungeons &amp; Dragons</family>
+		<players>1</players>
+		<playcount>1</playcount>
+		<lastplayed>20250403T215731</lastplayed>
+		<crc32>7FD2D14C</crc32>
+		<gametime>488</gametime>
+		<lang>de,en,es,fr,it</lang>
+		<region>eu</region>
+		<genreid>263</genreid>
+		<scrap name="ScreenScraper" date="20250707T223624" />
+		<rating>0.24</rating><ratingMax>100</ratingMax></game>
+	<game id="22061" source="ScreenScraper.fr">
+		<path>./God Hand (Europe) (En,Fr,De,Es,It).chd</path>
+		<name>God Hand</name>
+		<desc>God Hand stars a solemn transient named Gene, an unwitting benefactor of a celestial gift after losing his right arm while trying to save a girl in danger. Upon regaining conscious, Gene realizes his arm has been replaced with the revered God Hand, a limb imbued with untold powers. So begins this unusual Western-themed brawler from the development team behind Okami and the Viewtiful Joe series.
+ Players guide Gene in an epic struggle against demons that covet his arm for their own nefarious purposes. Played from a third-person perspective, God Hand involves punching, kicking, and crushing all manner of demons across a series of environments. Joining Gene in his journeys is the girl he rescued, Olivia, who helps him collect orbs to power-up the mighty God Hand.</desc>
+		<image>./media/box3d/God Hand (Europe) (En,Fr,De,Es,It).png</image>
+		<video>./media/videos/God Hand (Europe) (En,Fr,De,Es,It).mp4</video>
+		<marquee>./images/God Hand (Europe) (En,Fr,De,Es,It)-marquee.png</marquee>
+		<thumbnail>./images/God Hand (Europe) (En,Fr,De,Es,It)-thumb.png</thumbnail>
+		<manual>./manuals/God Hand (Europe) (En,Fr,De,Es,It)-manual.pdf</manual>
+		<releasedate>20070216T000000</releasedate>
+		<developer>Clover</developer>
+		<publisher>Capcom</publisher>
+		<genre>Beat'em Up</genre>
+		<players>1</players>
+		<crc32>5FD24AE1</crc32>
+		<lang>de,en,es,fr,it</lang>
+		<region>eu</region>
+		<genreid>263</genreid>
+		<scrap name="ScreenScraper" date="20250707T223628" />
+		<rating>0.08</rating><ratingMax>100</ratingMax></game>
+	<game id="22764" source="ScreenScraper.fr">
+		<path>./Gradius V (Europe) (En,Fr,De,Es,It).chd</path>
+		<name>Gradius V</name>
+		<desc>Gradius V is a Japanese-developed shoot 'em up video game published by Konami for the Sony PlayStation 2 video game console in 2004. Gradius V was largely developed under contract by Treasure, who had previously worked on Radiant Silvergun and Ikaruga.
+ The game is set predominantly in outer space where players control a fictional spacecraft called Vic Viper through a continuously scrolling background depicting the territories of Bacterian?an evil empire which serves as the player's enemy
+ The soundtrack was composed by Basiscape composer Hitoshi Sakimoto whose previous video game work includes the soundtrack to the tactical role-playing game Final Fantasy Tactics, the shoot'em up Radiant Silvergun and the action/RPG hybrid Vagrant Story</desc>
+		<image>./media/box3d/Gradius V (Europe) (En,Fr,De,Es,It).png</image>
+		<video>./media/videos/Gradius V (Europe) (En,Fr,De,Es,It).mp4</video>
+		<marquee>./images/Gradius V (Europe) (En,Fr,De,Es,It)-marquee.png</marquee>
+		<thumbnail>./images/Gradius V (Europe) (En,Fr,De,Es,It)-thumb.png</thumbnail>
+		<manual>./manuals/Gradius V (Europe) (En,Fr,De,Es,It)-manual.pdf</manual>
+		<releasedate>20041008T000000</releasedate>
+		<developer>Treasure</developer>
+		<publisher>Konami</publisher>
+		<genre>Shoot'em Up</genre>
+		<family>Gradius</family>
+		<players>1-2</players>
+		<crc32>DAB531F4</crc32>
+		<lang>de,en,es,fr,it</lang>
+		<region>eu</region>
+		<genreid>260</genreid>
+		<scrap name="ScreenScraper" date="20250707T223639" />
+		<rating>0.11</rating><ratingMax>100</ratingMax></game>
+	<game id="21877" source="ScreenScraper.fr">
+		<path>./Grand Theft Auto - San Andreas (Europe) (En,Fr,De,Es,It) (v1.03).chd</path>
+		<name>Grand Theft Auto : San Andreas</name>
+		<desc>Grand Theft Auto: San Andreas takes place within the state San Andreas, which is based on sections of California and Nevada. It comprises three major fictional cities: Los Santos corresponds to real-life Los Angeles; San Fierro corresponds to real-life San Francisco; and Las Venturas and the surrounding desert correspond to real-life Las Vegas and the Nevada and Arizona desert.
+
+The game features set co-op scenarios in a free roam mode as well as a cooperative "rampage" gameplay mode.</desc>
+		<image>./media/box3d/Grand Theft Auto - San Andreas (Europe) (En,Fr,De,Es,It) (v1.03).png</image>
+		<video>./media/videos/Grand Theft Auto - San Andreas (Europe) (En,Fr,De,Es,It) (v1.03).mp4</video>
+		<marquee>./images/Grand Theft Auto - San Andreas (Europe) (En,Fr,De,Es,It) (v1.03)-marquee.png</marquee>
+		<thumbnail>./images/Grand Theft Auto - San Andreas (Europe) (En,Fr,De,Es,It) (v1.03)-thumb.png</thumbnail>
+		<manual>./manuals/Grand Theft Auto - San Andreas (Europe) (En,Fr,De,Es,It) (v1.03)-manual.pdf</manual>
+		<releasedate>20041029T000000</releasedate>
+		<developer>Rockstar North</developer>
+		<publisher>Rockstar Games</publisher>
+		<genre>Adventure / RealTime 3D</genre>
+		<family>Grand Theft Auto</family>
+		<players>1-2</players>
+		<playcount>2</playcount>
+		<lastplayed>20250403T220512</lastplayed>
+		<crc32>3BC9BE3B</crc32>
+		<gametime>244</gametime>
+		<lang>de,en,es,fr,it</lang>
+		<region>eu</region>
+		<genreid>517</genreid>
+		<scrap name="ScreenScraper" date="20250707T223644" />
+		<rating>25.15</rating><ratingMax>100</ratingMax></game>
+	<game id="23064" source="ScreenScraper.fr">
+		<path>./Gregory Horror Show (Europe) (En,Fr,De).chd</path>
+		<name>Gregory Horror Show</name>
+		<desc>Based on Upper Deck Entertainment's collectible card game, which in turn is based on a Japanese anime, Gregory Horror Show finds players trapped in a spooky mansion run by an odd-looking caretaker: a mouse with a square head. One dark and dreary night, a weary traveler seeks a night's lodging at the Gregory House, an opulent hotel whose history and d?cor seem to be from another era -- literally. After a chance encounter with Death itself, players soon learn their fate: cast in the role of the hapless traveler, they must collect all of the hotel patrons' souls or be forever lost in an alternate dimension.</desc>
+		<image>./media/box3d/Gregory Horror Show (Europe) (En,Fr,De).png</image>
+		<video>./media/videos/Gregory Horror Show (Europe) (En,Fr,De).mp4</video>
+		<marquee>./images/Gregory Horror Show (Europe) (En,Fr,De)-marquee.png</marquee>
+		<thumbnail>./images/Gregory Horror Show (Europe) (En,Fr,De)-thumb.png</thumbnail>
+		<releasedate>20031205T000000</releasedate>
+		<developer>Capcom</developer>
+		<publisher>Capcom</publisher>
+		<genre>Adventure</genre>
+		<players>1</players>
+		<crc32>79530292</crc32>
+		<lang>de,en,fr</lang>
+		<region>eu</region>
+		<genreid>512</genreid>
+		<scrap name="ScreenScraper" date="20250707T223648" />
+	</game>
+	<game id="22438" source="ScreenScraper.fr">
+		<path>./GrimGrimoire (Europe) (En,Ja).chd</path>
+		<name>GriMgRiMoiRe</name>
+		<desc>GrimGrimoire is the tale of a young magician named Lillet Blan. After getting into a prestigious magic school, Blan wakes up on the fifth day to find all the other students and faculty have disappeared. Blan realizes she is continuously living out her first day of school and must use her memories to solve the mystery and locate all the missing people.
+ In a world where science is replaced by magic, youngsters attend wizardry schools to learn the art of magic, and the most prestigious of them all is the Tower of Silver Star. Only the most gifted, attend this school to learn from Dummel Drusk, the legendary wizard who once defeated the evil overlord that occupied the Tower.
+ The game story opens with Lillet Blan, a student at the Tower of Silver Star is notified about the horrible event that occurred during her 5 days away. She is told that everybody including students and professers were all killed. Now Lillet Blan must investigate the magical tower to uncover what occured during the 5 days she was gone.</desc>
+		<image>./media/box3d/GrimGrimoire (Europe) (En,Ja).png</image>
+		<video>./media/videos/GrimGrimoire (Europe) (En,Ja).mp4</video>
+		<marquee>./images/GrimGrimoire (Europe) (En,Ja)-marquee.png</marquee>
+		<thumbnail>./images/GrimGrimoire (Europe) (En,Ja)-thumb.png</thumbnail>
+		<manual>./manuals/GrimGrimoire (Europe) (En,Ja)-manual.pdf</manual>
+		<releasedate>20070928T000000</releasedate>
+		<developer>Vanillaware</developer>
+		<publisher>Koei</publisher>
+		<genre>Adventure</genre>
+		<players>1</players>
+		<crc32>A4A0B9AF</crc32>
+		<lang>en,jp</lang>
+		<region>eu</region>
+		<genreid>512</genreid>
+		<scrap name="ScreenScraper" date="20250707T223653" />
+		<rating>0.06</rating><ratingMax>100</ratingMax></game>
+	<game id="22084">
+		<path>./Harry Potter and the Half-Blood Prince (USA) (En,Fr,Es,Pt).iso</path>
+		<name>Harry Potter and the Half-Blood Prince</name>
+		<desc>In Harry Potter and the Half-Blood Prince, Voldemort is tightening his grip on both the Muggle and wizarding worlds and Hogwarts is no longer the safe haven it once was. Harry suspects that dangers may even lie within the castle, but Dumbledore is more intent upon preparing him for the final battle that he knows is fast approaching. Together they work to find the key to unlock Voldemort's defenses and, to this end, Dumbledore recruits his old friend and colleague, the well-connected and unsuspecting bon vivant Professor Horace Slughorn, whom he believes holds crucial information. Meanwhile, the students are under attack from a very different adversary as teenage hormones rage across the ramparts. Harry finds himself more and more drawn to Ginny, but so is Dean Thomas. And Lavender Brown has decided that Ron is the one for her, only she hadn't counted on Romilda Vane's chocolates! And then there's Hermione, simmering with jealously but determined not to show her feelings. As romance blossoms, one student remains aloof. He is determined to make his mark, albeit a dark one. Love is in the air, but tragedy lies ahead and Hogwarts may never be the same again. In the game, players will return to Hogwarts to help Harry survive a fraught sixth year. They will also have a chance to engage in exciting wizard duels, mix and brew magical ingredients in Potions class and take to the air to lead the Gryffindor Quidditch team to victory. Players may even get sidetracked by Ron's romantic entanglements as they journey towards a dramatic climax and discover the identity of the Half-Blood Prince.</desc>
+		<video>./videos/Harry Potter and the Half-Blood Prince (USA) (En,Fr,Es,Pt)-video.mp4</video>
+		<marquee>./images/Harry Potter and the Half-Blood Prince (USA) (En,Fr,Es,Pt)-marquee.png</marquee>
+		<thumbnail>./images/Harry Potter and the Half-Blood Prince (USA) (En,Fr,Es,Pt)-thumb.png</thumbnail>
+		<manual>./manuals/Harry Potter and the Half-Blood Prince (USA) (En,Fr,Es,Pt)-manual.pdf</manual>
+		<releasedate>20090630T000000</releasedate>
+		<developer>Electronic Arts</developer>
+		<publisher>EA Games</publisher>
+		<genre>Adventure</genre>
+		<family>Harry Potter</family>
+		<players>2</players>
+		<lang>en,pt,es,fr</lang>
+		<region>us</region>
+		<scrap name="ScreenScraper" date="20250707T223659" />
+		<rating>0.77</rating><ratingMax>100</ratingMax></game>
+	<game id="22033">
+		<path>./Harry Potter and the Order of the Phoenix.iso</path>
+		<name>Harry Potter and the Order of the Phoenix</name>
+		<desc>Gamers may take the role of Harry Potter, Sirius Black, and Professor Dumbledore as they explore the areas in and around Hogwarts. The teachers and officials in the magic community refuse to acknowledge the return of Voldemort, and so Harry and his friends have started training other students how to defend themselves against the Dark arts. Other aspects of gameplay include attending Herbology, Charms, Transfiguration, and Potions classes as well as completing side-missions for professors.
+
+
+
+ Based off the fifth book and movie of the series, players take control of Harry Potter in this 3D adventure as he faces the dangers of his fifth year of Hogwarts, avoiding the malicious Professor Dolores Umbridge, builds Dumbledore's Army, and faces off with Voldemort himself as the prophecy continues to unfold.
+ Players will navigate through the castle of Hogwarts and beyond, learning fifth year spells, solving multiple puzzles, avoiding traps, and even get a chance to play as the Weasley brothers, Sirius Black and Dumbledore himself.</desc>
+		<video>./videos/Harry Potter and the Order of the Phoenix-video.mp4</video>
+		<marquee>./images/Harry Potter and the Order of the Phoenix-marquee.png</marquee>
+		<thumbnail>./images/Harry Potter and the Order of the Phoenix-thumb.png</thumbnail>
+		<manual>./manuals/Harry Potter and the Order of the Phoenix-manual.pdf</manual>
+		<releasedate>20070625T000000</releasedate>
+		<developer>EA Games</developer>
+		<publisher>EA Games</publisher>
+		<genre>Adventure</genre>
+		<family>Harry Potter</family>
+		<players>1</players>
+		<lang>en</lang>
+		<scrap name="ScreenScraper" date="20250707T223705" />
+		<rating>0.33</rating><ratingMax>100</ratingMax></game>
+	<game id="22087" source="ScreenScraper.fr">
+		<path>./Haunting Ground (Europe) (En,Fr,De,Es,It).chd</path>
+		<name>Haunting Ground</name>
+		<desc>In this unusual survival horror adventure from Capcom, players take the role of a true damsel in distress -- and can't count on some handsome Prince Charming to come to the rescue.
+ In Haunting Ground you play as Fiona Belli, a young girl who has lost her memory. She awakens in a basement of a strange castle, and soon learns that a car accident has taken away the lives of her parents. She is told that the has inherited the castle she found herself in. However, the castle inhabitants are, for various reasons, not very happy to see Fiona as the new owner. Soon she realizes that she must fight for her life, and the only creature she can trust is a dog called Hewey, who will be her faithful companion on her perilous adventure.</desc>
+		<image>./media/box3d/Haunting Ground (Europe) (En,Fr,De,Es,It).png</image>
+		<video>./media/videos/Haunting Ground (Europe) (En,Fr,De,Es,It).mp4</video>
+		<marquee>./images/Haunting Ground (Europe) (En,Fr,De,Es,It)-marquee.png</marquee>
+		<thumbnail>./images/Haunting Ground (Europe) (En,Fr,De,Es,It)-thumb.png</thumbnail>
+		<manual>./manuals/Haunting Ground (Europe) (En,Fr,De,Es,It)-manual.pdf</manual>
+		<releasedate>20050429T000000</releasedate>
+		<developer>Capcom</developer>
+		<publisher>Capcom</publisher>
+		<genre>Adventure</genre>
+		<players>1</players>
+		<crc32>E33B7719</crc32>
+		<lang>de,en,es,fr,it</lang>
+		<region>eu</region>
+		<genreid>512</genreid>
+		<scrap name="ScreenScraper" date="20250707T223710" />
+		<rating>0.08</rating><ratingMax>100</ratingMax></game>
+	<game id="21945" source="ScreenScraper.fr">
+		<path>./ICO (Europe) (En,Fr,De,Es,It).chd</path>
+		<name>ICO</name>
+		<desc>A young boy in a magical world has been born with a strange deformity: large horns that jut out of both sides of his head. The people of his village, fearful of retribution from above, feel they have no choice but to sacrifice this mutant child to appease their gods. To that end, they have taken this boy, named Ico, to a massive, supposedly deserted castle and left him in a giant urn. But when the urn breaks, spilling Ico into the bowels of the fortress, he will soon find his adventure is just beginning. Along the way he'll meet a mysterious princess who has been held captive in the castle for untold years. Although they cannot communicate through speech, they soon forge an unspoken bond, and it is clear that if either of them wants to make it out of the castle alive, their destinies must remain intertwined.</desc>
+		<image>./media/box3d/ICO (Europe) (En,Fr,De,Es,It).png</image>
+		<video>./media/videos/ICO (Europe) (En,Fr,De,Es,It).mp4</video>
+		<marquee>./images/ICO (Europe) (En,Fr,De,Es,It)-marquee.png</marquee>
+		<thumbnail>./images/ICO (Europe) (En,Fr,De,Es,It)-thumb.png</thumbnail>
+		<manual>./manuals/ICO (Europe) (En,Fr,De,Es,It)-manual.pdf</manual>
+		<releasedate>20020322T000000</releasedate>
+		<developer>SCE Japan</developer>
+		<publisher>Sony Computer Entertainment</publisher>
+		<genre>Adventure</genre>
+		<players>1-2</players>
+		<crc32>710F2DBB</crc32>
+		<lang>de,en,es,fr,it</lang>
+		<region>eu</region>
+		<genreid>257</genreid>
+		<scrap name="ScreenScraper" date="20250707T223714" />
+		<rating>0.57</rating><ratingMax>100</ratingMax></game>
+	<game id="21945">
+		<path>./Ico (USA).bin</path>
+		<name>ICO</name>
+		<desc>A young boy in a magical world has been born with a strange deformity: large horns that jut out of both sides of his head. The people of his village, fearful of retribution from above, feel they have no choice but to sacrifice this mutant child to appease their gods. To that end, they have taken this boy, named Ico, to a massive, supposedly deserted castle and left him in a giant urn. But when the urn breaks, spilling Ico into the bowels of the fortress, he will soon find his adventure is just beginning. Along the way he'll meet a mysterious princess who has been held captive in the castle for untold years. Although they cannot communicate through speech, they soon forge an unspoken bond, and it is clear that if either of them wants to make it out of the castle alive, their destinies must remain intertwined.</desc>
+		<video>./videos/Ico (USA)-video.mp4</video>
+		<marquee>./images/Ico (USA)-marquee.png</marquee>
+		<thumbnail>./images/Ico (USA)-thumb.png</thumbnail>
+		<manual>./manuals/Ico (USA)-manual.pdf</manual>
+		<releasedate>20010924T000000</releasedate>
+		<developer>SCE Japan</developer>
+		<publisher>Sony Computer Entertainment</publisher>
+		<genre>Adventure</genre>
+		<players>1-2</players>
+		<lang>en</lang>
+		<region>us</region>
+		<scrap name="ScreenScraper" date="20250707T223721" />
+		<rating>0.57</rating><ratingMax>100</ratingMax></game>
+	<game id="22322">
+		<path>./Indiana Jones and the Emperor's Tomb (USA).iso</path>
+		<name>Indiana Jones and the Emperor's Tomb</name>
+		<desc>Globetrotting archaeologist Indiana Jones embarks on another video game adventure with Indiana Jones and the Emperor's Tomb. Unlike the previous Indiana Jones and the Infernal Machine, the game is designed to be more action-oriented with hand-to-hand combat against martial artists and Nazis throughout the streets of Hong Kong and 1935 China. Objects in the environment can also be used as weapons, so Indy can clang heads with a shovel or knock foes back with a chair in addition to using his bullwhip and pistol.</desc>
+		<video>./videos/Indiana Jones and the Emperor's Tomb (USA)-video.mp4</video>
+		<marquee>./images/Indiana Jones and the Emperor's Tomb (USA)-marquee.png</marquee>
+		<thumbnail>./images/Indiana Jones and the Emperor's Tomb (USA)-thumb.png</thumbnail>
+		<manual>./manuals/Indiana Jones and the Emperor's Tomb (USA)-manual.pdf</manual>
+		<releasedate>20030626T000000</releasedate>
+		<developer>The Collective</developer>
+		<publisher>LucasArts</publisher>
+		<genre>Adventure</genre>
+		<family>Indiana Jones</family>
+		<players>1</players>
+		<lang>en</lang>
+		<region>us</region>
+		<scrap name="ScreenScraper" date="20250707T223727" />
+	</game>
+	<game id="21923" source="ScreenScraper.fr">
+		<path>./Jak and Daxter - The Precursor Legacy (USA) (En,Fr,De,Es,It).chd</path>
+		<name>Jak and Daxter: The Precursor Legacy</name>
+		<desc>While Jak is a handsome young hero with big blue eyes and bushy blond hair, his companion Daxter has been transformed into a small weasel-like creature by a strange dark curse. The two heroes set out to seek the forgotten secrets of the Precursors, an ancient race that inhabited the land many ages ago. Only by seeking the wisdom of the ancients can they hope to change Daxter back to his natural form.
+
+The game is designed to provide a large 3D world populated with towns, ruins, and diverse wilderness areas and it does not follow any strict level progression. The storyline is open-ended enough to allow Jak and Daxter to find their own way through the adventure, searching the land, accepting quests, and taking on powerful boss characters in the order the player chooses.</desc>
+		<image>./media/box3d/Jak and Daxter - The Precursor Legacy (USA) (En,Fr,De,Es,It).png</image>
+		<video>./media/videos/Jak and Daxter - The Precursor Legacy (USA) (En,Fr,De,Es,It).mp4</video>
+		<marquee>./images/Jak and Daxter - The Precursor Legacy (USA) (En,Fr,De,Es,It)-marquee.png</marquee>
+		<thumbnail>./images/Jak and Daxter - The Precursor Legacy (USA) (En,Fr,De,Es,It)-thumb.png</thumbnail>
+		<manual>./manuals/Jak and Daxter - The Precursor Legacy (USA) (En,Fr,De,Es,It)-manual.pdf</manual>
+		<releasedate>20011204T000000</releasedate>
+		<developer>Naughty Dog</developer>
+		<publisher>Sony Computer Entertainment</publisher>
+		<genre>Adventure</genre>
+		<family>Jak And Daxter</family>
+		<players>1</players>
+		<crc32>B6267F5B</crc32>
+		<lang>de,en,es,fr,it</lang>
+		<region>us</region>
+		<genreid>257</genreid>
+		<scrap name="ScreenScraper" date="20250707T223732" />
+		<rating>4.40</rating><ratingMax>100</ratingMax></game>
+	<game id="22134">
+		<path>./Just Cause (Europe) (En,Es,It).iso</path>
+		<name>Just Cause</name>
+		<desc>Swedish developer Avalanche Studios' first in-house development project is a 3D action-adventure starring a U.S. operative named Rico Rodriguez. Just Cause has Rodriguez attempting to overthrow a fictitious South American island's regime by instigating a revolution. Players will accomplish this by working with citizens, political factions, rebels, and even drug cartels in a series of explosive operations.
+ In the tradition of games like Grand Theft Auto: San Andreas, Just Cause features a free form world with an estimated 250,000 acres of territory to traverse by plane, car, boat, or in some cases, parachute. Since the island of San Esperito is filled with cities, towns, resorts, jungles, and mountains, players can acquire more than 100 vehicles throughout their tumultuous stay. The main storyline includes over 20 missions with objectives that can be accomplished by any number of means. Hundreds of side and bonus missions are also available for fun or profit, with stunt challenges like parasailing, vehicle leaping, or skydiving part of the itinerary for tropical thrill-seekers.</desc>
+		<video>./videos/Just Cause (Europe) (En,Es,It)-video.mp4</video>
+		<marquee>./images/Just Cause (Europe) (En,Es,It)-marquee.png</marquee>
+		<thumbnail>./images/Just Cause (Europe) (En,Es,It)-thumb.png</thumbnail>
+		<manual>./manuals/Just Cause (Europe) (En,Es,It)-manual.pdf</manual>
+		<releasedate>20060922T000000</releasedate>
+		<developer>Avalanche Studios</developer>
+		<publisher>Eidos Interactive</publisher>
+		<genre>Shooter / TPV</genre>
+		<family>Just Cause</family>
+		<players>1</players>
+		<lang>en,es,it</lang>
+		<region>eu</region>
+		<scrap name="ScreenScraper" date="20250707T223738" />
+		<rating>0.02</rating><ratingMax>100</ratingMax></game>
+	<game id="22736" source="ScreenScraper.fr">
+		<path>./Katamari Damacy (USA).chd</path>
+		<name>Katamari Damacy</name>
+		<desc>The King of All Cosmos accidentally destroyed the stars and (having recovered) wants the prince to rebuild them. Unfortunately the prince stands a little less than half a foot tall, so recreating the stars will require some effort. Enter the Katamari, a sphere the prince can push around our world to “roll up” items increasing the Katamari's size until it's suitable for the King.
+
+Taking place in stylized versions of Japanese houses, cities, and environs, the prince pushes the Katamari around collecting items which adhere to it. At first, the prince can only pick up smaller items, but as the Katamari grows, the more it can collect. Push pins and paper clips cling to the Katamari increasing its size so it can roll over obstacles and pick up bigger items. Over many levels, the Katamari can eventually pick up people, cars, and other bigger items.</desc>
+		<image>./media/box3d/Katamari Damacy (USA).png</image>
+		<video>./media/videos/Katamari Damacy (USA).mp4</video>
+		<marquee>./images/Katamari Damacy (USA)-marquee.png</marquee>
+		<thumbnail>./images/Katamari Damacy (USA)-thumb.png</thumbnail>
+		<manual>./manuals/Katamari Damacy (USA)-manual.pdf</manual>
+		<releasedate>20040922T000000</releasedate>
+		<developer>Namco</developer>
+		<publisher>Namco</publisher>
+		<genre>Adventure</genre>
+		<players>2</players>
+		<crc32>6164C920</crc32>
+		<lang>en</lang>
+		<region>us</region>
+		<genreid>512</genreid>
+		<scrap name="ScreenScraper" date="20250707T223742" />
+		<rating>0.88</rating><ratingMax>100</ratingMax></game>
+	<game id="21883" source="ScreenScraper.fr">
+		<path>./Kingdom Hearts (Europe).chd</path>
+		<name>Kingdom Hearts</name>
+		<desc>Created with the support of two multimedia entertainment powerhouses, Kingdom Hearts provides a new adventure with some familiar faces. This 3D action-oriented role-playing title from developers at Square features popular Disney characters like Donald Duck and Goofy adventuring alongside more conventional Final Fantasy-styled heroes.
+ Tetsuya Nomura, who designed several of the characters in earlier Final Fantasy titles, supervised this game's development. In addition to the well-established Donald and Goofy, Kingdom Hearts introduces several new characters to the Disney universe.</desc>
+		<image>./media/box3d/Kingdom Hearts (Europe).png</image>
+		<video>./media/videos/Kingdom Hearts (Europe).mp4</video>
+		<marquee>./images/Kingdom Hearts (Europe)-marquee.png</marquee>
+		<thumbnail>./images/Kingdom Hearts (Europe)-thumb.png</thumbnail>
+		<manual>./manuals/Kingdom Hearts (Europe)-manual.pdf</manual>
+		<releasedate>20021115T000000</releasedate>
+		<developer>Squaresoft</developer>
+		<publisher>Sony Computer Entertainment</publisher>
+		<genre>Role Playing Game</genre>
+		<family>Kingdom Hearts</family>
+		<players>1</players>
+		<crc32>AB50F9C9</crc32>
+		<lang>en</lang>
+		<region>eu</region>
+		<genreid>768</genreid>
+		<scrap name="ScreenScraper" date="20250707T223747" />
+		<rating>7.74</rating><ratingMax>100</ratingMax></game>
+	<game id="22356">
+		<path>./Klonoa 2 - Lunatea's Veil (Europe) (En,Fr,De,Es,It).iso</path>
+		<name>Klonoa 2 : Lunatea's Veil</name>
+		<desc>Fans of the original Klonoa for the PS can set forth in a new adventure on a new system with this release of Klonoa 2: Lunatea's Veil. The endearing long-eared feline hero and the style of play introduced in his first adventure have been updated to make use of the enhanced processing power and graphical capabilities of Sony's 128-bit PlayStation 2 console. Billed as a "3D dramatic action" game, this second release follows the lead of the original by offering action-oriented gameplay accented with cut-scenes and interludes that add atmosphere and advance the storyline.</desc>
+		<video>./videos/Klonoa 2 - Lunatea's Veil (Europe) (En,Fr,De,Es,It)-video.mp4</video>
+		<marquee>./images/Klonoa 2 - Lunatea's Veil (Europe) (En,Fr,De,Es,It)-marquee.png</marquee>
+		<thumbnail>./images/Klonoa 2 - Lunatea's Veil (Europe) (En,Fr,De,Es,It)-thumb.png</thumbnail>
+		<manual>./manuals/Klonoa 2 - Lunatea's Veil (Europe) (En,Fr,De,Es,It)-manual.pdf</manual>
+		<releasedate>20011109T000000</releasedate>
+		<developer>Namco</developer>
+		<publisher>Namco</publisher>
+		<genre>Platform</genre>
+		<family>Klonoa</family>
+		<players>1</players>
+		<favorite>true</favorite>
+		<playcount>3</playcount>
+		<lastplayed>20250420T204337</lastplayed>
+		<gametime>169437</gametime>
+		<lang>de,en,es,fr,it</lang>
+		<region>eu</region>
+		<scrap name="ScreenScraper" date="20250707T223752" />
+		<rating>0.40</rating><ratingMax>100</ratingMax></game>
+	<game id="23163">
+		<path>./LEGO Racers 2 (Europe) (En,Fr,De,Es,It,Nl,Sv,Da).bin</path>
+		<name>LEGO Racers 2</name>
+		<desc>Like 1999's original LEGO Racers, this sequel challenges players to build the ultimate miniature go-kart from a large supply of virtual LEGO building blocks, then race the speed machine to victory around a variety of tracks. Familiar characters, such as Rocket Racer, return in this title to make sure each first-place finish is well earned. LEGO Racers 2 also offers new features, such as the hidden Golden Bricks that allow players to progress through the game.
+
+ Sporting a shiny new graphics engine, new power ups and a great car and driver builder, Lego Rac ers 2 promises racing adventure in true LEGO style. The drivers and racers look and react more like real LEGOs than ever before--in a crash, they break into individual LEGO bricks. The scenery is equally responsive; you will see trees explode on impact and more. It is intense!</desc>
+		<video>./videos/LEGO Racers 2 (Europe) (En,Fr,De,Es,It,Nl,Sv,Da)-video.mp4</video>
+		<marquee>./images/LEGO Racers 2 (Europe) (En,Fr,De,Es,It,Nl,Sv,Da)-marquee.png</marquee>
+		<thumbnail>./images/LEGO Racers 2 (Europe) (En,Fr,De,Es,It,Nl,Sv,Da)-thumb.png</thumbnail>
+		<releasedate>20011019T000000</releasedate>
+		<developer>Attention To Detail</developer>
+		<publisher>Lego Media</publisher>
+		<genre>Racing, Driving</genre>
+		<family>LEGO</family>
+		<players>1-2</players>
+		<playcount>2</playcount>
+		<lastplayed>20250418T213820</lastplayed>
+		<gametime>167</gametime>
+		<lang>de,en,es,fr,it,nl</lang>
+		<region>eu</region>
+		<scrap name="ScreenScraper" date="20250707T223757" />
+		<rating>0.16</rating><ratingMax>100</ratingMax></game>
+	<game id="22060" source="ScreenScraper.fr">
+		<path>./Manhunt (USA).chd</path>
+		<name>Manhunt</name>
+		<desc>Manhunt is a third-person stealth horror game. The game consists of twenty levels, and four bonus levels that can be unlocked; the levels are referred to as "scenes". Players survive the Scenes by dispatching enemy gang members known as "Hunters", occasionally with firearms but primarily by stealthily executing them in gruesome, over-the-top ways.
+
+The player is rated at the end of each level, primarily dependent on the gruesomeness of the killings and the speed of completion, from one (unimpressive) to five (extremely competent) stars. Executions are preferred in order to gain a higher score, thus encouraging players to play as viscerally as possible. The game's locales are full of "dark spots" and shadows where the player can hide while being chased by the Hunters; hiding in these dark areas makes the player invisible to opponents.</desc>
+		<image>./media/box3d/Manhunt (USA).png</image>
+		<video>./media/videos/Manhunt (USA).mp4</video>
+		<marquee>./images/Manhunt (USA)-marquee.png</marquee>
+		<thumbnail>./images/Manhunt (USA)-thumb.png</thumbnail>
+		<manual>./manuals/Manhunt (USA)-manual.pdf</manual>
+		<releasedate>20031118T000000</releasedate>
+		<developer>Rockstar North</developer>
+		<publisher>Rockstar Games</publisher>
+		<genre>Adventure</genre>
+		<players>1</players>
+		<crc32>AF0662FE</crc32>
+		<lang>en</lang>
+		<region>us</region>
+		<genreid>512</genreid>
+		<scrap name="ScreenScraper" date="20250707T223801" />
+		<rating>1.55</rating><ratingMax>100</ratingMax></game>
+	<game id="22257" source="ScreenScraper.fr">
+		<path>./Maximo - Ghosts to Glory (USA).chd</path>
+		<name>Maximo : Ghosts to Glory</name>
+		<desc>The game is based in the Ghosts'n Goblins universe and features original character designs by Japanese illustrator Susumu Matsushita.
+
+The character is controlled by the player and can move freely within areas by running, jumping, crouching, and performing other various motions. Gameplay revolves around defeating large numbers of enemies, which can be accomplished by attacking with a sword and shield and combos and special moves. Maximo fights wearing armor, if he is hit, he will lose corresponding pieces of armor and eventually be reduced to wearing his boxer shorts, with another hit resulting in him losing a life. If Maximo loses all his lives, he can continue by giving Death Coins to the Grim Reaper. However, every time he loses all his lives, the required cost for a continue increases.</desc>
+		<image>./media/box3d/Maximo - Ghosts to Glory (USA).png</image>
+		<video>./media/videos/Maximo - Ghosts to Glory (USA).mp4</video>
+		<marquee>./images/Maximo - Ghosts to Glory (USA)-marquee.png</marquee>
+		<thumbnail>./images/Maximo - Ghosts to Glory (USA)-thumb.png</thumbnail>
+		<manual>./manuals/Maximo - Ghosts to Glory (USA)-manual.pdf</manual>
+		<releasedate>20020213T000000</releasedate>
+		<developer>Capcom</developer>
+		<publisher>Capcom</publisher>
+		<genre>Platform</genre>
+		<players>1</players>
+		<crc32>A3AF2BAC</crc32>
+		<lang>en</lang>
+		<region>us</region>
+		<genreid>257</genreid>
+		<scrap name="ScreenScraper" date="20250707T223806" />
+		<rating>0.93</rating><ratingMax>100</ratingMax></game>
+	<game id="21892" source="ScreenScraper.fr">
+		<path>./Metal Gear Solid 3 - Snake Eater (Europe, Australia) (En,Fr).chd</path>
+		<name>Metal Gear Solid 3 : Snake Eater</name>
+		<desc>Hideo Kojima's critically acclaimed "tactical espionage action" series returns to PlayStation 2 in the anticipated follow-up to 2001's Sons of Liberty. Instead of slinking around futuristic installations, knocking on metal to distract guards, or crawling underneath a cardboard box, players are given a whole new Snake to wrangle. Drawing its inspiration from films like First Blood and Rambo: First Blood Part II, Snake Eater drops players in the middle of a thick jungle teeming with wildlife and, of course, terrorists.
+ Heavily armed enemies dressed in camouflage gear will patrol the dense forests, waterfalls, and surrounding areas, so players will be able to climb trees, fire pistols while hanging down from branches, and crawl through hollowed out logs to stalk their prey. Along the way, Snake will have to find sustenance by catching fish or other wildlife, while being mindful of natural hazards such hornets nests, cliffs, and rapids. Metal Gear Solid 3: Snake Eater was first revealed in a 12-minute preview displayed at 2003's E3 in Los Angeles, California.</desc>
+		<image>./media/box3d/Metal Gear Solid 3 - Snake Eater (Europe, Australia) (En,Fr).png</image>
+		<video>./media/videos/Metal Gear Solid 3 - Snake Eater (Europe, Australia) (En,Fr).mp4</video>
+		<marquee>./images/Metal Gear Solid 3 - Snake Eater (Europe, Australia) (En,Fr)-marquee.png</marquee>
+		<thumbnail>./images/Metal Gear Solid 3 - Snake Eater (Europe, Australia) (En,Fr)-thumb.png</thumbnail>
+		<manual>./manuals/Metal Gear Solid 3 - Snake Eater (Europe, Australia) (En,Fr)-manual.pdf</manual>
+		<releasedate>20050304T000000</releasedate>
+		<developer>Konami</developer>
+		<publisher>Konami</publisher>
+		<genre>Adventure</genre>
+		<family>Metal Gear</family>
+		<players>1</players>
+		<crc32>4AD36255</crc32>
+		<lang>en,fr</lang>
+		<region>eu</region>
+		<genreid>512</genreid>
+		<scrap name="ScreenScraper" date="20250707T223810" />
+		<rating>5.11</rating><ratingMax>100</ratingMax></game>
+	<game id="22790" source="ScreenScraper.fr">
+		<path>./Mister Mosquito (USA).chd</path>
+		<name>Mister Mosquito</name>
+		<desc>In Mister Mosquito, players enter the virtual household of the Yamada family in the role of a tiny, uninvited guest. According to the game's introduction, the title character needs to drink as much blood as he can to be ready for winter, but his suburban hosts are not the most willing donors. In fact, the Yamada family members would like nothing better than to swat him out of existence, once and for all. The rules for survival quickly become clear: Keep hidden, don't get squashed, and watch as the family's frustration level grows.</desc>
+		<image>./media/box3d/Mister Mosquito (USA).png</image>
+		<video>./media/videos/Mister Mosquito (USA).mp4</video>
+		<marquee>./images/Mister Mosquito (USA)-marquee.png</marquee>
+		<thumbnail>./images/Mister Mosquito (USA)-thumb.png</thumbnail>
+		<manual>./manuals/Mister Mosquito (USA)-manual.pdf</manual>
+		<releasedate>20020312T000000</releasedate>
+		<developer>Zoom</developer>
+		<publisher>Eidos Interactive</publisher>
+		<genre>Simulation</genre>
+		<players>1</players>
+		<crc32>B5952D88</crc32>
+		<lang>en</lang>
+		<region>us</region>
+		<genreid>257</genreid>
+		<scrap name="ScreenScraper" date="20250707T223815" />
+		<rating>0.34</rating><ratingMax>100</ratingMax></game>
+	<game id="22269" source="ScreenScraper.fr">
+		<path>./Musashi - Samurai Legend (Europe) (En,Fr,De,Es,It).chd</path>
+		<name>Musashi : Samurai Legend</name>
+		<desc>Musashi Samurai Legend marks the second chapter in the Musashi series. You'll play as Musashi, a young swordsman summoned to rescue a kidnapped princess. The journey, however, is a difficult one, as enemies of all types stand in your way. To survive the onslaught of foes, you must learn your opponents' techniques and use their attacks against them. Some techniques let you attack multiple enemies at once. Musashi Samurai Legend immerses you in a comic book-style adventure by combining Japanese animation with dialogue balloons.</desc>
+		<image>./media/box3d/Musashi - Samurai Legend (Europe) (En,Fr,De,Es,It).png</image>
+		<video>./media/videos/Musashi - Samurai Legend (Europe) (En,Fr,De,Es,It).mp4</video>
+		<marquee>./images/Musashi - Samurai Legend (Europe) (En,Fr,De,Es,It)-marquee.png</marquee>
+		<thumbnail>./images/Musashi - Samurai Legend (Europe) (En,Fr,De,Es,It)-thumb.png</thumbnail>
+		<manual>./manuals/Musashi - Samurai Legend (Europe) (En,Fr,De,Es,It)-manual.pdf</manual>
+		<releasedate>20050909T000000</releasedate>
+		<developer>Square Enix</developer>
+		<publisher>Atari SA</publisher>
+		<genre>Role Playing Game / Action RPG</genre>
+		<players>1</players>
+		<crc32>D6BEB4D0</crc32>
+		<lang>de,en,es,fr,it</lang>
+		<region>eu</region>
+		<genreid>768</genreid>
+		<scrap name="ScreenScraper" date="20250707T223819" />
+		<rating>0.18</rating><ratingMax>100</ratingMax></game>
+	<game id="22014" source="ScreenScraper.fr">
+		<path>./Odin Sphere (Europe) (En,Ja,Fr,De,Es,It).chd</path>
+		<name>Odin Sphere</name>
+		<desc>The nations of Erion had always held an uneasy peace, as the various kings and queens watched each other for any signs of weakness. When the country of Valentine is obliterated by the power of an ancient artifact, it sparks a bloody war between the fairies of Ringford and the warriors of Ragnanival. Little do they know that they are acting out an almost-forgotten prophecy: one that, if fulfilled, will lead to the destruction of the entire world. Take control of the warrior princess Gwendolyn, daughter of Odin, and follow the threads of an intricately woven story as you uncover the truth behind the prophecy - and how to bring it to an end. Five playable characters in all; each one's fate is intertwined with the others'. A robust cooking and alchemy system that can be used to create powerful attack and recovery items.</desc>
+		<image>./media/box3d/Odin Sphere (Europe) (En,Ja,Fr,De,Es,It).png</image>
+		<video>./media/videos/Odin Sphere (Europe) (En,Ja,Fr,De,Es,It).mp4</video>
+		<marquee>./images/Odin Sphere (Europe) (En,Ja,Fr,De,Es,It)-marquee.png</marquee>
+		<thumbnail>./images/Odin Sphere (Europe) (En,Ja,Fr,De,Es,It)-thumb.png</thumbnail>
+		<manual>./manuals/Odin Sphere (Europe) (En,Ja,Fr,De,Es,It)-manual.pdf</manual>
+		<releasedate>20080314T000000</releasedate>
+		<developer>Vanillaware</developer>
+		<publisher>Atlus</publisher>
+		<genre>Role Playing Game / Action RPG</genre>
+		<players>1</players>
+		<crc32>D3B1A08F</crc32>
+		<lang>de,en,jp,es,fr,it</lang>
+		<region>eu</region>
+		<genreid>768</genreid>
+		<scrap name="ScreenScraper" date="20250707T223824" />
+		<rating>0.68</rating><ratingMax>100</ratingMax></game>
+	<game id="21917" source="ScreenScraper.fr">
+		<path>./Okami (Europe) (En,Fr,De).chd</path>
+		<name>Okami</name>
+		<desc>The game is set in a Nippon (Japan) based on Japanese folklore, and begins with a flashback to events 100 years prior to the game's present; the narrator describes how Shiranui, a pure white wolf, and Nagi, a swordsman, together fought the eight-headed demon Orochi to save Kamiki Village and the maiden Nami, Nagi's beloved. Shiranui and Nagi are unable to defeat Orochi, but manage to seal the demon away.
+ In the game's present, Susano, a descendant of Nagi and self-proclaimed greatest warrior, breaks Orochi's seal due to the fact that he does not believe in the legend and wants to prove it false; Orochi escapes and curses the lands, sapping the life from every living being. Sakuya, the wood sprite and guardian of Kamiki Village, calls forth Amaterasu, the sun goddess, known to the villagers as the reincarnation of the white wolf Shiranui, and pleads for her to remove the curse that covers the land. Accompanied by the artist Issun (an inch-high creature known as a Poncle), Amaterasu is able to restore the land to its former beauty.</desc>
+		<image>./media/box3d/Okami (Europe) (En,Fr,De).png</image>
+		<video>./media/videos/Okami (Europe) (En,Fr,De).mp4</video>
+		<marquee>./images/Okami (Europe) (En,Fr,De)-marquee.png</marquee>
+		<thumbnail>./images/Okami (Europe) (En,Fr,De)-thumb.png</thumbnail>
+		<manual>./manuals/Okami (Europe) (En,Fr,De)-manual.pdf</manual>
+		<releasedate>20070209T000000</releasedate>
+		<developer>Clover</developer>
+		<publisher>Capcom</publisher>
+		<genre>Platform</genre>
+		<players>1</players>
+		<crc32>2261B49D</crc32>
+		<lang>de,en,fr</lang>
+		<region>eu</region>
+		<genreid>257</genreid>
+		<scrap name="ScreenScraper" date="20250707T223828" />
+		<rating>0.76</rating><ratingMax>100</ratingMax></game>
+	<game id="22049" source="ScreenScraper.fr">
+		<path>./Onimusha - Warlords (USA) (En,Ja).chd</path>
+		<name>Onimusha : Warlords</name>
+		<desc>Onimusha: Warlords is set in 16th century Japan during the period of the civil war dominated by Nobunaga Oda. You play Samanosuke Akechi, who dies during an attempt to stop the kidnapping of young princess Yuki, the sister to Yoshitatsu Saito. However, Akechi is given another chance at life, and is handed the gauntlet of the Ogres.
+
+With this new power Samanosuke must fight through the monster-filled halls of Inabayama Castle. As monsters are defeated, their souls are absorbed by the gauntlet, increasing its power. Some souls restore Samanosuke's health and magic, while others can be used to power up weapons, armor, and items. Powering up weapons will increase their damage and the strength of their associated magic, and is also required to pass by special locks throughout the castle. Sometimes the player will take control of Kaede who can reach some locations that are beyond Samanosuke as well as pick locks and throw kunai, but she can not absorb souls or open any lock intended for the wearer of the Ogre gauntlet.</desc>
+		<image>./media/box3d/Onimusha - Warlords (USA) (En,Ja).png</image>
+		<video>./media/videos/Onimusha - Warlords (USA) (En,Ja).mp4</video>
+		<marquee>./images/Onimusha - Warlords (USA) (En,Ja)-marquee.png</marquee>
+		<thumbnail>./images/Onimusha - Warlords (USA) (En,Ja)-thumb.png</thumbnail>
+		<manual>./manuals/Onimusha - Warlords (USA) (En,Ja)-manual.pdf</manual>
+		<releasedate>20010313T000000</releasedate>
+		<developer>Capcom</developer>
+		<publisher>Capcom</publisher>
+		<genre>Adventure</genre>
+		<family>Onimusha</family>
+		<players>1</players>
+		<crc32>37F9FC6A</crc32>
+		<lang>en,jp</lang>
+		<region>us</region>
+		<genreid>263</genreid>
+		<scrap name="ScreenScraper" date="20250707T223833" />
+		<rating>3.26</rating><ratingMax>100</ratingMax></game>
+	<game id="21932" source="ScreenScraper.fr">
+		<path>./Persona 4 (Europe).chd</path>
+		<name>Persona 4</name>
+		<desc>Shortly after an urban youth begins a year-long stay in the countryside town of Inaba, the rural town's peace is shattered by a horrific murder that leaves no clues or suspects. As the lone incident develops into a series of bizarre crimes, he discovers that only he and his friends have the power to solve the baffling case, bring those responsible to justice, and restore harmony to his new home.</desc>
+		<image>./media/box3d/Persona 4 (Europe).png</image>
+		<video>./media/videos/Persona 4 (Europe).mp4</video>
+		<marquee>./images/Persona 4 (Europe)-marquee.png</marquee>
+		<thumbnail>./images/Persona 4 (Europe)-thumb.png</thumbnail>
+		<manual>./manuals/Persona 4 (Europe)-manual.pdf</manual>
+		<releasedate>20081209T000000</releasedate>
+		<developer>Square Enix</developer>
+		<publisher>Atlus</publisher>
+		<genre>Role Playing Game</genre>
+		<family>Persona</family>
+		<players>1</players>
+		<crc32>C8E334C1</crc32>
+		<lang>en</lang>
+		<region>eu</region>
+		<genreid>768</genreid>
+		<scrap name="ScreenScraper" date="20250707T223838" />
+		<rating>0.99</rating><ratingMax>100</ratingMax></game>
+	<game id="21927">
+		<path>./Prince of Persia - The Sands of Time (Europe) (En,Fr,De,Es,It).iso</path>
+		<name>Prince of Persia : The Sands of Time</name>
+		<desc>Embark on a journey of scorched sands and ancient legends. A young prince, drawn to the dark powers of a magic dagger, unleashes a deadly evil upon a beautiful kingdom. Guide the Prince on his quest to reverse the curse by using the Sands of Time, a power which allows you to erase the past, see into the future and slow down the present. Perform gravity-defying acrobatics and swashbuckling attacks in a staggering array of landscapes and kingdoms. Restore peace to the land and fulfill your destiny.</desc>
+		<video>./videos/Prince of Persia - The Sands of Time (Europe) (En,Fr,De,Es,It)-video.mp4</video>
+		<marquee>./images/Prince of Persia - The Sands of Time (Europe) (En,Fr,De,Es,It)-marquee.png</marquee>
+		<thumbnail>./images/Prince of Persia - The Sands of Time (Europe) (En,Fr,De,Es,It)-thumb.png</thumbnail>
+		<manual>./manuals/Prince of Persia - The Sands of Time (Europe) (En,Fr,De,Es,It)-manual.pdf</manual>
+		<releasedate>20031121T000000</releasedate>
+		<developer>Ubisoft</developer>
+		<publisher>Ubisoft</publisher>
+		<genre>Adventure</genre>
+		<family>Prince of Persia</family>
+		<players>1</players>
+		<lang>de,en,es,fr,it</lang>
+		<region>eu</region>
+		<scrap name="ScreenScraper" date="20250707T223843" />
+		<rating>2.68</rating><ratingMax>100</ratingMax></game>
+	<game id="22221" source="ScreenScraper.fr">
+		<path>./Psychonauts (Europe) (En,Fr,De,Es,It).chd</path>
+		<name>Psychonauts</name>
+		<desc>Psychonauts is a 3D platform game starring a gifted young psychic named Raz as he attends school to become a member of a top-secret intelligence organization. As part of his academic "studies," Raz must enter classmates' minds to solve their problems, ranging from childhood trauma to borderline personality disorders. Accomplishing these feats involves using the character's unusual talents to manipulate the strange worlds created by the subject's mind.
+ Raz literally walks through an individual's fears, delusions, and rage to solve various object-oriented puzzles and to eliminate potential threats. The human brain guards itself against foreigners poking around the subconscious and will manufacture enemies and barriers to stop Raz before he can resolve whatever psychological ailment is plaguing the host. Among the special powers Raz can call upon are invisibility, confusion, mind control, psychic blasts, and telekinesis.</desc>
+		<image>./media/box3d/Psychonauts (Europe) (En,Fr,De,Es,It).png</image>
+		<video>./media/videos/Psychonauts (Europe) (En,Fr,De,Es,It).mp4</video>
+		<marquee>./images/Psychonauts (Europe) (En,Fr,De,Es,It)-marquee.png</marquee>
+		<thumbnail>./images/Psychonauts (Europe) (En,Fr,De,Es,It)-thumb.png</thumbnail>
+		<manual>./manuals/Psychonauts (Europe) (En,Fr,De,Es,It)-manual.pdf</manual>
+		<releasedate>20060210T000000</releasedate>
+		<developer>THQ</developer>
+		<publisher>Double Fine Productions</publisher>
+		<genre>Platform</genre>
+		<players>1</players>
+		<crc32>F8B92766</crc32>
+		<lang>de,en,es,fr,it</lang>
+		<region>eu</region>
+		<genreid>257</genreid>
+		<scrap name="ScreenScraper" date="20250707T223848" />
+		<rating>0.11</rating><ratingMax>100</ratingMax></game>
+	<game id="22574" source="ScreenScraper.fr">
+		<path>./R-Type Final (USA).chd</path>
+		<name>R-Type Final</name>
+		<desc>Inspired by the arcade's 1987 side-scrolling shooter, this 3D PS2 version of R-Type places players in control of a well-armed, side-scrolling spaceship for some old fashioned blast-away combat action. R-Type Final is designed to bring on the tense, fast-paced feel of the original coin-op game while adding console-friendly features such as customizable ships, multiple difficulty settings, and a mode that allows player to battle against AI-controlled versions of their own ships. Following the four games it introduced stateside in 2002, Fresh Games publishes R-Type Final in the U.S. and Canada, returning to its strategy of bringing distinct Japanese console games to North American gamers.
+ In R-Type Final, your enemy is the Bydo, an evil (and living) weapon capable of reproducing itself. Humanity has fought the Bydo four times so far, and each time was victorious. However, each time the Bydo appears it is stronger than before, and now it's back and you need to destroy it again!</desc>
+		<image>./media/box3d/R-Type Final (USA).png</image>
+		<video>./media/videos/R-Type Final (USA).mp4</video>
+		<marquee>./images/R-Type Final (USA)-marquee.png</marquee>
+		<thumbnail>./images/R-Type Final (USA)-thumb.png</thumbnail>
+		<manual>./manuals/R-Type Final (USA)-manual.pdf</manual>
+		<releasedate>20040203T000000</releasedate>
+		<developer>Irem</developer>
+		<publisher>Metro 3D</publisher>
+		<genre>Shoot'em Up / Horizontal</genre>
+		<family>R-Type</family>
+		<players>1</players>
+		<favorite>true</favorite>
+		<playcount>3</playcount>
+		<lastplayed>20250523T200647</lastplayed>
+		<crc32>8CFA05B3</crc32>
+		<gametime>10465</gametime>
+		<lang>en</lang>
+		<region>us</region>
+		<genreid>260</genreid>
+		<scrap name="ScreenScraper" date="20250707T223852" />
+		<rating>0.23</rating><ratingMax>100</ratingMax></game>
+	<game id="21933" source="ScreenScraper.fr">
+		<path>./Ratchet &amp; Clank - Up Your Arsenal (USA) (En,Fr,Es).chd</path>
+		<name>Ratchet &amp; Clank : Up Your Arsenal</name>
+		<desc>In Ratchet &amp; Clank: Up Your Arsenal, Ratchet and Clank once again team up for an all-new adventure that combines diverse gameplay with elements of action, exploration, adventure, puzzle-solving, strategy, and role-playing into one experience. Together with the Q-Force, Ratchet and Clank set off to uncover the schemes of the sinister Dr. Nefarious and keep the galaxy safe for organic life. As one of three characters, you can now wield new weapons and gadgets, gain access to an array of vehicles, and master all-new abilities. The game also features both single-player and multiplayer (offline and online) gameplay.</desc>
+		<image>./media/box3d/Ratchet &amp; Clank - Up Your Arsenal (USA) (En,Fr,Es).png</image>
+		<video>./media/videos/Ratchet &amp; Clank - Up Your Arsenal (USA) (En,Fr,Es).mp4</video>
+		<marquee>./images/Ratchet &amp; Clank - Up Your Arsenal (USA) (En,Fr,Es)-marquee.png</marquee>
+		<thumbnail>./images/Ratchet &amp; Clank - Up Your Arsenal (USA) (En,Fr,Es)-thumb.png</thumbnail>
+		<manual>./manuals/Ratchet &amp; Clank - Up Your Arsenal (USA) (En,Fr,Es)-manual.pdf</manual>
+		<releasedate>20041109T000000</releasedate>
+		<developer>Insomniac Games</developer>
+		<publisher>Sony Computer Entertainment</publisher>
+		<genre>Platform / Shooter Scrolling</genre>
+		<family>Ratchet &amp; Clank</family>
+		<players>2-8</players>
+		<crc32>062FA3C5</crc32>
+		<lang>en,es,fr</lang>
+		<region>us</region>
+		<genreid>257</genreid>
+		<scrap name="ScreenScraper" date="20250707T223857" />
+		<rating>1.61</rating><ratingMax>100</ratingMax></game>
+	<game id="21933">
+		<path>./Ratchet &amp; Clank - Up Your Arsenal.iso</path>
+		<name>Ratchet &amp; Clank : Up Your Arsenal</name>
+		<desc>In Ratchet &amp; Clank: Up Your Arsenal, Ratchet and Clank once again team up for an all-new adventure that combines diverse gameplay with elements of action, exploration, adventure, puzzle-solving, strategy, and role-playing into one experience. Together with the Q-Force, Ratchet and Clank set off to uncover the schemes of the sinister Dr. Nefarious and keep the galaxy safe for organic life. As one of three characters, you can now wield new weapons and gadgets, gain access to an array of vehicles, and master all-new abilities. The game also features both single-player and multiplayer (offline and online) gameplay.</desc>
+		<video>./videos/Ratchet &amp; Clank - Up Your Arsenal-video.mp4</video>
+		<marquee>./images/Ratchet &amp; Clank - Up Your Arsenal-marquee.png</marquee>
+		<thumbnail>./images/Ratchet &amp; Clank - Up Your Arsenal-thumb.png</thumbnail>
+		<manual>./manuals/Ratchet &amp; Clank - Up Your Arsenal-manual.pdf</manual>
+		<releasedate>20041109T000000</releasedate>
+		<developer>Insomniac Games</developer>
+		<publisher>Sony Computer Entertainment</publisher>
+		<genre>Platform / Shooter Scrolling</genre>
+		<family>Ratchet &amp; Clank</family>
+		<players>2-8</players>
+		<lang>en</lang>
+		<scrap name="ScreenScraper" date="20250707T223903" />
+		<rating>1.61</rating><ratingMax>100</ratingMax></game>
+	<game id="21993" source="ScreenScraper.fr">
+		<path>./Rule of Rose (USA).chd</path>
+		<name>Rule of Rose</name>
+		<desc>Shut the curtains and turn down the lights, Rule of Rose is coming to haunt your PlayStation 2. Featuring 50 minutes of spooky cut-scenes selected by the Annecy 2006 International Animated Film Festival, and musical score by Yutaka Minobe.
+ The events of the game take place in England in the 1930s, and its story crosses the borders between reality and imagination. Jennifer is a young girl who has lost her memory and now finds herself on a bus, holding a storybook given to her by an enigmatic little boy. Following the boy into the dark countryside, Jennifer discovers a strange orphanage. Soon she finds herself trapped in an area controlled by a group of twisted orphan children, who call themselves the Red Crayon Aristocrats. Unwillingly, Jennifer has to obey the rules of this society's hierarchy, re-discover her own past, and distinguish between reality and nightmare...</desc>
+		<image>./media/box3d/Rule of Rose (USA).png</image>
+		<video>./media/videos/Rule of Rose (USA).mp4</video>
+		<marquee>./images/Rule of Rose (USA)-marquee.png</marquee>
+		<thumbnail>./images/Rule of Rose (USA)-thumb.png</thumbnail>
+		<manual>./manuals/Rule of Rose (USA)-manual.pdf</manual>
+		<releasedate>20060912T000000</releasedate>
+		<developer>Punchline</developer>
+		<publisher>505 Games</publisher>
+		<genre>Action / Adventure</genre>
+		<players>1</players>
+		<crc32>272EFDED</crc32>
+		<lang>en</lang>
+		<region>us</region>
+		<genreid>256</genreid>
+		<scrap name="ScreenScraper" date="20250707T223907" />
+		<rating>0.02</rating><ratingMax>100</ratingMax></game>
+	<game id="22004" source="ScreenScraper.fr">
+		<path>./Saint Seiya - The Hades (Europe) (En,Ja,Fr,Es,It).chd</path>
+		<name>Saint Seiya : The Hades</name>
+		<desc>Saint Seiya : Les Chevaliers du Zodiaque : Hades sur Playstation 2 est un jeu de combat en 3D reprenant l'univers de la sÃ©rie animÃ©e. Vous devez empÃªcher la destruction du monde en combattant le seigneur des Enfers avec 49 personnages jouables dont les spectres d'HadÃ¨s et les chevaliers d'AthÃ©na Ã©quipÃ©s de leurs armures divines respectives.</desc>
+		<image>./media/box3d/Saint Seiya - The Hades (Europe) (En,Ja,Fr,Es,It).png</image>
+		<video>./media/videos/Saint Seiya - The Hades (Europe) (En,Ja,Fr,Es,It).mp4</video>
+		<marquee>./images/Saint Seiya - The Hades (Europe) (En,Ja,Fr,Es,It)-marquee.png</marquee>
+		<thumbnail>./images/Saint Seiya - The Hades (Europe) (En,Ja,Fr,Es,It)-thumb.png</thumbnail>
+		<releasedate>20060929T000000</releasedate>
+		<developer>Dimps</developer>
+		<publisher>Bandai Namco Games</publisher>
+		<genre>Fighting</genre>
+		<family>Saint Seiya</family>
+		<players>1-2</players>
+		<playcount>1</playcount>
+		<lastplayed>20250415T205603</lastplayed>
+		<crc32>30EC88EC</crc32>
+		<gametime>244</gametime>
+		<lang>en,jp,es,fr,it</lang>
+		<region>eu</region>
+		<genreid>262</genreid>
+		<scrap name="ScreenScraper" date="20250707T223911" />
+		<rating>0.05</rating><ratingMax>100</ratingMax></game>
+	<game id="22424" source="ScreenScraper.fr">
+		<path>./Shadow of Memories (Europe) (En,Fr,De,Es,It).chd</path>
+		<name>Shadow of Memories</name>
+		<desc>Eike Kusch has been murdered in a violent fashion at the hands of an unknown assailant. Kusch must now solve the riddles behind his own demise.
+ The murder victim awakes in darkness after the brutal assault, encountering an ominous being known as Homunculus. Homunculus explains that Eike has been murdered and grants him another chance at life...for a small price. The unknown creature bestows upon him a Digipad. Using this device, Eike must travel back in time to alter his tragic end and prevent the killer from murdering other people.
+ After the encounter with Homunculus, Eike Kusch comes to in a familiar coffee shop, a mere half-hour before his death. To prevent his murder, he must switch between the past and present and do whatever it takes to remove himself from the black shadow of his own destiny.</desc>
+		<image>./media/box3d/Shadow of Memories (Europe) (En,Fr,De,Es,It).png</image>
+		<video>./media/videos/Shadow of Memories (Europe) (En,Fr,De,Es,It).mp4</video>
+		<marquee>./images/Shadow of Memories (Europe) (En,Fr,De,Es,It)-marquee.png</marquee>
+		<thumbnail>./images/Shadow of Memories (Europe) (En,Fr,De,Es,It)-thumb.png</thumbnail>
+		<manual>./manuals/Shadow of Memories (Europe) (En,Fr,De,Es,It)-manual.pdf</manual>
+		<releasedate>20010330T000000</releasedate>
+		<developer>Konami</developer>
+		<publisher>Konami</publisher>
+		<genre>Adventure</genre>
+		<players>1</players>
+		<crc32>255CEAFA</crc32>
+		<lang>de,en,es,fr,it</lang>
+		<region>eu</region>
+		<genreid>512</genreid>
+		<scrap name="ScreenScraper" date="20250707T223915" />
+	</game>
+	<game id="21887" source="ScreenScraper.fr">
+		<path>./Shadow of the Colossus (Europe, Australia) (En,Fr,De,Es,It).chd</path>
+		<name>Shadow of the Colossus</name>
+		<desc>End-level bosses are standard fare in video games, but the bosses are the levels in this unusual adventure. Developed by the studio that created the PS2's critically acclaimed Ico, Shadow of the Colossus is another fantasy-themed puzzle adventure that's light on dialog and heavy on beautifully expressive environments.
+ Players take the role of a young knight who sets out to rescue his sleeping-beauty princess from a magic-induced state of suspended animation. To do so, he'll need to defeat the 16 Colossi -- landscape-sized enemies so enormous that they can only be conquered by exploring them, platform-game style, to discover their weaknesses. Against some Colossi, the hero may ride his faithful steed alongside the monster, galloping at full speed just to keep up with its mile-long strides. Other Colossi require the player to actually climb aboard, and crawl, run, and leap across their massive forms to find the hidden vulnerability that can be used to bring them down.</desc>
+		<image>./media/box3d/Shadow of the Colossus (Europe, Australia) (En,Fr,De,Es,It).png</image>
+		<video>./media/videos/Shadow of the Colossus (Europe, Australia) (En,Fr,De,Es,It).mp4</video>
+		<marquee>./images/Shadow of the Colossus (Europe, Australia) (En,Fr,De,Es,It)-marquee.png</marquee>
+		<thumbnail>./images/Shadow of the Colossus (Europe, Australia) (En,Fr,De,Es,It)-thumb.png</thumbnail>
+		<manual>./manuals/Shadow of the Colossus (Europe, Australia) (En,Fr,De,Es,It)-manual.pdf</manual>
+		<releasedate>20060217T000000</releasedate>
+		<developer>Sony Computer Entertainment</developer>
+		<publisher>Sony Computer Entertainment</publisher>
+		<genre>Beat'em Up</genre>
+		<players>1</players>
+		<crc32>88E0B266</crc32>
+		<lang>de,en,es,fr,it</lang>
+		<region>eu</region>
+		<genreid>263</genreid>
+		<scrap name="ScreenScraper" date="20250707T223920" />
+		<rating>1.38</rating><ratingMax>100</ratingMax></game>
+	<game id="21887">
+		<path>./Shadow of the Colossus.iso</path>
+		<name>Shadow of the Colossus</name>
+		<desc>End-level bosses are standard fare in video games, but the bosses are the levels in this unusual adventure. Developed by the studio that created the PS2's critically acclaimed Ico, Shadow of the Colossus is another fantasy-themed puzzle adventure that's light on dialog and heavy on beautifully expressive environments.
+ Players take the role of a young knight who sets out to rescue his sleeping-beauty princess from a magic-induced state of suspended animation. To do so, he'll need to defeat the 16 Colossi -- landscape-sized enemies so enormous that they can only be conquered by exploring them, platform-game style, to discover their weaknesses. Against some Colossi, the hero may ride his faithful steed alongside the monster, galloping at full speed just to keep up with its mile-long strides. Other Colossi require the player to actually climb aboard, and crawl, run, and leap across their massive forms to find the hidden vulnerability that can be used to bring them down.</desc>
+		<video>./videos/Shadow of the Colossus-video.mp4</video>
+		<marquee>./images/Shadow of the Colossus-marquee.png</marquee>
+		<thumbnail>./images/Shadow of the Colossus-thumb.png</thumbnail>
+		<manual>./manuals/Shadow of the Colossus-manual.pdf</manual>
+		<releasedate>20051018T000000</releasedate>
+		<developer>Sony Computer Entertainment</developer>
+		<publisher>Sony Computer Entertainment</publisher>
+		<genre>Beat'em Up</genre>
+		<players>1</players>
+		<lang>en</lang>
+		<scrap name="ScreenScraper" date="20250707T223925" />
+		<rating>1.38</rating><ratingMax>100</ratingMax></game>
+	<game id="21909" source="ScreenScraper.fr">
+		<path>./Silent Hill 2 (Europe) (En,Ja,Fr,De,Es,It).chd</path>
+		<name>Silent Hill 2</name>
+		<desc>Silent Hill 2 is not a direct sequel to the events and characters of the first Silent Hill game. Instead, it centers on James Sunderland, who enters the town after receiving a letter written by his deceased wife, saying she is waiting for him in their "special place" in Silent Hill. Joined by Maria who resembles her except for a more provocative outfit and personality, he searches for her and discovers the truth about her death. Additional material in re-releases and ports included Born from a Wish, a sub-scenario which focuses on Maria before she and James meet.</desc>
+		<image>./media/box3d/Silent Hill 2 (Europe) (En,Ja,Fr,De,Es,It).png</image>
+		<video>./media/videos/Silent Hill 2 (Europe) (En,Ja,Fr,De,Es,It).mp4</video>
+		<marquee>./images/Silent Hill 2 (Europe) (En,Ja,Fr,De,Es,It)-marquee.png</marquee>
+		<thumbnail>./images/Silent Hill 2 (Europe) (En,Ja,Fr,De,Es,It)-thumb.png</thumbnail>
+		<manual>./manuals/Silent Hill 2 (Europe) (En,Ja,Fr,De,Es,It)-manual.pdf</manual>
+		<releasedate>20010929T000000</releasedate>
+		<developer>KCET</developer>
+		<publisher>Konami</publisher>
+		<genre>Adventure / Survival Horror</genre>
+		<family>Silent Hill</family>
+		<players>1</players>
+		<crc32>0F9BCDDB</crc32>
+		<lang>de,en,jp,es,fr,it</lang>
+		<region>eu</region>
+		<genreid>518</genreid>
+		<scrap name="ScreenScraper" date="20250707T223929" />
+		<rating>1.55</rating><ratingMax>100</ratingMax></game>
+	<game id="22052">
+		<path>./Simpsons The - Hit  Run (USA).chd</path>
+		<name>The Simpsons : Hit &amp; Run</name>
+		<desc>The Simpsons: Hit &amp; Run can be best described as Grand Theft Auto in Springfield.
+
+The player takes on the role of Homer, Marge, Bart, Lisa or Apu and try to uncover a mystery surrounding mechanical bees that are taking over Springfield, mysterious vans, and cola that can control the minds of those who drink it.
+
+Like GTA, the game follows a linear-based path through fifty plus missions. The player will have to chase cars and find out where they're headed, grab all the spilling cola cans before people can drink them, and chasing down villains before they get away.
+
+Throughout the course of the game, the player can unlock tons of rewards by completing missions in a set amount of time or performing outstanding stunts.
+
+All voiceovers are performed by those who act in the show, including Dan Castellaneta (Homer), Julie Kavner (Marge) and Yeardley Smith (Lisa).
+
+The game supports multiplayer action for up to four players.</desc>
+		<video>./videos/Simpsons The - Hit  Run (USA)-video.mp4</video>
+		<marquee>./images/Simpsons The - Hit  Run (USA)-marquee.png</marquee>
+		<thumbnail>./images/Simpsons The - Hit  Run (USA)-thumb.png</thumbnail>
+		<manual>./manuals/Simpsons The - Hit  Run (USA)-manual.pdf</manual>
+		<releasedate>20030910T000000</releasedate>
+		<developer>Radical Entertainment</developer>
+		<publisher>Universal</publisher>
+		<genre>Racing, Driving</genre>
+		<family>The Simpsons</family>
+		<players>1-4</players>
+		<lang>en</lang>
+		<region>us</region>
+		<scrap name="ScreenScraper" date="20250707T223934" />
+		<rating>5.68</rating><ratingMax>100</ratingMax></game>
+	<game id="22184">
+		<path>./Sniper Elite (USA).iso</path>
+		<name>Sniper Elite</name>
+		<desc>Sniper Elite is a third-person action strategy game with a focus on sniping. The player takes on the role of an American agent working for the OSS (the organization that later became the CIA) stationed in Berlin at the end of World War II, tasked with preventing the Russian troops from getting hold of the research Germany had been conducting into nuclear weaponry. As an elite sniper, the style of play is much less run-and-gun and much more about finding good positions, lining up shots and taking out the enemy before he even knows where you are.
+
+The single-player campaign takes place over 28 missions set in and around Berlin. Players use stealth tactics, and things like wind and background noise can be a factor when lining up shots. When a shot is performed particularly well, players are rewarded with a 'bullet cam' which follows the bullet in slow-motion from gun barrel to target. It can be played with a friend in local 2-player co-op. Players can revive each other.</desc>
+		<video>./videos/Sniper Elite (USA)-video.mp4</video>
+		<marquee>./images/Sniper Elite (USA)-marquee.png</marquee>
+		<thumbnail>./images/Sniper Elite (USA)-thumb.png</thumbnail>
+		<manual>./manuals/Sniper Elite (USA)-manual.pdf</manual>
+		<releasedate>20051018T000000</releasedate>
+		<developer>Rebellion</developer>
+		<publisher>Ubisoft</publisher>
+		<genre>Lightgun Shooter</genre>
+		<players>2</players>
+		<lang>en</lang>
+		<region>us</region>
+		<scrap name="ScreenScraper" date="20250707T223939" />
+		<rating>0.23</rating><ratingMax>100</ratingMax></game>
+	<game id="22070">
+		<path>./Star Wars - Battlefront (Europe) (En,Es,It).iso</path>
+		<name>Star Wars : Battlefront</name>
+		<desc>Star Wars: Battlefront encompasses battles between four main factions from both the original and prequel trilogies: the Galactic Republic and the Confederacy of Independent Systems (CIS) of the prequel era, and the Rebel Alliance and Galactic Empire of the classic trilogy. However, factions can only play their historical adversary; there cannot be any Rebels vs. Separatists or Clones vs. Empire fights. In each faction, five different classes of characters become available. Four of the classes are similar for each faction: a basic infantry soldier (a Super battle droid for the CIS), heavy weapons soldier, pilot and sniper. Also featured are special characters for each group including: Droidekas (CIS), Jet Troopers (Republic), Dark Troopers (Imperials), and Wookie Smugglers (Rebels).
+
+Two players can play splitscreen co-op throughout the story campaign or a strategic Galactic Conquest campaign.There is also a "comp stomp" configuration that supports 2 players offline, 2 players splitscreen online, or up to 16 players online.Drop-in/drop-out is only supported in online matches.</desc>
+		<video>./videos/Star Wars - Battlefront (Europe) (En,Es,It)-video.mp4</video>
+		<marquee>./images/Star Wars - Battlefront (Europe) (En,Es,It)-marquee.png</marquee>
+		<thumbnail>./images/Star Wars - Battlefront (Europe) (En,Es,It)-thumb.png</thumbnail>
+		<manual>./manuals/Star Wars - Battlefront (Europe) (En,Es,It)-manual.pdf</manual>
+		<releasedate>20040921T000000</releasedate>
+		<developer>Activision</developer>
+		<publisher>LucasArts</publisher>
+		<genre>Shooter / FPV</genre>
+		<family>Star Wars</family>
+		<players>1-16</players>
+		<lang>en,es,it</lang>
+		<region>eu</region>
+		<scrap name="ScreenScraper" date="20250707T223944" />
+		<rating>4.36</rating><ratingMax>100</ratingMax></game>
+	<game id="21912">
+		<path>./Star Wars - Battlefront II (USA) - Unofficial Update Mod (v1.02).iso</path>
+		<name>Star Wars : Battlefront II</name>
+		<desc>Battlefront II features a more narrative-based campaign, retelling portions of the Star Wars story from the point of view of a veteran Imperial stormtrooper, reminiscing about his tour of duty in service of both the Galactic Republic and as part of the Galactic Empire. Gameplay additions over Battlefront include the use of Jedi, additional game modes, and objective-based space battles.
+
+Two players can play splitscreen co-op throughout the story campaign or a strategic Galactic Conquest campaign.There is also a "comp stomp" configuration that supports 2 players offline, 2 players splitscreen online, or up to 16 players online.</desc>
+		<video>./videos/Star Wars - Battlefront II (USA) - Unofficial Update Mod (v1.02)-video.mp4</video>
+		<marquee>./images/Star Wars - Battlefront II (USA) - Unofficial Update Mod (v1.02)-marquee.png</marquee>
+		<thumbnail>./images/Star Wars - Battlefront II (USA) - Unofficial Update Mod (v1.02)-thumb.png</thumbnail>
+		<manual>./manuals/Star Wars - Battlefront II (USA) - Unofficial Update Mod (v1.02)-manual.pdf</manual>
+		<releasedate>20051101T000000</releasedate>
+		<developer>Pandemic</developer>
+		<publisher>LucasArts</publisher>
+		<genre>Shooter / FPV</genre>
+		<family>Star Wars</family>
+		<players>2-24</players>
+		<lang>en</lang>
+		<region>us</region>
+		<scrap name="ScreenScraper" date="20250707T223950" />
+		<rating>4.34</rating><ratingMax>100</ratingMax></game>
+	<game id="21951">
+		<path>./Star Wars - Episode III - Revenge of the Sith (Europe) (En,Es,It).iso</path>
+		<name>Star Wars : Episode III, Revenge of the Sith</name>
+		<desc>The player controls Anakin Skywalker and Obi-Wan Kenobi in the single player mode, reliving various scenes from the film through the game's missions. There are 17 levels, interlaced with over 12 minutes of footage from the movie. Enemies include droids, clone soldiers and Neimodian forces. The game's combat system is heavily concentrated on lightsaber combat. Each of the playable characters (with the exception of the IG-100 Magnaguard) is equipped with at least one lightsaber. There are three basic attacks: Fast attacks which do the least amount of damage, Strong Attacks which do more damage but are slower to execute, and the slowest but strongest Critical Attacks. These attacks can be mixed to create combination attacks. Attacks can also be charged up for greater strength. One feature of the game is called a Saber Lock - a sequence in which the player's character clashes swords with an opponent. Other offensive maneuvers are also available, including grapples, jumps and flying kicks.</desc>
+		<video>./videos/Star Wars - Episode III - Revenge of the Sith (Europe) (En,Es,It)-video.mp4</video>
+		<marquee>./images/Star Wars - Episode III - Revenge of the Sith (Europe) (En,Es,It)-marquee.png</marquee>
+		<thumbnail>./images/Star Wars - Episode III - Revenge of the Sith (Europe) (En,Es,It)-thumb.png</thumbnail>
+		<manual>./manuals/Star Wars - Episode III - Revenge of the Sith (Europe) (En,Es,It)-manual.pdf</manual>
+		<releasedate>20050501T000000</releasedate>
+		<developer>Activision</developer>
+		<publisher>LucasArts</publisher>
+		<genre>Adventure</genre>
+		<family>Star Wars</family>
+		<players>2</players>
+		<lang>en,es,it</lang>
+		<region>eu</region>
+		<scrap name="ScreenScraper" date="20250707T223955" />
+		<rating>4.01</rating><ratingMax>100</ratingMax></game>
+	<game id="22305">
+		<path>./Star Wars - The Clone Wars (Europe).iso</path>
+		<name>Star Wars : The Clone Wars</name>
+		<desc>Beginning where Star Wars Episode II: Attack of the Clones left off, you must take control of either Anakin Skywalker, Mace Windu or Obi-Wan Kenobi and lead the Republic Army against the Confederacy of Independent Systems.
+
+The Clone Wars picks up with Mace Windu escorting the Jedi ambush to the Geonosis arena, which leads to the Battle of Geonosis and the start of the Clone Wars. After the Battle of Geonosis, Anakin and Obi Wan are sent to patrol a dead part of Republic sector, until a massive Confederate fleet ambushes the strategically useless planet of Rhen Var. After this, Anakin, Obi Wan soon discover that there may be something darker behind the invasion of Rhen Var. They find out about the Dark Reaper, an evil and powerful Sith device that could harvest the power of the living and use it as a concentrated weapon. Now it is up to the Republic to prevent this weapon from ever activating and destroying the galaxy!
+
+The Clone Wars has you deep inside the battles of the Old Republic through 16 missions, piloting a range of vehicles including speeder bikes, Republic Gunships and fighter tanks as well as the weapon of the Jedi, your lightsabre, for close combat. Whereas the Rogue Squadron series concentrated on aerial battles, The Clone Wars contains almost all ground battles. You must fight as Anakin Skywalker, Obi Wan Kenobi, Mace Windu, and others throughout the game to prevent the Confederacy from gaining a deadly weapon. Multiplayer options are also included for up to four players with game types including deathmatch, conquest, and a co-op ground and vehicle survival mode.</desc>
+		<video>./videos/Star Wars - The Clone Wars (Europe)-video.mp4</video>
+		<marquee>./images/Star Wars - The Clone Wars (Europe)-marquee.png</marquee>
+		<thumbnail>./images/Star Wars - The Clone Wars (Europe)-thumb.png</thumbnail>
+		<manual>./manuals/Star Wars - The Clone Wars (Europe)-manual.pdf</manual>
+		<releasedate>20021210T000000</releasedate>
+		<developer>Pandemic</developer>
+		<publisher>LucasArts</publisher>
+		<genre>Shooter / Vehicle, TPV</genre>
+		<family>Star Wars</family>
+		<players>2</players>
+		<lang>en</lang>
+		<region>eu</region>
+		<scrap name="ScreenScraper" date="20250707T224000" />
+		<rating>0.60</rating><ratingMax>100</ratingMax></game>
+	<game id="22462" source="ScreenScraper.fr">
+		<path>./Sword of Etheria, The (Europe) (En,Fr,De,Es,It).chd</path>
+		<name>The Sword of Etheria</name>
+		<desc>The Sword of Etheria is set in an alternate world where humans, gods, and spiritual beings known as "Katenas" coexist. Katenas are powerful warriors with the ability to encase themselves in full suits of armor called "Lexes". The Katenas are the envoys of the gods. The three great Katenas, chosen by the gods, are collectively referred to as "Oz".
+
+Both humans and Katenas are overseen by the gods. As in Greek mythology, the gods are described as omnipotent, ambitious, self-serving, and power-hungry. The major source of their power is light; as they consume light, they cast parts of the world into darkness for centuries. The gods seek to destroy humanity and drain the planet's energy source, "Etheria".</desc>
+		<image>./media/box3d/Sword of Etheria, The (Europe) (En,Fr,De,Es,It).png</image>
+		<video>./media/videos/Sword of Etheria, The (Europe) (En,Fr,De,Es,It).mp4</video>
+		<marquee>./images/Sword of Etheria, The (Europe) (En,Fr,De,Es,It)-marquee.png</marquee>
+		<thumbnail>./images/Sword of Etheria, The (Europe) (En,Fr,De,Es,It)-thumb.png</thumbnail>
+		<releasedate>20050630T000000</releasedate>
+		<developer>Konami</developer>
+		<publisher>Konami</publisher>
+		<genre>Role Playing Game</genre>
+		<players>1</players>
+		<lang>de,en,es,fr,it</lang>
+		<region>eu</region>
+		<genreid>263</genreid>
+		<scrap name="ScreenScraper" date="20250707T224004" />
+	</game>
+	<game id="21964" source="ScreenScraper.fr">
+		<path>./Tekken 5 (Europe, Australia) (En,Fr,De,Es,It).chd</path>
+		<name>Tekken 5</name>
+		<desc>After the completion of The King of Iron Fist Tournament 4, a fierce battle between father and son unfolded at Mishima Zaibatsu headquarters. Jin emerges as the victor in this battle and continues to defeat Heihachi, his grandfather - but spares both Kazuya and Heihachi's lives in honour of his mother who loved peace. Soon after Jin's departure, a swarm of Jacks arrive at Honmaru and begin to attack Heihachi and Kazuya - and in order to escape, Kazuya thrusts Heihachi into the swarm of Jacks. A great explosion destroys Honmaru, and a man watching from afar reports, "Heihachi Mishima is dead." While many presume the death of Heihachi Mishima will end the reign of Mishima Zaibatsu, an announcement is made for the fifth King of Iron Fist Tournament, with an unknown replacement to Heihachi leading the organization. The fight begins once again.
+
+Tekken 5 brings back the popular cast of characters from the previous games along with three new characters for a total of 20 default characters to start, with even more to unlock as you progress in the game. New to Tekken 5 is a bonus action adventure game that unfolds a side story to the action-packed fighting sequences.</desc>
+		<image>./media/box3d/Tekken 5 (Europe, Australia) (En,Fr,De,Es,It).png</image>
+		<video>./media/videos/Tekken 5 (Europe, Australia) (En,Fr,De,Es,It).mp4</video>
+		<marquee>./images/Tekken 5 (Europe, Australia) (En,Fr,De,Es,It)-marquee.png</marquee>
+		<thumbnail>./images/Tekken 5 (Europe, Australia) (En,Fr,De,Es,It)-thumb.png</thumbnail>
+		<manual>./manuals/Tekken 5 (Europe, Australia) (En,Fr,De,Es,It)-manual.pdf</manual>
+		<releasedate>20050224T000000</releasedate>
+		<developer>Namco</developer>
+		<publisher>Namco</publisher>
+		<genre>Fighting</genre>
+		<family>Tekken</family>
+		<players>1-2</players>
+		<playcount>2</playcount>
+		<lastplayed>20250523T200939</lastplayed>
+		<crc32>A870FAD3</crc32>
+		<gametime>647</gametime>
+		<lang>de,en,es,fr,it</lang>
+		<region>eu</region>
+		<genreid>262</genreid>
+		<scrap name="ScreenScraper" date="20250707T224009" />
+		<rating>4.68</rating><ratingMax>100</ratingMax></game>
+	<game id="21964">
+		<path>./Tekken 5 (USA).iso</path>
+		<name>Tekken 5</name>
+		<desc>After the completion of The King of Iron Fist Tournament 4, a fierce battle between father and son unfolded at Mishima Zaibatsu headquarters. Jin emerges as the victor in this battle and continues to defeat Heihachi, his grandfather - but spares both Kazuya and Heihachi's lives in honour of his mother who loved peace. Soon after Jin's departure, a swarm of Jacks arrive at Honmaru and begin to attack Heihachi and Kazuya - and in order to escape, Kazuya thrusts Heihachi into the swarm of Jacks. A great explosion destroys Honmaru, and a man watching from afar reports, "Heihachi Mishima is dead." While many presume the death of Heihachi Mishima will end the reign of Mishima Zaibatsu, an announcement is made for the fifth King of Iron Fist Tournament, with an unknown replacement to Heihachi leading the organization. The fight begins once again.
+
+Tekken 5 brings back the popular cast of characters from the previous games along with three new characters for a total of 20 default characters to start, with even more to unlock as you progress in the game. New to Tekken 5 is a bonus action adventure game that unfolds a side story to the action-packed fighting sequences.</desc>
+		<video>./videos/Tekken 5 (USA)-video.mp4</video>
+		<marquee>./images/Tekken 5 (USA)-marquee.png</marquee>
+		<thumbnail>./images/Tekken 5 (USA)-thumb.png</thumbnail>
+		<manual>./manuals/Tekken 5 (USA)-manual.pdf</manual>
+		<releasedate>20050224T000000</releasedate>
+		<developer>Namco</developer>
+		<publisher>Namco</publisher>
+		<genre>Fighting</genre>
+		<family>Tekken</family>
+		<players>1-2</players>
+		<lang>en</lang>
+		<region>us</region>
+		<scrap name="ScreenScraper" date="20250707T224015" />
+		<rating>4.68</rating><ratingMax>100</ratingMax></game>
+	<game id="22142" source="ScreenScraper.fr">
+		<path>./Tenchu - Wrath of Heaven (USA) (En,Ja).chd</path>
+		<name>Tenchu : Wrath of Heaven</name>
+		<desc>Follow the path of the Ninja. Tenchu 3: Wrath of Heaven, the latest chapter in the Tenchu series, allows you to take on the role of three merciless assassins, with over 20 authentic ninja weapons and tools. Experience the all-new stealth attacks, combos, and enhanced fighting engine as you complete mission objections, including espionage, theft, and assassination. The more stealth kills you get, the more abilities and combos you earn. Can you master the action-packed gameplay and unlock the multiple game endings?</desc>
+		<image>./media/box3d/Tenchu - Wrath of Heaven (USA) (En,Ja).png</image>
+		<video>./media/videos/Tenchu - Wrath of Heaven (USA) (En,Ja).mp4</video>
+		<marquee>./images/Tenchu - Wrath of Heaven (USA) (En,Ja)-marquee.png</marquee>
+		<thumbnail>./images/Tenchu - Wrath of Heaven (USA) (En,Ja)-thumb.png</thumbnail>
+		<manual>./manuals/Tenchu - Wrath of Heaven (USA) (En,Ja)-manual.pdf</manual>
+		<releasedate>20030306T000000</releasedate>
+		<developer>Acquire</developer>
+		<publisher>Activision</publisher>
+		<family>Tenchu</family>
+		<players>2</players>
+		<playcount>1</playcount>
+		<lastplayed>20250415T203924</lastplayed>
+		<crc32>FE405681</crc32>
+		<gametime>197062</gametime>
+		<lang>en,jp</lang>
+		<region>us</region>
+		<scrap name="ScreenScraper" date="20250707T224019" />
+		<rating>1.38</rating><ratingMax>100</ratingMax></game>
+	<game id="23032" source="ScreenScraper.fr">
+		<path>./Thunder Force VI (Japan).chd</path>
+		<name>Thunder Force VI</name>
+		<desc>Thunder Force VI is a horizontal shoot 'em up with a style very similar to the previous installments, inheriting many elements from the fifth installment, such as the weapon system and the characteristics of the CLAW unit. So we will have to kill all kinds of enemies and face powerful bosses and sub-bosses, obviously having the possibility of changing the speed of the ship and switching from forward fire to rear fire, in addition to being able to choose the order of the first three phases. As a novelty, CLAW units are capable of returning some types of fire.</desc>
+		<image>./media/box3d/Thunder Force VI (Japan).png</image>
+		<video>./media/videos/Thunder Force VI (Japan).mp4</video>
+		<marquee>./images/Thunder Force VI (Japan)-marquee.png</marquee>
+		<thumbnail>./images/Thunder Force VI (Japan)-thumb.png</thumbnail>
+		<manual>./manuals/Thunder Force VI (Japan)-manual.pdf</manual>
+		<releasedate>20081030T000000</releasedate>
+		<developer>Technosoft</developer>
+		<publisher>SEGA</publisher>
+		<genre>Shoot'em Up / Horizontal</genre>
+		<family>Thunder Force</family>
+		<players>1</players>
+		<playcount>1</playcount>
+		<lastplayed>20250407T235433</lastplayed>
+		<crc32>2BAC7E4D</crc32>
+		<gametime>33</gametime>
+		<lang>jp</lang>
+		<region>jp</region>
+		<genreid>260</genreid>
+		<scrap name="ScreenScraper" date="20250707T224024" />
+		<rating>0.02</rating><ratingMax>100</ratingMax></game>
+	<game id="22473" source="ScreenScraper.fr">
+		<path>./Twisted Metal - Black (Europe) (En,Fr,De,Es,It).chd</path>
+		<name>Twisted Metal : Black</name>
+		<desc>Twisted Metal: Black is a demolition derby that permits the usage of ballistic projectiles. Players choose a vehicle and an arena?or a series of arenas in the story mode?to engage in battle with opposing drivers. A variety of weapons and upgrades are obtainable by pick-ups scattered throughout the stage. The objective of the game is to be the last one standing.</desc>
+		<image>./media/box3d/Twisted Metal - Black (Europe) (En,Fr,De,Es,It).png</image>
+		<video>./media/videos/Twisted Metal - Black (Europe) (En,Fr,De,Es,It).mp4</video>
+		<marquee>./images/Twisted Metal - Black (Europe) (En,Fr,De,Es,It)-marquee.png</marquee>
+		<thumbnail>./images/Twisted Metal - Black (Europe) (En,Fr,De,Es,It)-thumb.png</thumbnail>
+		<manual>./manuals/Twisted Metal - Black (Europe) (En,Fr,De,Es,It)-manual.pdf</manual>
+		<releasedate>20010618T000000</releasedate>
+		<developer>Incognito</developer>
+		<publisher>Sony Computer Entertainment</publisher>
+		<genre>Shooter / Vehicle, TPV</genre>
+		<players>1-4</players>
+		<crc32>6AD11724</crc32>
+		<lang>de,en,es,fr,it</lang>
+		<region>eu</region>
+		<genreid>1028</genreid>
+		<scrap name="ScreenScraper" date="20250707T224030" />
+		<rating>1.70</rating><ratingMax>100</ratingMax></game>
+	<game id="21984" source="ScreenScraper.fr">
+		<path>./Valkyrie Profile 2 - Silmeria (Europe, Australia).chd</path>
+		<name>Valkyrie Profile 2 : Silmeria</name>
+		<desc>Hundreds of years before Lenneth's tale, another saga lies concealed by the gods. The valkyrie Silmeria once served Odin loyally, but after an incident ignited a conflict between them, Odin forcefully reincarnated her as a human. The human soul that would carry her spirit was that of Alicia, Princess of Dipan. Ordinarily, Silmeria-s consciousness would have been sealed, her spirit dormant until she was next summoned... However, the forced transmigration causes Silmeria's spirit to awaken within Alicia, leaving two souls to inhabit a single body. The spirit that should have been sealed has awakened-a situation Odin will not ignore for long. This installment introduces the new Photon Action System to the classic side-scrolling action format found in the original. Projecting photons grants players more freedom to explore and expands the action, resulting in challenging puzzles with clever solutions. Add to that "sealstones" that affect the laws of nature in dungeons, launching strategy to new heights. The unique battle system of the previous game has evolved into the Advanced Tactical Combination Battle System.</desc>
+		<image>./media/box3d/Valkyrie Profile 2 - Silmeria (Europe, Australia).png</image>
+		<video>./media/videos/Valkyrie Profile 2 - Silmeria (Europe, Australia).mp4</video>
+		<marquee>./images/Valkyrie Profile 2 - Silmeria (Europe, Australia)-marquee.png</marquee>
+		<thumbnail>./images/Valkyrie Profile 2 - Silmeria (Europe, Australia)-thumb.png</thumbnail>
+		<manual>./manuals/Valkyrie Profile 2 - Silmeria (Europe, Australia)-manual.pdf</manual>
+		<releasedate>20060926T000000</releasedate>
+		<developer>Tri-Ace</developer>
+		<publisher>Square Enix</publisher>
+		<genre>Role Playing Game / Japanese RPG</genre>
+		<family>Valkyrie Profile</family>
+		<players>1</players>
+		<crc32>6AD4E342</crc32>
+		<lang>en</lang>
+		<region>eu</region>
+		<genreid>768</genreid>
+		<scrap name="ScreenScraper" date="20250707T224035" />
+		<rating>0.57</rating><ratingMax>100</ratingMax></game>
+	<game id="22453" source="ScreenScraper.fr">
+		<path>./Viewtiful Joe (USA).chd</path>
+		<name>Viewtiful Joe</name>
+		<desc>Joe is no ordinary man and Viewtiful Joe is no ordinary game. Capcom's new superhero action game mixes funky cartoon-style visuals with classic side-scrolling gameplay and introduces the world's quirkiest million dollar action hero. More than just any ordinary dude, Joe must transform into the ultimate superhero. It's up to you to activate the correct view mode like "slow" or "zoom in" in order to clobber your enemies with beautiful style. You can also speed up or slow down your visual effects for even more "viewtiful" moves. Viewtiful Joe mixes an innovative viewpoint with an amazing stunt-filled action movie universe.</desc>
+		<image>./media/box3d/Viewtiful Joe (USA).png</image>
+		<video>./media/videos/Viewtiful Joe (USA).mp4</video>
+		<marquee>./images/Viewtiful Joe (USA)-marquee.png</marquee>
+		<thumbnail>./images/Viewtiful Joe (USA)-thumb.png</thumbnail>
+		<manual>./manuals/Viewtiful Joe (USA)-manual.pdf</manual>
+		<releasedate>20040824T000000</releasedate>
+		<developer>Clover</developer>
+		<publisher>Capcom</publisher>
+		<genre>Beat'em Up</genre>
+		<family>Viewtiful Joe</family>
+		<players>1</players>
+		<crc32>2674828B</crc32>
+		<lang>en</lang>
+		<region>us</region>
+		<genreid>263</genreid>
+		<scrap name="ScreenScraper" date="20250707T224039" />
+		<rating>0.34</rating><ratingMax>100</ratingMax></game>
+	<game id="22661" source="ScreenScraper.fr">
+		<path>./Virtua Fighter 4 - Evolution (Europe) (En,Fr,De,Es,It).chd</path>
+		<name>Virtua Fighter 4 : Evolution</name>
+		<desc>Evolution was an updated version of Virtua Fighter 4. The game introduced two new characters and adjusted every other character as well. The two new characters were the Judoka-assassin, Goh Hinogami and the Muay Thai boxer Brad Burns. With the addition of Brad Burns, Vanessa Lewis's alternate Muay Thai style from Virtua Fighter 4 was removed and replaced with a Vale Tudo "Offensive" style; making her a solely Vale Tudo brawler.
+
+All of the stages were adjusted. For example, Lei-Fei's stage in Virtua Fighter 4 previously took place during sunset, in Evolution it takes place during the morning.</desc>
+		<image>./media/box3d/Virtua Fighter 4 - Evolution (Europe) (En,Fr,De,Es,It).png</image>
+		<video>./media/videos/Virtua Fighter 4 - Evolution (Europe) (En,Fr,De,Es,It).mp4</video>
+		<marquee>./images/Virtua Fighter 4 - Evolution (Europe) (En,Fr,De,Es,It)-marquee.png</marquee>
+		<thumbnail>./images/Virtua Fighter 4 - Evolution (Europe) (En,Fr,De,Es,It)-thumb.png</thumbnail>
+		<manual>./manuals/Virtua Fighter 4 - Evolution (Europe) (En,Fr,De,Es,It)-manual.pdf</manual>
+		<releasedate>20030702T000000</releasedate>
+		<developer>SEGA AM2</developer>
+		<publisher>SEGA</publisher>
+		<genre>Fighting / 3D</genre>
+		<family>Virtua Fighter</family>
+		<players>2</players>
+		<crc32>7C0FD03A</crc32>
+		<lang>de,en,es,fr,it</lang>
+		<region>eu</region>
+		<genreid>262</genreid>
+		<scrap name="ScreenScraper" date="20250707T224044" />
+		<rating>0.86</rating><ratingMax>100</ratingMax></game>
+	<game id="127173">
+		<path>./WRC - Rally Evolved (Europe) (En,Fr,De,Es,It,Pt,No,Fi) (v2.00).iso</path>
+		<name>WRC : Rally Evolved</name>
+		<desc>Taste the physical extremes of rally driving and battle your way past your opponents in grueling multi-car wheel-to-wheel racing. Prepare for the unexpected as driver and co-driver negotiate on-track dangers - evade the wreckage of rival cars, navigate through flooded stages, and dodge crumbling walls and tumbling rocks. More cars than ever before from rally's past, present and future are brought to life in realistically interactive surroundings - drive over 40 awesome vehicles through rivers, raging fires, dense smoke and debris strewn terrain.</desc>
+		<video>./videos/WRC - Rally Evolved (Europe) (En,Fr,De,Es,It,Pt,No,Fi) (v2.00)-video.mp4</video>
+		<marquee>./images/WRC - Rally Evolved (Europe) (En,Fr,De,Es,It,Pt,No,Fi) (v2.00)-marquee.png</marquee>
+		<thumbnail>./images/WRC - Rally Evolved (Europe) (En,Fr,De,Es,It,Pt,No,Fi) (v2.00)-thumb.png</thumbnail>
+		<releasedate>20051028T000000</releasedate>
+		<developer>Evolution</developer>
+		<publisher>Sony Computer Entertainment</publisher>
+		<genre>Racing, Driving</genre>
+		<family>World Rally</family>
+		<players>1-4</players>
+		<lang>no,de,en,pt,es,fr,it</lang>
+		<region>eu</region>
+		<scrap name="ScreenScraper" date="20250707T224048" />
+	</game>
+	<game id="21901" source="ScreenScraper.fr">
+		<path>./Yakuza (Europe) (En,Fr,De,Es,It).chd</path>
+		<name>Yakuza</name>
+		<desc>In a society where respect and honor holds great importance, there is an even higher regard for these traits within the one organization that is most feared by all: the Yakuza. Kiryu Kazuma – a former rising star in the Yakuza who is rebuilding his life after serving a 10-year prison term for murder – suddenly finds himself caught in a spiraling underworld plot involving a mysterious girl known as Haruka and a missing $100 million. Kazuma must use his fists and his wits to stay alive as he unravels the complex web of truth and lies that surrounds the notorious Yakuza. Yakuza delivers a balance of action and adventure with its immersive storyline and stylish fighting mechanics created specifically for the game.</desc>
+		<image>./media/box3d/Yakuza (Europe) (En,Fr,De,Es,It).png</image>
+		<video>./media/videos/Yakuza (Europe) (En,Fr,De,Es,It).mp4</video>
+		<marquee>./images/Yakuza (Europe) (En,Fr,De,Es,It)-marquee.png</marquee>
+		<thumbnail>./images/Yakuza (Europe) (En,Fr,De,Es,It)-thumb.png</thumbnail>
+		<manual>./manuals/Yakuza (Europe) (En,Fr,De,Es,It)-manual.pdf</manual>
+		<releasedate>20051208T000000</releasedate>
+		<developer>Amusement Vision</developer>
+		<publisher>SEGA</publisher>
+		<genre>Adventure / RealTime 3D</genre>
+		<family>Yakuza</family>
+		<players>1</players>
+		<crc32>921F75D8</crc32>
+		<lang>de,en,es,fr,it</lang>
+		<region>eu</region>
+		<genreid>517</genreid>
+		<scrap name="ScreenScraper" date="20250707T224052" />
+		<rating>0.97</rating><ratingMax>100</ratingMax></game>
+	<game id="22193" source="ScreenScraper.fr">
+		<path>./Zone of the Enders (USA).chd</path>
+		<name>Zone of the Enders</name>
+		<desc>Zone of the Enders follows the endeavors of a boy named Leo Stenbuck, a colonist from Jupiter who finds himself piloting the Orbital Frame Jehuty...
+
+Take control of a fully armed prototype mechanized robot to fight off enemies during a space colony hijack. You become the character Leo Stenbuck, a soldier who sees the consequences of fighting firsthand and learns the true meaning of life and death. Conquer missions that change each time you play, or challenge a friend to a heated match. Zone of the Enders combines rich cityscapes and intricate canyons with futuristic weaponry and an intense storyline.</desc>
+		<image>./media/box3d/Zone of the Enders (USA).png</image>
+		<video>./media/videos/Zone of the Enders (USA).mp4</video>
+		<marquee>./images/Zone of the Enders (USA)-marquee.png</marquee>
+		<thumbnail>./images/Zone of the Enders (USA)-thumb.png</thumbnail>
+		<manual>./manuals/Zone of the Enders (USA)-manual.pdf</manual>
+		<releasedate>20010301T000000</releasedate>
+		<developer>Konami</developer>
+		<publisher>Konami</publisher>
+		<genre>Fighting</genre>
+		<family>Zone of the Enders</family>
+		<players>2</players>
+		<playcount>1</playcount>
+		<lastplayed>20250523T201820</lastplayed>
+		<crc32>AB9DE425</crc32>
+		<gametime>368</gametime>
+		<lang>en</lang>
+		<region>us</region>
+		<genreid>262</genreid>
+		<scrap name="ScreenScraper" date="20250707T224057" />
+		<rating>0.91</rating><ratingMax>100</ratingMax></game>
+	<game id="21899" source="ScreenScraper.fr">
+		<path>./God of War (Europe, Australia) (En,Fr,De,Es,It).chd</path>
+		<name>God of War</name>
+		<desc>God of War is an action-oriented adventure game with a strong focus on fast-paced combat. Players take control of Kratos, a mystically powerful hero in the ancient Greece of classic mythology. He can perform super-human leaps, agile dodges, and magically enhanced combo attacks, which all flow together in a stream of intense engagement. 
+
+The ultimate goal of Kratos is a conclusive confrontation with Ares -- the god of war himself -- but the hero must face a deadly succession of monsters and villains from Greek mythology as he pursues this end. The Hydra, Medusa, the Cyclops, the Minotaur, and other legendary creatures will all have their chances to destroy Kratos before he meets his final destiny.</desc>
+		<image>./media/box3d/God of War (Europe, Australia) (En,Fr,De,Es,It).png</image>
+		<video>./media/videos/God of War (Europe, Australia) (En,Fr,De,Es,It).mp4</video>
+		<marquee>./images/God of War (Europe, Australia) (En,Fr,De,Es,It)-marquee.png</marquee>
+		<thumbnail>./images/God of War (Europe, Australia) (En,Fr,De,Es,It)-thumb.png</thumbnail>
+		<manual>./manuals/God of War (Europe, Australia) (En,Fr,De,Es,It)-manual.pdf</manual>
+		<releasedate>20050708T000000</releasedate>
+		<developer>SCE Santa Monica</developer>
+		<publisher>Sony Computer Entertainment</publisher>
+		<genre>Adventure</genre>
+		<family>God Of War</family>
+		<players>1</players>
+		<playcount>1</playcount>
+		<lastplayed>20250707T224631</lastplayed>
+		<crc32>5F0A2482</crc32>
+		<lang>de,en,es,fr,it</lang>
+		<region>eu</region>
+		<genreid>512</genreid>
+		<scrap name="ScreenScraper" date="20250707T223634" />
+	<rating>5.38</rating><ratingMax>100</ratingMax></game>
+</gameList>
