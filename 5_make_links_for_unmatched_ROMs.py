@@ -14,6 +14,7 @@ Behavior changes:
      - matched_summary.csv (optional, not used here)
 """
 import os
+import sys
 import pandas as pd
 import requests
 from bs4 import BeautifulSoup
@@ -43,6 +44,26 @@ def setup_tab_completion():
 
     readline.set_completer(complete_dir)
     readline.parse_and_bind('tab: complete')
+
+def read_single_key(prompt=''):
+    """Read a single keypress without requiring ENTER."""
+    print(prompt, end='', flush=True)
+    try:
+        import termios, tty
+        fd = sys.stdin.fileno()
+        old = termios.tcgetattr(fd)
+        try:
+            tty.setraw(fd)
+            ch = sys.stdin.read(1)
+        finally:
+            termios.tcsetattr(fd, termios.TCSADRAIN, old)
+    except (ImportError, AttributeError):  # Windows fallback
+        import msvcrt
+        ch = msvcrt.getch()
+        if isinstance(ch, bytes):
+            ch = ch.decode('utf-8', errors='ignore')
+    print(ch)
+    return ch
 
 # ——— Title normalization helper ———————————————————————————————————
 _ROMAN = {'ix':9,'viii':8,'vii':7,'vi':6,'iv':4,'iii':3,'ii':2,'i':1}
@@ -140,8 +161,10 @@ def main():
     blacklist_path = os.path.join(snapshot_path, 'blacklist.csv')
     if os.path.exists(blacklist_path):
         blacklist_df = pd.read_csv(blacklist_path)
+        # ignore legacy columns that may be present
+        blacklist_df = blacklist_df[['Search_Term', 'Platform']]
     else:
-        blacklist_df = pd.DataFrame(columns=['Search_Term','Platform','Matched_Title','Score','Global_Sales','URL'])
+        blacklist_df = pd.DataFrame(columns=['Search_Term','Platform'])
     blacklisted_pairs = set(zip(blacklist_df.get('Search_Term', []), blacklist_df.get('Platform', [])))
 
     # initial platforms with zero ROMs
@@ -220,15 +243,11 @@ def main():
                     opt_score = min(ts_score, pr_score)
                     options.append((cand, opt_score))
                     print(f"  [{idx}] {unquote(file_map[cand])} (score {opt_score})")
-                choice = input("Select 1-3, 'b' to blacklist, or ENTER to skip: ").strip().lower()
+                choice = read_single_key("Press 1-3, 'b' to blacklist, or ENTER to skip: ").lower()
                 if choice == 'b':
                     blacklist_df.loc[len(blacklist_df)] = {
                         'Search_Term': game,
-                        'Platform': ds_code,
-                        'Matched_Title': '',
-                        'Score': 0,
-                        'Global_Sales': sales,
-                        'URL': ''
+                        'Platform': ds_code
                     }
                     blacklisted_pairs.add((game, ds_code))
                     print(f"  Blacklisted {game}")
