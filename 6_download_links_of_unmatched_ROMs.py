@@ -3,8 +3,10 @@
 Download files listed in a CSV using aria2c with 5 concurrent downloads,
 organizing them into platform subfolders under new_roms/ mirroring RetroBat.
 
-Usage:
-  python download_with_aria2c.py -f path/to/download_list.csv
+When run, this script prompts for the snapshot directory that contains the
+generated CSV files from ``5_make_links_for_unmatched_ROMs.py``. The ``-f``
+option specifies the CSV filename inside that directory (default:
+``download_list.csv``).
 
 This script:
   1. Reads the CSV and extracts columns 'Platform', 'Matched_Title', and 'URL'.
@@ -19,10 +21,27 @@ import sys
 import argparse
 import csv
 import subprocess
+import readline
+import glob
 
 # Determine directories
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+RESULTS_DIR = SCRIPT_DIR
 NEW_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, os.pardir, os.pardir, 'new_roms'))
+
+def setup_tab_completion():
+    """Enable TAB-completion for directory names in input()."""
+    def complete_dir(text, state):
+        base = text or '.'
+        matches = glob.glob(base + '*')
+        matches = [m + ('/' if os.path.isdir(m) else '') for m in matches]
+        try:
+            return matches[state]
+        except IndexError:
+            return None
+
+    readline.set_completer(complete_dir)
+    readline.parse_and_bind('tab: complete')
 
 # Argument parsing
 def parse_args():
@@ -35,14 +54,30 @@ def parse_args():
 
 
 def main():
+    setup_tab_completion()
     args = parse_args()
-    csv_path = os.path.abspath(args.file)
+
+    # Prompt for snapshot directory like 5_make_links_for_unmatched_ROMs.py
+    while True:
+        snap = input("Enter snapshot directory name: ").strip()
+        snapshot_path = os.path.join(RESULTS_DIR, snap)
+        if os.path.isdir(snapshot_path):
+            break
+        print(f"Directory '{snap}' not found. Please try again.")
+
+    # Resolve CSV path relative to snapshot directory unless absolute
+    if os.path.isabs(args.file):
+        csv_path = args.file
+    else:
+        csv_path = os.path.join(snapshot_path, args.file)
+    csv_path = os.path.abspath(csv_path)
     if not os.path.isfile(csv_path):
         print(f"Error: CSV file not found: {csv_path}")
         sys.exit(1)
 
+    links_path = os.path.join(snapshot_path, 'aria2_links.txt')
+
     # Prepare aria2 input file
-    links_path = os.path.join(os.path.dirname(csv_path), 'aria2_links.txt')
     entries = []
 
     with open(csv_path, newline='', encoding='utf-8') as csvfile:
