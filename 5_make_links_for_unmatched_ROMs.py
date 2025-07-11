@@ -99,18 +99,15 @@ READABLE_NAMES = {
 }
 INVERT_MAP = {v:k for k,v in READABLE_NAMES.items()}
 
-# ——— Explicit category URLs for missing-ROM platforms —————————————
-PLATFORM_URLS = {
-    'PS3': 'https://myrient.erista.me/files/Redump/Sony%20-%20PlayStation%203/',
-    'Wii': 'https://myrient.erista.me/files/Redump/Nintendo%20-%20Wii%20-%20NKit%20RVZ%20%5Bzstd-19-128k%5D/',
-    'X360': 'https://myrient.erista.me/files/Redump/Microsoft%20-%20Xbox%20360/',
-    'PSP': 'https://myrient.erista.me/files/Redump/Sony%20-%20PlayStation%20Portable/',
-    'XB': 'https://myrient.erista.me/files/Redump/Microsoft%20-%20Xbox/',
-    'GC': 'https://myrient.erista.me/files/Redump/Nintendo%20-%20GameCube%20-%20NKit%20RVZ%20%5Bzstd-19-128k%5D/',
-    '3DS': 'https://myrient.erista.me/files/No-Intro/Nintendo%20-%20Nintendo%203DS%20%28Decrypted%29/',
-    'PSV': 'https://myrient.erista.me/files/No-Intro/Sony%20-%20PlayStation%20Vita%20%28PSN%29%20%28Content%29/',
-    'WiiU': 'https://myrient.erista.me/files/No-Intro/Nintendo%20-%20Wii%20U%20%28Digital%29%20%28CDN%29/'
-}
+# ——— Platform URL lookup ———————————————————————————————————————
+PLATFORMS_CSV = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'platforms.csv')
+
+def load_platform_urls():
+    if not os.path.exists(PLATFORMS_CSV):
+        return {}
+    df = pd.read_csv(PLATFORMS_CSV)
+    df['URL'] = df['URL'].fillna('')
+    return dict(zip(df['Platform'], df['URL']))
 
 # ——— Main routine —————————————————————————————————————————————————
 def main():
@@ -193,9 +190,11 @@ def main():
     rows = []
     links = []
 
+    platform_urls = load_platform_urls()
+
     for platform_name in platforms:
         ds_code = INVERT_MAP.get(platform_name, platform_name)
-        url = PLATFORM_URLS.get(ds_code)
+        url = platform_urls.get(ds_code)
         if not url:
             print(f"Skipping {platform_name}: no URL configured.")
             continue
