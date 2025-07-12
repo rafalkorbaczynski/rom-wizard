@@ -117,7 +117,20 @@ READABLE_NAMES = {
 matched_records = []
 detailed_matches = []
 console_stats = {}
-REGIONS = ['EU','US','JP','Other']
+# Mapping of various region keywords found in filenames or XML to
+# canonical region codes used in summary statistics.
+REGION_SYNONYMS = {
+    'EU': ['eu', 'europe', 'eur', 'pal', 'uk'],
+    'US': ['us', 'usa', 'ntsc'],
+    'JP': ['jp', 'jpn', 'japan'],
+    'BR': ['br', 'brazil'],
+    'AU': ['au', 'australia'],
+    'KR': ['kr', 'kor', 'korea'],
+    'World': ['world'],
+}
+
+# Order of region columns in the CSV summary
+REGIONS = list(REGION_SYNONYMS.keys()) + ['Other']
 total_games = 0
 
 # ——— Matching & XML injection ——————————————————————————————————————
@@ -148,6 +161,20 @@ for root_dir, _, files in os.walk(roms_root):
     total_games += len(games)
     matched_count = 0
     region_counts = {r: 0 for r in REGIONS}
+
+    def detect_region(text):
+        if not text:
+            return None
+        text = text.lower()
+        tags = re.findall(r'\(([^()]+)\)', text)
+        for tag in tags:
+            for token in re.split('[,;/]', tag):
+                t = token.strip().lower()
+                for reg, keys in REGION_SYNONYMS.items():
+                    if t in keys:
+                        return reg
+        return None
+
     for game in games:
         for old in game.findall('rating') + game.findall('ratingMax'):
             game.remove(old)
@@ -156,15 +183,19 @@ for root_dir, _, files in os.walk(roms_root):
         if not title:
             continue
         key = norm(title)
-        region = (game.findtext('region') or '').strip().lower()
-        if region == 'eu':
-            region_counts['EU'] += 1
-        elif region == 'us':
-            region_counts['US'] += 1
-        elif region == 'jp':
-            region_counts['JP'] += 1
-        else:
-            region_counts['Other'] += 1
+
+        region_text = (game.findtext('region') or '').strip().lower()
+        region_key = None
+        if region_text:
+            for reg, keys in REGION_SYNONYMS.items():
+                if region_text in keys:
+                    region_key = reg
+                    break
+        if not region_key:
+            region_key = detect_region(os.path.basename(game.findtext('path') or title))
+        if not region_key:
+            region_key = 'Other'
+        region_counts[region_key] += 1
 
         if key in key_to_sales:
             best, score = key, 100
