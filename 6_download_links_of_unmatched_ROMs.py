@@ -24,8 +24,9 @@ import subprocess
 import readline
 import glob
 import re
-from urllib.parse import urlsplit, urlunsplit
+from urllib.parse import urlsplit, urlunsplit, unquote
 import requests
+from bs4 import BeautifulSoup
 
 # Some mirrors block requests without a browser-like User-Agent.  Aria2c sets
 # its own User-Agent which typically succeeds, so we mimic that here when
@@ -44,6 +45,10 @@ NEW_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, os.pardir, 'new_roms'))
 DISC_RE = re.compile(r"\b(?P<word>disc|disk|cd)[ _.-]*(?P<num>[0-9]+|[ivx]+)\b", re.I)
 ROMAN_TO_INT = {'i':1,'ii':2,'iii':3,'iv':4,'v':5,'vi':6,'vii':7,'viii':8}
 INT_TO_ROMAN = {v:k.upper() for k,v in ROMAN_TO_INT.items()}
+
+# Cache directory listings to avoid repeated network calls when probing for
+# additional discs.
+DIR_CACHE = {}
 
 def setup_tab_completion():
     """Enable TAB-completion for directory names in input()."""
@@ -74,11 +79,10 @@ def find_extra_discs(url: str, filename: str, max_discs: int = 8):
 
     The function looks for a disc number in ``filename`` and then probes both
     earlier and later disc numbers (e.g. if ``Disc 2`` is found it will also
-    check ``Disc 1``, ``Disc 3`` ... up to ``max_discs``).  It first attempts a
-    ``HEAD`` request to verify the file exists.  If the ``HEAD`` request fails
-    due to network issues or an unsupported method, it falls back to a tiny
-    ranged ``GET`` request.  Any URL that returns a status code below 400 is
-    considered valid.
+    check ``Disc 1``, ``Disc 3`` ... up to ``max_discs``).  Instead of issuing
+    a request for every candidate disc, the function fetches the directory
+    listing once and only returns discs that are actually present in that
+    listing.
     """
     m = DISC_RE.search(filename)
     if not m:
@@ -98,6 +102,22 @@ def find_extra_discs(url: str, filename: str, max_discs: int = 8):
     split_url = list(urlsplit(url))
     base_path = os.path.dirname(split_url[2])
 
+    # Fetch and cache the directory listing so we can verify extra discs exist
+    dir_path = base_path + '/'
+    dir_url = urlunsplit([split_url[0], split_url[1], dir_path, '', ''])
+    listing = DIR_CACHE.get(dir_url)
+    if listing is None:
+        try:
+            r = requests.get(dir_url, headers=HTTP_HEADERS, timeout=10)
+            if r.status_code >= 400:
+                listing = []
+            else:
+                soup = BeautifulSoup(r.text, 'html.parser')
+                listing = [unquote(a['href']) for a in soup.find_all('a', href=True)]
+        except requests.RequestException:
+            listing = []
+        DIR_CACHE[dir_url] = listing
+
     # Build candidate disc numbers, trying earlier discs first for predictable
     # ordering, then later discs up to ``max_discs``.
     candidates = list(range(disc_num - 1, 0, -1))
@@ -114,33 +134,11 @@ def find_extra_discs(url: str, filename: str, max_discs: int = 8):
             repl = roman if num_str.isupper() else roman.lower()
 
         new_name = prefix + repl + suffix
+        if new_name not in listing:
+            continue
+
         split_url[2] = os.path.join(base_path, new_name)
         candidate_url = urlunsplit(split_url)
-
-        try:
-            r = requests.head(
-                candidate_url,
-                allow_redirects=True,
-                timeout=5,
-                headers=HTTP_HEADERS,
-            )
-            if r.status_code >= 400:
-                raise requests.RequestException
-        except requests.RequestException:
-            try:
-                hdrs = {"Range": "bytes=0-0"}
-                hdrs.update(HTTP_HEADERS)
-                r = requests.get(
-                    candidate_url,
-                    headers=hdrs,
-                    allow_redirects=True,
-                    timeout=5,
-                )
-            except requests.RequestException:
-                continue
-            if r.status_code >= 400:
-                continue
-
         results.append((candidate_url, new_name))
 
     return results
