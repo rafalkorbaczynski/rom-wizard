@@ -427,6 +427,15 @@ def main():
                 if not best_keys:
                     continue
                 selected_keys = best_keys
+                # If a disc was chosen, gather any additional discs for the same
+                # game so they can be stored in a single CSV row.
+                selected_names = [file_names[k] for k in selected_keys]
+                if any(DISC_RE.search(n) for n in selected_names):
+                    base = norm(remove_disc(selected_names[0]))
+                    all_keys = group_map.get(base, selected_keys)
+                    if len(all_keys) > len(selected_keys):
+                        # sort by disc number to keep a stable order
+                        selected_keys = sorted(all_keys, key=lambda k: disc_number(file_names[k]))
             else:
                 max_ts = max(score for _, score, _ in ts_results)
                 keys_at_max = [key for key, score, _ in ts_results if score == max_ts]
@@ -438,24 +447,44 @@ def main():
                     continue
                 selected_keys = group_map.get(norm(remove_disc(file_names[best_key])), [best_key])
 
-            for k in selected_keys:
-                href = file_map[k]
-                download_url = urljoin(url, href)
-                matched_title = unquote(href)
-
-                rows.append({
+            if manual_mode and len(selected_keys) > 1:
+                row_data = {
                     'Search_Term': game,
                     'Platform': ds_code,
                     'Directory': out_dir_name,
-                    'Matched_Title': matched_title,
                     'Score': score,
                     'Global_Sales': sales,
-                    'URL': download_url
-                })
-                print(f"  Matched {game} -> {matched_title} (score {score}, sales {sales})")
+                }
+                for idx, k in enumerate(selected_keys, start=1):
+                    href = file_map[k]
+                    download_url = urljoin(url, href)
+                    matched_title = unquote(href)
+                    title_col = 'Matched_Title' if idx == 1 else f'Matched_Title_{idx}'
+                    url_col = 'URL' if idx == 1 else f'URL_{idx}'
+                    row_data[title_col] = matched_title
+                    row_data[url_col] = download_url
+                    print(f"  Matched {game} -> {matched_title} (score {score}, sales {sales})")
+                rows.append(row_data)
+            else:
+                for k in selected_keys:
+                    href = file_map[k]
+                    download_url = urljoin(url, href)
+                    matched_title = unquote(href)
+
+                    rows.append({
+                        'Search_Term': game,
+                        'Platform': ds_code,
+                        'Directory': out_dir_name,
+                        'Matched_Title': matched_title,
+                        'Score': score,
+                        'Global_Sales': sales,
+                        'URL': download_url
+                    })
+                    print(f"  Matched {game} -> {matched_title} (score {score}, sales {sales})")
 
     # write outputs
     df_out = pd.DataFrame(rows)
+    df_out.fillna('', inplace=True)
     csv_path = os.path.join(snapshot_path, 'download_list.csv')
     df_out.to_csv(csv_path, index=False)
     print(f"Wrote download list CSV ({len(rows)} matches) to {csv_path}")
