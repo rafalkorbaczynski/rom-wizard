@@ -117,6 +117,7 @@ READABLE_NAMES = {
 matched_records = []
 detailed_matches = []
 console_stats = {}
+REGIONS = ['EU','US','JP','Other']
 total_games = 0
 
 # ——— Matching & XML injection ——————————————————————————————————————
@@ -146,6 +147,7 @@ for root_dir, _, files in os.walk(roms_root):
     games = root.findall('game')
     total_games += len(games)
     matched_count = 0
+    region_counts = {r: 0 for r in REGIONS}
     for game in games:
         for old in game.findall('rating') + game.findall('ratingMax'):
             game.remove(old)
@@ -154,6 +156,16 @@ for root_dir, _, files in os.walk(roms_root):
         if not title:
             continue
         key = norm(title)
+        region = (game.findtext('region') or '').strip().lower()
+        if region == 'eu':
+            region_counts['EU'] += 1
+        elif region == 'us':
+            region_counts['US'] += 1
+        elif region == 'jp':
+            region_counts['JP'] += 1
+        else:
+            region_counts['Other'] += 1
+
         if key in key_to_sales:
             best, score = key, 100
         else:
@@ -180,10 +192,13 @@ for root_dir, _, files in os.walk(roms_root):
     if ds_plat in console_stats:
         console_stats[ds_plat]['matched_roms'] += matched_count
         console_stats[ds_plat]['total_roms'] += len(games)
+        for reg in REGIONS:
+            console_stats[ds_plat][reg] += region_counts[reg]
     else:
         console_stats[ds_plat] = {
             'matched_roms': matched_count,
-            'total_roms': len(games)
+            'total_roms': len(games),
+            **region_counts
         }
     print(f"  Wrote updated gamelist for {READABLE_NAMES.get(ds_plat, ds_plat)}: {out_xml}")
 
@@ -207,5 +222,6 @@ roms.rename(columns={'total_roms':'ROMs','matched_roms':'MatchedROMs'}, inplace=
 roms['ROMs%'] = roms['MatchedROMs']/roms['ROMs'].replace(0,1)*100
 summary = pd.concat([roms, stats], axis=1).fillna(0)
 summary.rename(index=READABLE_NAMES, inplace=True)
-summary[['Titles','MatchedTitles','Data%','ROMs','MatchedROMs','ROMs%']].to_csv(os.path.join(results_dir, 'summary.csv'), index_label='Platform')
+cols = ['Titles','MatchedTitles','Data%','ROMs','MatchedROMs','ROMs%'] + REGIONS
+summary[cols].to_csv(os.path.join(results_dir, 'summary.csv'), index_label='Platform')
 print("All summaries saved in snapshot folder.")
