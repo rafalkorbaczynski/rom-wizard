@@ -65,7 +65,13 @@ def parse_args():
 
 
 def find_extra_discs(url: str, filename: str, max_discs: int = 8):
-    """Yield (url, filename) tuples for additional discs if available."""
+    """Yield ``(url, filename)`` tuples for discs adjacent to ``filename``.
+
+    The function looks for a disc number in ``filename`` and then probes both
+    earlier and later disc numbers (e.g. if ``Disc 2`` is found it will also
+    check ``Disc 1``, ``Disc 3`` ... up to ``max_discs``).  Only URLs that
+    respond successfully to an HTTP ``HEAD`` request are yielded.
+    """
     m = DISC_RE.search(filename)
     if not m:
         return
@@ -84,24 +90,30 @@ def find_extra_discs(url: str, filename: str, max_discs: int = 8):
     split_url = list(urlsplit(url))
     base_path = os.path.dirname(split_url[2])
 
-    for n in range(disc_num + 1, max_discs + 1):
+    # Build candidate disc numbers, trying earlier discs first for predictable
+    # ordering, then later discs up to ``max_discs``.
+    candidates = list(range(disc_num - 1, 0, -1))
+    candidates.extend(range(disc_num + 1, max_discs + 1))
+
+    for n in candidates:
         if num_str.isdigit():
             repl = str(n).zfill(len(num_str))
         else:
             roman = INT_TO_ROMAN.get(n)
             if not roman:
-                break
+                continue
             repl = roman if num_str.isupper() else roman.lower()
+
         new_name = prefix + repl + suffix
         split_url[2] = os.path.join(base_path, new_name)
         candidate_url = urlunsplit(split_url)
+
         try:
             r = requests.head(candidate_url, allow_redirects=True, timeout=5)
         except requests.RequestException:
-            break
-        if r.status_code >= 400:
-            break
-        yield candidate_url, new_name
+            continue
+        if r.status_code < 400:
+            yield candidate_url, new_name
 
 
 def main():
