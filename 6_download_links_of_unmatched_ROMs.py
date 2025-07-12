@@ -65,12 +65,15 @@ def parse_args():
 
 
 def find_extra_discs(url: str, filename: str, max_discs: int = 8):
-    """Yield ``(url, filename)`` tuples for discs adjacent to ``filename``.
+    """Return a list of ``(url, filename)`` tuples for adjacent discs.
 
     The function looks for a disc number in ``filename`` and then probes both
     earlier and later disc numbers (e.g. if ``Disc 2`` is found it will also
-    check ``Disc 1``, ``Disc 3`` ... up to ``max_discs``).  Only URLs that
-    respond successfully to an HTTP ``HEAD`` request are yielded.
+    check ``Disc 1``, ``Disc 3`` ... up to ``max_discs``).  It first attempts a
+    ``HEAD`` request to verify the file exists.  If the ``HEAD`` request fails
+    due to network issues or an unsupported method, it falls back to a tiny
+    ranged ``GET`` request.  Any URL that returns a status code below 400 is
+    considered valid.
     """
     m = DISC_RE.search(filename)
     if not m:
@@ -95,6 +98,7 @@ def find_extra_discs(url: str, filename: str, max_discs: int = 8):
     candidates = list(range(disc_num - 1, 0, -1))
     candidates.extend(range(disc_num + 1, max_discs + 1))
 
+    results = []
     for n in candidates:
         if num_str.isdigit():
             repl = str(n).zfill(len(num_str))
@@ -110,10 +114,24 @@ def find_extra_discs(url: str, filename: str, max_discs: int = 8):
 
         try:
             r = requests.head(candidate_url, allow_redirects=True, timeout=5)
+            if r.status_code >= 400:
+                raise requests.RequestException
         except requests.RequestException:
-            continue
-        if r.status_code < 400:
-            yield candidate_url, new_name
+            try:
+                r = requests.get(
+                    candidate_url,
+                    headers={"Range": "bytes=0-0"},
+                    allow_redirects=True,
+                    timeout=5,
+                )
+            except requests.RequestException:
+                continue
+            if r.status_code >= 400:
+                continue
+
+        results.append((candidate_url, new_name))
+
+    return results
 
 
 def main():
@@ -175,7 +193,12 @@ def main():
                     entries.append(entry)
                     seen.add(key)
 
-                for extra_url, extra_title in find_extra_discs(url, title):
+                extras = find_extra_discs(url, title)
+                if extras:
+                    print(f"Multi-disc detected for '{title}':")
+                    for _, etitle in extras:
+                        print(f"  -> {etitle}")
+                for extra_url, extra_title in extras:
                     key = (extra_url, extra_title, out_dir)
                     if key in seen:
                         continue
