@@ -94,8 +94,15 @@ def region_priority(filename):
 # ——— Mappings to dataset codes ———————————————————————————————————
 READABLE_NAMES = {
     '2600':'Atari 2600','5200':'Atari 5200','7800':'Atari 7800','AST':'Atari ST',
-    # ... (other mappings unchanged) ...
-    'XB':'Xbox','X360':'360',
+    '3DO':'3DO','3DS':'Nintendo 3DS','DS':'Nintendo DS','GB':'Game Boy','GBC':'Game Boy Color',
+    'GBA':'Game Boy Advance','NES':'NES','SNES':'SNES','N64':'Nintendo 64','GC':'GameCube',
+    'Wii':'Wii','WiiU':'Wii U','NS':'Switch','NGage':'N-Gage','VB':'Virtual Boy',
+    'PS':'PlayStation','PS2':'PS2','PS3':'PS3','PS4':'PS4','PS5':'PS5','PSP':'PSP','PSV':'Vita',
+    'SAT':'Saturn','SCD':'Sega CD','S32X':'32X','GG':'Game Gear','GEN':'Genesis','DC':'Dreamcast',
+    'XB':'Xbox','X360':'360','XOne':'One','PC':'PC','MSD':'MS-DOS','WinP':'Windows',
+    'Linux':'Linux','OSX':'macOS','PCFX':'PC-FX','TG16':'TurboGrafx-16','PCE':'PC Engine',
+    'C64':'C64','C128':'C128','FDS':'FDS','MSX':'MSX','BBCM':'BBC Micro','AMIG':'Amiga','CD32':'CD32',
+    'ACPC':'Amstrad CPC','ApII':'Apple II','Int':'Intellivision','Arc':'Arcadia','CDi':'CD-i'
 }
 INVERT_MAP = {v:k for k,v in READABLE_NAMES.items()}
 
