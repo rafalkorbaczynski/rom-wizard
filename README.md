@@ -15,3 +15,5 @@ Platform,Directory,URL
 * **URL** – base URL to scrape for downloadable archives
 
 Fill in the `URL` column for platforms you wish to scrape.
+
+To populate missing URLs automatically, run `scrape_platform_urls.py`.
