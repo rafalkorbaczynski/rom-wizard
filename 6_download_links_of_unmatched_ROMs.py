@@ -27,6 +27,11 @@ import re
 from urllib.parse import urlsplit, urlunsplit
 import requests
 
+# Some mirrors block requests without a browser-like User-Agent.  Aria2c sets
+# its own User-Agent which typically succeeds, so we mimic that here when
+# probing for additional disc images.
+HTTP_HEADERS = {"User-Agent": "Mozilla/5.0"}
+
 # Determine directories
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 RESULTS_DIR = SCRIPT_DIR
@@ -113,14 +118,21 @@ def find_extra_discs(url: str, filename: str, max_discs: int = 8):
         candidate_url = urlunsplit(split_url)
 
         try:
-            r = requests.head(candidate_url, allow_redirects=True, timeout=5)
+            r = requests.head(
+                candidate_url,
+                allow_redirects=True,
+                timeout=5,
+                headers=HTTP_HEADERS,
+            )
             if r.status_code >= 400:
                 raise requests.RequestException
         except requests.RequestException:
             try:
+                hdrs = {"Range": "bytes=0-0"}
+                hdrs.update(HTTP_HEADERS)
                 r = requests.get(
                     candidate_url,
-                    headers={"Range": "bytes=0-0"},
+                    headers=hdrs,
                     allow_redirects=True,
                     timeout=5,
                 )
