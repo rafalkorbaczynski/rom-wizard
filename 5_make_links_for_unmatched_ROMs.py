@@ -25,6 +25,20 @@ import re
 from rapidfuzz import process, fuzz
 from urllib.parse import urljoin, unquote
 
+# terminal colors
+RESET = "\033[0m"
+BOLD = "\033[1m"
+HEADER_COLOR = "\033[95m"
+
+def clear_screen():
+    os.system('cls' if os.name == 'nt' else 'clear')
+
+def progress_bar(current, total, width=20):
+    if total == 0:
+        return '[----------] 0/0'
+    filled = int(width * current / total)
+    return '[' + '#' * filled + '-' * (width - filled) + f'] {current}/{total}'
+
 # for interactive directory tab-completion
 import readline
 import glob
@@ -243,7 +257,29 @@ def main():
     platforms = sorted(active)
     print(f"Running for platforms: {', '.join(platforms)}")
 
+    platform_targets = {}
+    total_targets = 0
+    if platforms:
+        for platform_name in platforms:
+            ds_code = INVERT_MAP.get(platform_name, platform_name)
+            info = platform_info.get(ds_code, {})
+            url = info.get('url', '')
+            if not url:
+                continue
+            subset = unmatched_df[unmatched_df['Platform'] == ds_code]
+            subset = subset[~subset['Name'].apply(lambda n: (n, ds_code) in blacklisted_pairs)]
+            if ds_code in ('PS3', 'X360'):
+                pc_names = set(unmatched_df[unmatched_df['Platform'] == 'PC']['Name'])
+                subset = subset[~subset['Name'].isin(pc_names)]
+            if ds_code == 'X360':
+                ps3_names = set(unmatched_df[unmatched_df['Platform'] == 'PS3']['Name'])
+                subset = subset[~subset['Name'].isin(ps3_names)]
+            num = len(subset.sort_values('Global_Sales', ascending=False).head(count))
+            platform_targets[ds_code] = num
+            total_targets += num
+
     rows = []
+    total_done = 0
 
     for platform_name in platforms:
         ds_code = INVERT_MAP.get(platform_name, platform_name)
@@ -278,7 +314,12 @@ def main():
         # select top rows with sales
         top_df = subset.sort_values('Global_Sales', ascending=False).head(count)
 
+        platform_total = platform_targets.get(ds_code, len(top_df))
+        platform_done = 0
+
         for _, row in top_df.iterrows():
+            platform_done += 1
+            total_done += 1
             game = row['Name']
             sales = row['Global_Sales']
             if (game, ds_code) in blacklisted_pairs:
@@ -290,38 +331,58 @@ def main():
                 continue
 
             if manual_mode:
-                options = []
-                print(f"Options for {game}:")
-                for idx, (cand, ts_score, _) in enumerate(ts_results[:3], start=1):
-                    pr_score = fuzz.partial_ratio(normed, cand)
-                    opt_score = min(ts_score, pr_score)
-                    options.append((cand, opt_score))
-                    print(f"  [{idx}] {unquote(file_map[cand])} (score {opt_score})")
-                choice = read_single_key("Press 1-3, 'b' to blacklist, or ENTER to skip: ").lower()
-                if choice == 'b':
-                    blacklist_df.loc[len(blacklist_df)] = {
-                        'Search_Term': game,
-                        'Platform': ds_code
-                    }
-                    blacklisted_pairs.add((game, ds_code))
-                    print(f"  Blacklisted {game}")
+                search_term = game
+                norm_search = norm(search_term)
+                best_key = None
+                while True:
+                    clear_screen()
+                    print(f"Platform {ds_code}: {progress_bar(platform_done, platform_total)} | Total: {progress_bar(total_done, total_targets)}")
+                    print(f"{HEADER_COLOR}{BOLD}Options for {game}:{RESET}")
+                    if search_term != game:
+                        print(f"Searching for '{search_term}'")
+                    options = []
+                    ts_results = process.extract(norm_search, list(file_map.keys()), scorer=fuzz.token_sort_ratio, limit=None)
+                    if not ts_results:
+                        print("  No candidates found")
+                    else:
+                        for idx, (cand, ts_score, _) in enumerate(ts_results[:3], start=1):
+                            pr_score = fuzz.partial_ratio(norm_search, cand)
+                            opt_score = int(round(min(ts_score, pr_score)))
+                            options.append((cand, opt_score))
+                            print(f"  [{idx}] {unquote(file_map[cand])} (score {opt_score})")
+                    choice = input("Press 1-3, 'b' to blacklist, or ENTER to skip: ").strip()
+                    if choice.lower() == 'b':
+                        blacklist_df.loc[len(blacklist_df)] = {
+                            'Search_Term': game,
+                            'Platform': ds_code
+                        }
+                        blacklisted_pairs.add((game, ds_code))
+                        print(f"  Blacklisted {game}")
+                        best_key = None
+                        break
+                    if choice in {'1','2','3'}:
+                        idx_choice = int(choice) - 1
+                        if idx_choice < len(options):
+                            best_key, score = options[idx_choice]
+                            if score < threshold:
+                                print(f"  [SKIP] {game} (score below threshold: {score})")
+                                best_key = None
+                        break
+                    if choice == '':
+                        best_key = None
+                        break
+                    # treat input as new search term
+                    search_term = choice
+                    norm_search = norm(search_term)
                     continue
-                if choice in {'1','2','3'}:
-                    idx = int(choice) - 1
-                    if idx >= len(options):
-                        continue
-                    best_key, score = options[idx]
-                    if score < threshold:
-                        print(f"  [SKIP] {game} (score below threshold: {score})")
-                        continue
-                else:
+                if not best_key:
                     continue
             else:
                 max_ts = max(score for _, score, _ in ts_results)
                 best_keys = [key for key, score, _ in ts_results if score == max_ts]
                 best_key = max(best_keys, key=lambda k: region_priority(unquote(file_map[k])))
                 pr_score = fuzz.partial_ratio(normed, best_key)
-                score = min(max_ts, pr_score)
+                score = int(round(min(max_ts, pr_score)))
                 if score < threshold:
                     print(f"  [SKIP] {game} (score below threshold: {score})")
                     continue
