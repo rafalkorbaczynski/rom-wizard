@@ -415,8 +415,7 @@ def main():
                         if idx_choice < len(options):
                             best_keys, score = options[idx_choice]
                             if score < threshold:
-                                print(f"  [SKIP] {game} (score below threshold: {score})")
-                                best_keys = None
+                                print(f"  Selected option below threshold ({score} < {threshold})")
                         break
                     if choice == '':
                         best_keys = None
