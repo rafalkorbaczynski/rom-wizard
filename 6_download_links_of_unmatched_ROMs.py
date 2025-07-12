@@ -92,19 +92,24 @@ def main():
                 sys.exit(1)
 
         for row in reader:
-            url = row['URL'].strip()
             platform = row['Directory'].strip() or row['Platform'].strip()
-            title = row['Matched_Title'].strip()
-            if not url:
-                continue
-            # determine output directory
-            out_dir = os.path.join(NEW_ROOT, platform)
-            os.makedirs(out_dir, exist_ok=True)
-            # prepare aria2 entry
-            entry = url + '\n'
-            entry += f"  out={title}\n"
-            entry += f"  dir={out_dir}\n"
-            entries.append(entry)
+            for idx in range(1, 100):
+                url_col = 'URL' if idx == 1 else f'URL_{idx}'
+                title_col = 'Matched_Title' if idx == 1 else f'Matched_Title_{idx}'
+                if url_col not in row:
+                    break
+                url = row[url_col].strip()
+                if not url:
+                    continue
+                title = row.get(title_col, row.get('Matched_Title', '')).strip()
+                if not title:
+                    title = os.path.basename(url)
+                out_dir = os.path.join(NEW_ROOT, platform)
+                os.makedirs(out_dir, exist_ok=True)
+                entry = url + '\n'
+                entry += f"  out={title}\n"
+                entry += f"  dir={out_dir}\n"
+                entries.append(entry)
 
     if not entries:
         print("No valid download entries found in CSV. Exiting.")
