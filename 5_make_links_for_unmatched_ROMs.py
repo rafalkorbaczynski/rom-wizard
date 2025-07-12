@@ -29,6 +29,7 @@ from urllib.parse import urljoin, unquote
 RESET = "\033[0m"
 BOLD = "\033[1m"
 HEADER_COLOR = "\033[95m"
+DIFF_COLOR = "\033[93m"
 
 def clear_screen():
     os.system('cls' if os.name == 'nt' else 'clear')
@@ -80,6 +81,36 @@ def read_single_key(prompt=''):
             ch = ch.decode('utf-8', errors='ignore')
     print(ch)
     return ch
+
+# --- Multi-disc helpers -----------------------------------------------------
+DISC_RE = re.compile(r'(?:disc|disk|cd)\s*([0-9]+)', re.I)
+
+def remove_disc(text: str) -> str:
+    """Return string with disc information removed."""
+    return re.sub(r'\s*[\[(]?(?:disc|disk|cd)\s*[0-9]+[^\])]*[\])]?', '', text, flags=re.I).strip()
+
+def disc_number(text: str) -> int:
+    match = DISC_RE.search(text)
+    if match:
+        try:
+            return int(match.group(1))
+        except ValueError:
+            return 0
+    return 0
+
+from difflib import SequenceMatcher
+
+def color_diff(candidate: str, search: str) -> str:
+    """Return candidate string with differences highlighted."""
+    sm = SequenceMatcher(None, candidate.lower(), search.lower())
+    out = []
+    for op, a1, a2, _, _ in sm.get_opcodes():
+        segment = candidate[a1:a2]
+        if op == 'equal':
+            out.append(BOLD + segment + RESET)
+        else:
+            out.append(DIFF_COLOR + segment + RESET)
+    return ''.join(out)
 
 # ——— Title normalization helper ———————————————————————————————————
 _ROMAN = {'ix':9,'viii':8,'vii':7,'vi':6,'iv':4,'iii':3,'ii':2,'i':1}
@@ -296,7 +327,16 @@ def main():
         resp.raise_for_status()
         soup = BeautifulSoup(resp.text, 'html.parser')
         zips = [a['href'] for a in soup.find_all('a', href=True) if a['href'].lower().endswith('.zip')]
-        file_map = {norm(os.path.splitext(unquote(h))[0]): h for h in zips}
+        file_map = {}
+        file_names = {}
+        group_map = {}
+        for h in zips:
+            name = unquote(os.path.splitext(h)[0])
+            key = norm(name)
+            file_map[key] = h
+            file_names[key] = name
+            base_key = norm(remove_disc(name))
+            group_map.setdefault(base_key, []).append(key)
 
         # filter unmatched with exclusions
         subset = unmatched_df[unmatched_df['Platform'] == ds_code]
@@ -333,7 +373,7 @@ def main():
             if manual_mode:
                 search_term = game
                 norm_search = norm(search_term)
-                best_key = None
+                best_keys = None
                 while True:
                     clear_screen()
                     print(f"Platform {ds_code}: {progress_bar(platform_done, platform_total)} | Total: {progress_bar(total_done, total_targets)}")
@@ -345,11 +385,21 @@ def main():
                     if not ts_results:
                         print("  No candidates found")
                     else:
-                        for idx, (cand, ts_score, _) in enumerate(ts_results[:3], start=1):
-                            pr_score = fuzz.partial_ratio(norm_search, cand)
-                            opt_score = int(round(min(ts_score, pr_score)))
-                            options.append((cand, opt_score))
-                            print(f"  [{idx}] {unquote(file_map[cand])} (score {opt_score})")
+                        groups = {}
+                        for cand, ts_score, _ in ts_results:
+                            base_key = norm(remove_disc(file_names[cand]))
+                            g = groups.setdefault(base_key, {'keys': [], 'score': 0})
+                            g['keys'].append(cand)
+                            g['score'] = max(g['score'], ts_score)
+                        sorted_groups = sorted(groups.values(), key=lambda g: g['score'], reverse=True)
+                        for idx, g in enumerate(sorted_groups[:3], start=1):
+                            main_key = max(g['keys'], key=lambda k: fuzz.partial_ratio(norm_search, k))
+                            pr_score = fuzz.partial_ratio(norm_search, main_key)
+                            opt_score = int(round(min(g['score'], pr_score)))
+                            disp = ' + '.join(file_names[k] for k in sorted(g['keys'], key=lambda k: disc_number(file_names[k])))
+                            disp = color_diff(disp, search_term)
+                            options.append((g['keys'], opt_score))
+                            print(f"  [{idx}] {disp} (score {opt_score})")
                     choice = input("Press 1-3, 'b' to blacklist, or ENTER to skip: ").strip()
                     if choice.lower() == 'b':
                         blacklist_df.loc[len(blacklist_df)] = {
@@ -358,49 +408,52 @@ def main():
                         }
                         blacklisted_pairs.add((game, ds_code))
                         print(f"  Blacklisted {game}")
-                        best_key = None
+                        best_keys = None
                         break
                     if choice in {'1','2','3'}:
                         idx_choice = int(choice) - 1
                         if idx_choice < len(options):
-                            best_key, score = options[idx_choice]
+                            best_keys, score = options[idx_choice]
                             if score < threshold:
                                 print(f"  [SKIP] {game} (score below threshold: {score})")
-                                best_key = None
+                                best_keys = None
                         break
                     if choice == '':
-                        best_key = None
+                        best_keys = None
                         break
                     # treat input as new search term
                     search_term = choice
                     norm_search = norm(search_term)
                     continue
-                if not best_key:
+                if not best_keys:
                     continue
+                selected_keys = best_keys
             else:
                 max_ts = max(score for _, score, _ in ts_results)
-                best_keys = [key for key, score, _ in ts_results if score == max_ts]
-                best_key = max(best_keys, key=lambda k: region_priority(unquote(file_map[k])))
+                keys_at_max = [key for key, score, _ in ts_results if score == max_ts]
+                best_key = max(keys_at_max, key=lambda k: region_priority(unquote(file_map[k])))
                 pr_score = fuzz.partial_ratio(normed, best_key)
                 score = int(round(min(max_ts, pr_score)))
                 if score < threshold:
                     print(f"  [SKIP] {game} (score below threshold: {score})")
                     continue
+                selected_keys = group_map.get(norm(remove_disc(file_names[best_key])), [best_key])
 
-            href = file_map[best_key]
-            download_url = urljoin(url, href)
-            matched_title = unquote(href)
+            for k in selected_keys:
+                href = file_map[k]
+                download_url = urljoin(url, href)
+                matched_title = unquote(href)
 
-            rows.append({
-                'Search_Term': game,
-                'Platform': ds_code,
-                'Directory': out_dir_name,
-                'Matched_Title': matched_title,
-                'Score': score,
-                'Global_Sales': sales,
-                'URL': download_url
-            })
-            print(f"  Matched {game} -> {matched_title} (score {score}, sales {sales})")
+                rows.append({
+                    'Search_Term': game,
+                    'Platform': ds_code,
+                    'Directory': out_dir_name,
+                    'Matched_Title': matched_title,
+                    'Score': score,
+                    'Global_Sales': sales,
+                    'URL': download_url
+                })
+                print(f"  Matched {game} -> {matched_title} (score {score}, sales {sales})")
 
     # write outputs
     df_out = pd.DataFrame(rows)
