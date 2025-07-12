@@ -82,7 +82,7 @@ def main():
 
     with open(csv_path, newline='', encoding='utf-8') as csvfile:
         reader = csv.DictReader(csvfile)
-        required = ('Platform', 'Matched_Title', 'URL')
+        required = ('Platform', 'Directory', 'Matched_Title', 'URL')
         for col in required:
             if col not in reader.fieldnames:
                 print(f"Error: '{col}' column not found in CSV headers.")
@@ -90,7 +90,7 @@ def main():
 
         for row in reader:
             url = row['URL'].strip()
-            platform = row['Platform'].strip()
+            platform = row['Directory'].strip() or row['Platform'].strip()
             title = row['Matched_Title'].strip()
             if not url:
                 continue

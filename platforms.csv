@@ -1,51 +1,32 @@
-Platform,URL
-3do,
-Amiga (CD32),
-Amstrad CPC,
-Arcade,
-Atari 2600,
-Atari 7800 ProSystem,
-Atari Jaguar,
-Atari Lynx,
-Atari ST,
-ColecoVision,
-Famicom Disk System,
-Family Computer,
-Game Boy,
-Game Boy Color,
-Game Boy Advance,
-Nintendo DS,
-Microsoft Xbox,https://myrient.erista.me/files/Redump/Microsoft%20-%20Xbox/
-Microsoft Xbox 360,https://myrient.erista.me/files/Redump/Microsoft%20-%20Xbox%20360/
-MSX,
-Neo Geo,
-Neo Geo Pocket,
-Neo Geo Pocket Color,
-Nintendo NES,
-Nintendo SNES,
-Nintendo 64,
-Nintendo GameCube,https://myrient.erista.me/files/Redump/Nintendo%20-%20GameCube%20-%20NKit%20RVZ%20%5Bzstd-19-128k%5D/
-Nintendo Wii,https://myrient.erista.me/files/Redump/Nintendo%20-%20Wii%20-%20NKit%20RVZ%20%5Bzstd-19-128k%5D/
-Nintendo WiiU,https://myrient.erista.me/files/No-Intro/Nintendo%20-%20Wii%20U%20%28Digital%29%20%28CDN%29/
-Nintendo Switch,
-Nintendo Virtual Boy,
-Philips CD-I,
-Playstation,
-Playstation 2,
-Playstation 3,https://myrient.erista.me/files/Redump/Sony%20-%20PlayStation%203/
-Playstation Portable,https://myrient.erista.me/files/Redump/Sony%20-%20PlayStation%20Portable/
-ScummVM,
-Sega 32x,
-Sega Dreamcast,
-Sega Gamegear,
-Sega Genesis,
-Sega Master System,
-Sega Saturn,
-Sega SG-1000,
-SuperGrafx,
-PC Engine,
-PC Engine CD,
-Vectrex,
-VS. System,
-Wonderswan,
-ZX Spectrum
+Dataset,Directory,URL
+2600,atari2600,
+3DO,3do,
+3DS,3ds,
+DC,dc,
+DS,ds,
+GB,gb,
+GBA,gba,
+GC,gamecube,https://myrient.erista.me/files/Redump/Nintendo%20-%20GameCube%20-%20NKit%20RVZ%20%5Bzstd-19-128k%5D/
+GEN,megadrive,
+GG,gamegear,
+N64,n64,
+NES,nes,
+NG,ng,
+PC,pc,
+PCFX,pcfx,
+PS,ps,
+PS2,ps2,
+PS3,ps3,https://myrient.erista.me/files/Redump/Sony%20-%20PlayStation%203/
+PS4,ps4,
+PSP,psp,https://myrient.erista.me/files/Redump/Sony%20-%20PlayStation%20Portable/
+PSV,psvita,
+SAT,saturn,
+SCD,sega_cd,
+SNES,snes,
+TG16,pcengine,
+WS,ws,
+Wii,wii,https://myrient.erista.me/files/Redump/Nintendo%20-%20Wii%20-%20NKit%20RVZ%20%5Bzstd-19-128k%5D/
+WiiU,wiiu,https://myrient.erista.me/files/No-Intro/Nintendo%20-%20Wii%20U%20%28Digital%29%20%28CDN%29/
+X360,xbox360,https://myrient.erista.me/files/Redump/Microsoft%20-%20Xbox%20360/
+XB,xbox,https://myrient.erista.me/files/Redump/Microsoft%20-%20Xbox/
+XOne,xboxone,
