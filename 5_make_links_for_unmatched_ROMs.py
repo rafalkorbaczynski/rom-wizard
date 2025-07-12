@@ -12,6 +12,8 @@ Behavior changes:
      - summary.csv
      - unmatched_summary.csv
      - matched_summary.csv (optional, not used here)
+ - Saves and updates `blacklist.csv` next to this script so it can be reused
+   across multiple snapshots
 """
 import os
 import sys
@@ -169,7 +171,8 @@ def main():
     unmatched_df = pd.read_csv(os.path.join(snapshot_path, 'unmatched_summary.csv'))
     # matched_df  = pd.read_csv(os.path.join(snapshot_path, 'matched_summary.csv'))  # if needed
 
-    blacklist_path = os.path.join(snapshot_path, 'blacklist.csv')
+    # blacklist lives next to the script so it persists across snapshots
+    blacklist_path = os.path.join(RESULTS_DIR, 'blacklist.csv')
     if os.path.exists(blacklist_path):
         blacklist_df = pd.read_csv(blacklist_path)
         # ignore legacy columns that may be present
