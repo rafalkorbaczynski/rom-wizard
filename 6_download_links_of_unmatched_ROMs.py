@@ -23,6 +23,9 @@ import csv
 import subprocess
 import readline
 import glob
+import re
+from urllib.parse import urlsplit, urlunsplit
+import requests
 
 # Determine directories
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -31,6 +34,11 @@ RESULTS_DIR = SCRIPT_DIR
 # RetroBat folder. Since this script lives in 'RetroBat/scripts', we only need
 # to go up one directory level to reach the RetroBat root.
 NEW_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, os.pardir, 'new_roms'))
+
+# Multi-disc detection regex and helpers
+DISC_RE = re.compile(r"\b(?P<word>disc|disk|cd)[ _.-]*(?P<num>[0-9]+|[ivx]+)\b", re.I)
+ROMAN_TO_INT = {'i':1,'ii':2,'iii':3,'iv':4,'v':5,'vi':6,'vii':7,'viii':8}
+INT_TO_ROMAN = {v:k.upper() for k,v in ROMAN_TO_INT.items()}
 
 def setup_tab_completion():
     """Enable TAB-completion for directory names in input()."""
@@ -54,6 +62,46 @@ def parse_args():
     p.add_argument('-j', '--concurrent', type=int, default=5,
                    help='Number of simultaneous downloads (aria2c -j)')
     return p.parse_args()
+
+
+def find_extra_discs(url: str, filename: str, max_discs: int = 8):
+    """Yield (url, filename) tuples for additional discs if available."""
+    m = DISC_RE.search(filename)
+    if not m:
+        return
+
+    num_str = m.group('num')
+    try:
+        disc_num = int(num_str)
+    except ValueError:
+        disc_num = ROMAN_TO_INT.get(num_str.lower(), 0)
+    if disc_num <= 0 or disc_num >= max_discs:
+        return
+
+    prefix = filename[:m.start('num')]
+    suffix = filename[m.end('num'):]
+
+    split_url = list(urlsplit(url))
+    base_path = os.path.dirname(split_url[2])
+
+    for n in range(disc_num + 1, max_discs + 1):
+        if num_str.isdigit():
+            repl = str(n).zfill(len(num_str))
+        else:
+            roman = INT_TO_ROMAN.get(n)
+            if not roman:
+                break
+            repl = roman if num_str.isupper() else roman.lower()
+        new_name = prefix + repl + suffix
+        split_url[2] = os.path.join(base_path, new_name)
+        candidate_url = urlunsplit(split_url)
+        try:
+            r = requests.head(candidate_url, allow_redirects=True, timeout=5)
+        except requests.RequestException:
+            break
+        if r.status_code >= 400:
+            break
+        yield candidate_url, new_name
 
 
 def main():
@@ -82,6 +130,7 @@ def main():
 
     # Prepare aria2 input file
     entries = []
+    seen = set()
 
     with open(csv_path, newline='', encoding='utf-8') as csvfile:
         reader = csv.DictReader(csvfile)
@@ -106,10 +155,23 @@ def main():
                     title = os.path.basename(url)
                 out_dir = os.path.join(NEW_ROOT, platform)
                 os.makedirs(out_dir, exist_ok=True)
-                entry = url + '\n'
-                entry += f"  out={title}\n"
-                entry += f"  dir={out_dir}\n"
-                entries.append(entry)
+                key = (url, title, out_dir)
+                if key not in seen:
+                    entry = url + '\n'
+                    entry += f"  out={title}\n"
+                    entry += f"  dir={out_dir}\n"
+                    entries.append(entry)
+                    seen.add(key)
+
+                for extra_url, extra_title in find_extra_discs(url, title):
+                    key = (extra_url, extra_title, out_dir)
+                    if key in seen:
+                        continue
+                    extra_entry = extra_url + '\n'
+                    extra_entry += f"  out={extra_title}\n"
+                    extra_entry += f"  dir={out_dir}\n"
+                    entries.append(extra_entry)
+                    seen.add(key)
 
     if not entries:
         print("No valid download entries found in CSV. Exiting.")
