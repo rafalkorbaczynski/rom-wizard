@@ -27,7 +27,10 @@ import glob
 # Determine directories
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 RESULTS_DIR = SCRIPT_DIR
-NEW_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, os.pardir, os.pardir, 'new_roms'))
+# Place downloaded files under a sibling 'new_roms' directory relative to the
+# RetroBat folder. Since this script lives in 'RetroBat/scripts', we only need
+# to go up one directory level to reach the RetroBat root.
+NEW_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, os.pardir, 'new_roms'))
 
 def setup_tab_completion():
     """Enable TAB-completion for directory names in input()."""
