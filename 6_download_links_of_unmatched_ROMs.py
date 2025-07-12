@@ -77,7 +77,7 @@ def find_extra_discs(url: str, filename: str, max_discs: int = 8):
     """
     m = DISC_RE.search(filename)
     if not m:
-        return
+        return []
 
     num_str = m.group('num')
     try:
@@ -85,7 +85,7 @@ def find_extra_discs(url: str, filename: str, max_discs: int = 8):
     except ValueError:
         disc_num = ROMAN_TO_INT.get(num_str.lower(), 0)
     if disc_num <= 0 or disc_num >= max_discs:
-        return
+        return []
 
     prefix = filename[:m.start('num')]
     suffix = filename[m.end('num'):]
@@ -198,15 +198,15 @@ def main():
                     print(f"Multi-disc detected for '{title}':")
                     for _, etitle in extras:
                         print(f"  -> {etitle}")
-                for extra_url, extra_title in extras:
-                    key = (extra_url, extra_title, out_dir)
-                    if key in seen:
-                        continue
-                    extra_entry = extra_url + '\n'
-                    extra_entry += f"  out={extra_title}\n"
-                    extra_entry += f"  dir={out_dir}\n"
-                    entries.append(extra_entry)
-                    seen.add(key)
+                    for extra_url, extra_title in extras:
+                        key = (extra_url, extra_title, out_dir)
+                        if key in seen:
+                            continue
+                        extra_entry = extra_url + '\n'
+                        extra_entry += f"  out={extra_title}\n"
+                        extra_entry += f"  dir={out_dir}\n"
+                        entries.append(extra_entry)
+                        seen.add(key)
 
     if not entries:
         print("No valid download entries found in CSV. Exiting.")
