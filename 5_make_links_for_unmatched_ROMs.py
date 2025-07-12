@@ -103,14 +103,14 @@ INVERT_MAP = {v:k for k,v in READABLE_NAMES.items()}
 PLATFORMS_CSV = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'platforms.csv')
 
 def load_platform_info():
-    """Return mapping of dataset code -> {'dir': directory, 'url': url}"""
+    """Return mapping of platform code -> {'dir': directory, 'url': url}"""
     if not os.path.exists(PLATFORMS_CSV):
         return {}
     df = pd.read_csv(PLATFORMS_CSV)
     df.fillna('', inplace=True)
     info = {}
     for _, row in df.iterrows():
-        info[row['Dataset']] = {
+        info[row['Platform']] = {
             'dir': row['Directory'],
             'url': row['URL']
         }
