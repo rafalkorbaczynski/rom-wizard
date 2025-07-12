@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Generate a CSV and text list of download URLs for the top N unmatched games.
-Place this file in "..\RetroBat\scripts\results" alongside your snapshot folders.
+Generate a CSV of download URLs for the top N unmatched games.
+Place this file in "..\RetroBat\scripts" alongside your snapshot folders.
 
 Behavior changes:
  - Prompts user for snapshot directory name (with TAB-completion).
@@ -225,7 +225,6 @@ def main():
     print(f"Running for platforms: {', '.join(platforms)}")
 
     rows = []
-    links = []
 
     platform_info = load_platform_info()
 
@@ -323,7 +322,6 @@ def main():
                 'Global_Sales': sales,
                 'URL': download_url
             })
-            links.append(download_url)
             print(f"  Matched {game} -> {matched_title} (score {score}, sales {sales})")
 
     # write outputs
@@ -331,11 +329,6 @@ def main():
     csv_path = os.path.join(snapshot_path, 'download_list.csv')
     df_out.to_csv(csv_path, index=False)
     print(f"Wrote download list CSV ({len(rows)} matches) to {csv_path}")
-
-    txt_path = os.path.join(snapshot_path, 'download_links.txt')
-    with open(txt_path, 'w') as f:
-        f.write("\n".join(links))
-    print(f"Wrote download links TXT with {len(links)} URLs to {txt_path}")
 
     if not blacklist_df.empty:
         blacklist_df.to_csv(blacklist_path, index=False)
