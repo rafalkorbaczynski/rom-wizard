@@ -18,3 +18,5 @@ Platform,Directory,URL
 Fill in the `URL` column for platforms you wish to scrape.
 
 To populate missing URLs automatically, run `scrape_platform_urls.py`.
+
+Run `7_convert_to_chd.py` to convert disc images to CHD format.
