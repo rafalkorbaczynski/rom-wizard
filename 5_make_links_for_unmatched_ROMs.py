@@ -102,12 +102,19 @@ INVERT_MAP = {v:k for k,v in READABLE_NAMES.items()}
 # ——— Platform URL lookup ———————————————————————————————————————
 PLATFORMS_CSV = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'platforms.csv')
 
-def load_platform_urls():
+def load_platform_info():
+    """Return mapping of dataset platform code to dict with Dir and URL."""
     if not os.path.exists(PLATFORMS_CSV):
         return {}
     df = pd.read_csv(PLATFORMS_CSV)
     df['URL'] = df['URL'].fillna('')
-    return dict(zip(df['Platform'], df['URL']))
+    if 'Dir' not in df.columns:
+        df['Dir'] = df['Platform']
+    df['Dir'] = df['Dir'].fillna(df['Platform'])
+    info = {}
+    for _, row in df.iterrows():
+        info[row['Platform']] = {'Dir': row['Dir'], 'URL': row['URL']}
+    return info
 
 # ——— Main routine —————————————————————————————————————————————————
 def main():
@@ -190,11 +197,13 @@ def main():
     rows = []
     links = []
 
-    platform_urls = load_platform_urls()
+    platform_info = load_platform_info()
 
     for platform_name in platforms:
         ds_code = INVERT_MAP.get(platform_name, platform_name)
-        url = platform_urls.get(ds_code)
+        info = platform_info.get(ds_code, {})
+        url = info.get('URL')
+        out_dir = info.get('Dir', ds_code)
         if not url:
             print(f"Skipping {platform_name}: no URL configured.")
             continue
@@ -278,6 +287,7 @@ def main():
             rows.append({
                 'Search_Term': game,
                 'Platform': ds_code,
+                'Directory': out_dir,
                 'Matched_Title': matched_title,
                 'Score': score,
                 'Global_Sales': sales,

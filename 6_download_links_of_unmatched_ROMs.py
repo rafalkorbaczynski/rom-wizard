@@ -82,7 +82,7 @@ def main():
 
     with open(csv_path, newline='', encoding='utf-8') as csvfile:
         reader = csv.DictReader(csvfile)
-        required = ('Platform', 'Matched_Title', 'URL')
+        required = ('Platform', 'Directory', 'Matched_Title', 'URL')
         for col in required:
             if col not in reader.fieldnames:
                 print(f"Error: '{col}' column not found in CSV headers.")
@@ -91,11 +91,12 @@ def main():
         for row in reader:
             url = row['URL'].strip()
             platform = row['Platform'].strip()
+            out_folder = row['Directory'].strip() or platform
             title = row['Matched_Title'].strip()
             if not url:
                 continue
             # determine output directory
-            out_dir = os.path.join(NEW_ROOT, platform)
+            out_dir = os.path.join(NEW_ROOT, out_folder)
             os.makedirs(out_dir, exist_ok=True)
             # prepare aria2 entry
             entry = url + '\n'
