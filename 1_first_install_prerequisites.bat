@@ -23,7 +23,8 @@ python -m pip install --upgrade pip
 REM 3. Install required packages
 echo.
 echo Installing required Python packages...
-python -m pip install rapidfuzz pandas pyreadline
+REM Replaced pyreadline with pyreadline3 for Python 3 compatibility
+python -m pip install rapidfuzz pandas pyreadline3
 
 if ERRORLEVEL 1 (
     echo.
