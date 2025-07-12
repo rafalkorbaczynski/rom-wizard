@@ -17,6 +17,7 @@ This script:
   3. Calls aria2c with -i aria2_links.txt and -j 5 to download concurrently.
 """
 import os
+import posixpath
 import sys
 import argparse
 import csv
@@ -100,7 +101,7 @@ def find_extra_discs(url: str, filename: str, max_discs: int = 8):
     suffix = filename[m.end('num'):]
 
     split_url = list(urlsplit(url))
-    base_path = os.path.dirname(split_url[2])
+    base_path = posixpath.dirname(split_url[2])
 
     # Fetch and cache the directory listing so we can verify extra discs exist
     dir_path = base_path + '/'
@@ -137,7 +138,7 @@ def find_extra_discs(url: str, filename: str, max_discs: int = 8):
         if new_name not in listing:
             continue
 
-        split_url[2] = os.path.join(base_path, new_name)
+        split_url[2] = posixpath.join(base_path, new_name)
         candidate_url = urlunsplit(split_url)
         results.append((candidate_url, new_name))
 
