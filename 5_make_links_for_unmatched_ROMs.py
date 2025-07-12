@@ -181,15 +181,30 @@ def main():
         blacklist_df = pd.DataFrame(columns=['Search_Term','Platform'])
     blacklisted_pairs = set(zip(blacklist_df.get('Search_Term', []), blacklist_df.get('Platform', [])))
 
-    # available platform codes from unmatched CSV
-    all_codes = sorted(unmatched_df['Platform'].unique())
+    platform_info = load_platform_info()
+    blacklisted = {
+        code
+        for code, info in platform_info.items()
+        if str(info.get('url', '')).strip().upper() == 'BLACKLIST'
+    }
+
+    # available platform codes from unmatched CSV (excluding blacklisted)
+    all_codes = sorted(
+        c for c in unmatched_df['Platform'].unique() if c not in blacklisted
+    )
     zero_names = summary_df[summary_df['ROMs'] == 0]['Platform'].tolist()
-    zero_codes = sorted(INVERT_MAP.get(n, n) for n in zero_names)
+    zero_codes = sorted(
+        INVERT_MAP.get(n, n) for n in zero_names
+        if INVERT_MAP.get(n, n) not in blacklisted
+    )
 
     print("Available platforms:")
     print(", ".join(all_codes))
     if zero_codes:
         print("Platforms with zero ROMs:", ", ".join(zero_codes))
+
+    all_map = {c.lower(): c for c in all_codes}
+    zero_map = {c.lower(): c for c in zero_codes}
 
     active = set()
     print("Enter platform codes separated by spaces.\n"
@@ -211,15 +226,16 @@ def main():
                     continue
                 active.update(all_codes)
                 continue
-            if tok not in all_codes and tok not in zero_codes:
+            if low not in all_map and low not in zero_map:
                 print(f"Unknown platform: {tok}")
                 continue
-            if tok in active:
-                active.remove(tok)
-                print(f"Removed {tok}")
+            code = all_map.get(low) or zero_map.get(low)
+            if code in active:
+                active.remove(code)
+                print(f"Removed {code}")
             else:
-                active.add(tok)
-                print(f"Added {tok}")
+                active.add(code)
+                print(f"Added {code}")
         if active:
             print("Currently selected:", ", ".join(sorted(active)))
         else:
@@ -228,8 +244,6 @@ def main():
     print(f"Running for platforms: {', '.join(platforms)}")
 
     rows = []
-
-    platform_info = load_platform_info()
 
     for platform_name in platforms:
         ds_code = INVERT_MAP.get(platform_name, platform_name)
