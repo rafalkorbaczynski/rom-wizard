@@ -171,26 +171,49 @@ def main():
         blacklist_df = pd.DataFrame(columns=['Search_Term','Platform'])
     blacklisted_pairs = set(zip(blacklist_df.get('Search_Term', []), blacklist_df.get('Platform', [])))
 
-    # initial platforms with zero ROMs
-    zero_roms = summary_df[summary_df['ROMs'] == 0]['Platform'].tolist()
-    active = set(zero_roms)
-    print("Platforms flagged as empty:", ", ".join(sorted(active)))
+    # available platform codes from unmatched CSV
+    all_codes = sorted(unmatched_df['Platform'].unique())
+    zero_names = summary_df[summary_df['ROMs'] == 0]['Platform'].tolist()
+    zero_codes = sorted(INVERT_MAP.get(n, n) for n in zero_names)
 
-    # interactive add/remove
-    print("Enter platform codes to toggle inclusion (e.g. PS3), or 'run' to continue:")
+    print("Available platforms:")
+    print(", ".join(all_codes))
+    if zero_codes:
+        print("Platforms with zero ROMs:", ", ".join(zero_codes))
+
+    active = set()
+    print("Enter platform codes separated by spaces.\n"
+          "Use 'empty' to add empty platforms, 'all' to toggle all platforms,\n"
+          "or 'run' to continue:")
     while True:
         ans = input('> ').strip()
         if ans.lower() == 'run':
             break
-        code = ans
-        if code in active:
-            active.remove(code)
-            print(f"Removed {code}")
-        elif code in zero_roms:
-            active.add(code)
-            print(f"Added {code}")
+        tokens = re.split(r'[\s,]+', ans)
+        for tok in filter(None, tokens):
+            low = tok.lower()
+            if low == 'empty':
+                active.update(zero_codes)
+                continue
+            if low == 'all':
+                if active >= set(all_codes):
+                    active.clear()
+                    continue
+                active.update(all_codes)
+                continue
+            if tok not in all_codes and tok not in zero_codes:
+                print(f"Unknown platform: {tok}")
+                continue
+            if tok in active:
+                active.remove(tok)
+                print(f"Removed {tok}")
+            else:
+                active.add(tok)
+                print(f"Added {tok}")
+        if active:
+            print("Currently selected:", ", ".join(sorted(active)))
         else:
-            print(f"Unknown or ineligible: {code}")
+            print("No platforms selected")
     platforms = sorted(active)
     print(f"Running for platforms: {', '.join(platforms)}")
 
