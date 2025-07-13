@@ -46,6 +46,7 @@ ROM_EXTS = {
 RESET = "\033[0m"
 BOLD = "\033[1m"
 DIFF_COLOR = "\033[93m"
+HEADER_COLOR = "\033[95m"
 
 # Path to persistent blacklist used for manual matching
 BLACKLIST_CSV = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'blacklist.csv')
@@ -114,6 +115,15 @@ def color_diff(candidate: str, search: str) -> str:
         else:
             out.append(DIFF_COLOR + segment + RESET)
     return ''.join(out)
+
+def clear_screen():
+    os.system('cls' if os.name == 'nt' else 'clear')
+
+def progress_bar(current, total, width=20):
+    if total == 0:
+        return '[----------] 0/0'
+    filled = int(width * current / total)
+    return '[' + '#' * filled + '-' * (width - filled) + f'] {current}/{total}'
 
 # --- Multi-disc helpers -----------------------------------------------------
 DISC_RE = re.compile(r'(?:disc|disk|cd)\s*([0-9]+)', re.I)
@@ -545,12 +555,25 @@ def manual_add_games(snapshot_dir):
 
     threshold = ask_threshold()
 
+    platform_targets = {}
+    total_targets = 0
+    for code in platforms:
+        subset = unmatched_df[unmatched_df['Platform'] == code]
+        subset = subset[~subset['Dataset Name'].apply(lambda n: (n, code) in blacklisted_pairs)]
+        num = len(subset.sort_values('Sales', ascending=False).head(count))
+        platform_targets[code] = num
+        total_targets += num
+
+    total_done = 0
+
     download_rows = []
 
     for code in platforms:
         info = info_map.get(code, {})
         url = info.get('url')
         directory = info.get('dir', code) or code
+        platform_total = platform_targets.get(code, 0)
+        platform_done = 0
         if not url:
             print(f'Skipping {code}: no URL configured.')
             continue
@@ -577,11 +600,16 @@ def manual_add_games(snapshot_dir):
             group_map.setdefault(base_key, []).append(key)
 
         for _, row in subset.iterrows():
+            platform_done += 1
+            total_done += 1
             search_term = row['Dataset Name']
             norm_search = norm(search_term)
             selected_keys = None
             score = 0
             while True:
+                clear_screen()
+                print(f"Platform {code}: {progress_bar(platform_done, platform_total)} | Total: {progress_bar(total_done, total_targets)}")
+                print(f"   {search_term}")
                 ts_results = process.extract(norm_search, list(file_map.keys()), scorer=fuzz.token_sort_ratio, limit=None)
                 options = []
                 if ts_results:
@@ -603,7 +631,7 @@ def manual_add_games(snapshot_dir):
                         print(f"{idx}. {disp} (score {opt_score})")
                 else:
                     print('No candidates found')
-                sel = input(f"{row['Dataset Name']}: select 1-{len(options)} or enter new search term, 'b' to blacklist, ENTER to skip: ").strip()
+                sel = input("Press 1-3, 'b' to blacklist, or ENTER to skip: ").strip()
                 if sel == '':
                     break
                 if sel.lower() == 'b':
@@ -627,6 +655,7 @@ def manual_add_games(snapshot_dir):
                     norm_search = norm(search_term)
                     continue
             if not selected_keys:
+                clear_screen()
                 continue
             selected_names = [file_names[k] for k in selected_keys]
             if any(DISC_RE.search(n) for n in selected_names):
@@ -647,6 +676,7 @@ def manual_add_games(snapshot_dir):
                 download_rows.append({'Search_Term': row['Dataset Name'], 'Platform': code,
                                      'Directory': directory, 'Matched_Title': filehref,
                                      'Score': score, 'URL': requests.compat.urljoin(url, filehref)})
+            clear_screen()
 
     if not download_rows:
         print('No entries added.')
