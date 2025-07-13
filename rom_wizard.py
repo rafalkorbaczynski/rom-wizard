@@ -674,8 +674,9 @@ def manual_add_games(snapshot_dir):
                     seen.add(k)
             for k in uniq_keys:
                 filehref = file_map[k]
+                title = requests.utils.unquote(os.path.basename(filehref))
                 download_rows.append({'Search_Term': row['Dataset Name'], 'Platform': code,
-                                     'Directory': directory, 'Matched_Title': filehref,
+                                     'Directory': directory, 'Matched_Title': title,
                                      'Score': score, 'URL': requests.compat.urljoin(url, filehref)})
             clear_screen()
 
@@ -707,7 +708,7 @@ def download_games(snapshot_dir):
         reader = csv.DictReader(f)
         for row in reader:
             url = row['URL']
-            title = row['Matched_Title']
+            title = requests.utils.unquote(os.path.basename(row['Matched_Title']))
             out_dir = os.path.join(snapshot_dir, 'roms', row['Directory'])
             os.makedirs(out_dir, exist_ok=True)
             entries.append(f"{url}\n  out={title}\n  dir={out_dir}")
