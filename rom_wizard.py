@@ -104,11 +104,13 @@ def create_snapshot():
     summary_rows = []
     matched_records = []
     unmatched_keys = set(zip(sales['Platform'], sales['key']))
+    found_consoles = set()
 
     for console in os.listdir(ROMS_ROOT):
         gl_path = os.path.join(ROMS_ROOT, console, 'gamelist.xml')
         if not os.path.isfile(gl_path):
             continue
+        found_consoles.add(console.lower())
         tree = ET.parse(gl_path)
         games = [g for g in tree.getroot().findall('game')
                  if os.path.splitext(g.findtext('path') or '')[1].lower().lstrip('.') in ROM_EXTS]
@@ -173,6 +175,16 @@ def create_snapshot():
             'Matched ROMs': matched,
             **region_counts
         })
+
+    # Add dataset platforms missing from the ROM library
+    all_codes = sales['Platform'].dropna().unique()
+    for code in all_codes:
+        mapped = DATASET_TO_CONSOLE.get(code.lower(), code)
+        if mapped.lower() in found_consoles:
+            continue
+        size = sales[sales['Platform'].str.lower() == code.lower()]['key'].nunique()
+        summary_rows.append({'Platform': mapped, 'ROMs': 0, 'Dataset': size,
+                             'Matched ROMs': 0, **{r: 0 for r in REGIONS}})
 
     summary_df = pd.DataFrame(summary_rows)
     if not summary_df.empty:
@@ -275,11 +287,13 @@ def apply_sales(snapshot_dir):
     os.makedirs(output_root, exist_ok=True)
     match_rows = []
     summary_rows = []
+    found_consoles = set()
 
     for console in os.listdir(ROMS_ROOT):
         gl_path = os.path.join(ROMS_ROOT, console, 'gamelist.xml')
         if not os.path.isfile(gl_path):
             continue
+        found_consoles.add(console.lower())
         tree = ET.parse(gl_path)
         root = tree.getroot()
         games = [g for g in root.findall('game')
@@ -354,6 +368,16 @@ def apply_sales(snapshot_dir):
             'Matched ROMs': matched,
             **region_counts
         })
+
+    # Add dataset platforms missing from the ROM library
+    all_codes = sales['Platform'].dropna().unique()
+    for code in all_codes:
+        mapped = DATASET_TO_CONSOLE.get(code.lower(), code)
+        if mapped.lower() in found_consoles:
+            continue
+        size = sales[sales['Platform'].str.lower() == code.lower()]['key'].nunique()
+        summary_rows.append({'Platform': mapped, 'ROMs': 0, 'Dataset': size,
+                             'Matched ROMs': 0, **{r: 0 for r in REGIONS}})
 
     summary_df = pd.DataFrame(summary_rows)
     if not summary_df.empty:
