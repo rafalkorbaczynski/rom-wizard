@@ -41,10 +41,8 @@ dreamcast,95.23809523809524,nba 2k chd,nba 2k2 chd,dreamcast\NBA 2K (USA).chd,dr
 dreamcast,100.0,phantasy star online chd,phantasy star online ver 2 chd,"dreamcast\Phantasy Star Online (USA) (En,Ja,Fr,De,Es) (Rev B).chd","dreamcast\Phantasy Star Online Ver. 2 (USA) (En,Ja,Fr,De,Es).chd"
 dreamcast,100.0,power stone chd,power stone 2 chd,dreamcast\Power Stone (USA).chd,dreamcast\Power Stone 2 (USA).chd
 dreamcast,100.0,sonic adventure chd,sonic adventure 2 chd,"dreamcast\Sonic Adventure (USA) (En,Ja,Fr,De,Es).chd","dreamcast\Sonic Adventure 2 (Europe) (En,Ja,Fr,De,Es).chd"
-dreamcast,100.0,space channel 5 chd,space channel 5 part 2 chd,dreamcast\Space Channel 5 (USA).chd,dreamcast\Space Channel 5 Part 2 (Japan).chd
 gamegear,100.0,ayrton senna s super monaco gp 2 zip,super monaco gp zip,"gamegear\Ayrton Senna's Super Monaco GP II (USA, Europe, Brazil).zip","gamegear\Super Monaco GP (USA, Europe, Brazil).zip"
 gamegear,100.0,bare knuckle 2 streets of rage 2 streets of rage 2 zip,bare knuckle streets of rage zip,gamegear\Bare Knuckle II ~ Streets of Rage 2 ~ Streets of Rage II (World).zip,gamegear\Bare Knuckle ~ Streets of Rage (World).zip
-gamegear,100.0,bare knuckle 2 streets of rage 2 streets of rage 2 zip,streets of rage 2 zip,gamegear\Bare Knuckle II ~ Streets of Rage 2 ~ Streets of Rage II (World).zip,gamegear\Streets of Rage 2 (World).zip
 gamegear,100.0,chuck rock zip,chuck rock 2 son of chuck zip,gamegear\Chuck Rock (World).zip,gamegear\Chuck Rock II - Son of Chuck (USA).zip
 gamegear,100.0,columns zip,super columns zip,"gamegear\Columns (USA, Europe, Brazil) (Rev 2).zip","gamegear\Super Columns (USA, Europe).zip"
 gamegear,100.0,jurassic park zip,lost world the jurassic park zip,"gamegear\Jurassic Park (USA, Europe, Brazil).zip","gamegear\Lost World, The - Jurassic Park (USA).zip"
@@ -66,7 +64,6 @@ gb,100.0,donkey kong zip,donkey kong land 2 zip,"gb\Donkey Kong (Japan, USA) (SG
 gb,100.0,donkey kong zip,donkey kong land 3 zip,"gb\Donkey Kong (Japan, USA) (SGB Enhanced).zip","gb\Donkey Kong Land III (USA, Europe) (Rev 1) (SGB Enhanced).zip"
 gb,100.0,dr franken zip,dr franken 2 zip,gb\Dr. Franken (USA).zip,"gb\Dr. Franken II (USA, Europe) (En,Fr,De,Es,It,Nl,Sv).zip"
 gb,100.0,ducktales zip,ducktales 2 zip,gb\DuckTales (USA).zip,gb\DuckTales 2 (USA).zip
-gb,96.15384615384616,final fantasy legend 2 zip,final fantasy legend 3 zip,gb\Final Fantasy Legend II (USA).zip,gb\Final Fantasy Legend III (USA).zip
 gb,96.0,final fantasy legend 2 zip,final fantasy legend the zip,gb\Final Fantasy Legend II (USA).zip,"gb\Final Fantasy Legend, The (USA).zip"
 gb,100.0,gargoyle s quest zip,gargoyle s quest 2 the demon darkness zip,"gb\Gargoyle's Quest (USA, Europe).zip",gb\Gargoyle's Quest II - The Demon Darkness (Japan) (Translated).zip
 gb,100.0,kirby s dream land zip,kirby s dream land 2 zip,"gb\Kirby's Dream Land (USA, Europe).zip","gb\Kirby's Dream Land 2 (USA, Europe) (SGB Enhanced).zip"
@@ -85,11 +82,8 @@ gb,100.0,tetris zip,tetris 2 zip,gb\Tetris (World) (Rev 1).zip,"gb\Tetris 2 (USA
 gb,100.0,tetris zip,tetris attack zip,gb\Tetris (World) (Rev 1).zip,"gb\Tetris Attack (USA, Europe) (Rev 1) (SGB Enhanced).zip"
 gb,100.0,tetris zip,tetris blast zip,gb\Tetris (World) (Rev 1).zip,"gb\Tetris Blast (USA, Europe) (SGB Enhanced).zip"
 gb,100.0,yoshi zip,yoshi s cookie zip,gb\Yoshi (USA).zip,"gb\Yoshi's Cookie (USA, Europe).zip"
-gba,93.87755102040816,42 donkey kong country 2 gba,70 donkey kong country gba,"gba\42. Donkey Kong Country 2 (USA, Australia).gba",gba\70. Donkey Kong Country (USA).gba
-gba,92.3076923076923,58 breath of fire gba,68 breath of fire 2 gba,gba\58. Breath of Fire (USA).gba,gba\68. Breath of Fire II (USA).gba
 gba,100.0,advance wars zip,advance wars 2 black hole rising zip,gba\Advance Wars (USA) (Rev 1).zip,gba\Advance Wars 2 - Black Hole Rising (USA).zip
 gba,96.29629629629629,final fantasy 4 advance zip,final fantasy v advance zip,gba\Final Fantasy IV Advance (USA).zip,gba\Final Fantasy V Advance (USA).zip
-gba,96.29629629629629,final fantasy 4 advance zip,final fantasy 6 advance zip,gba\Final Fantasy IV Advance (USA).zip,gba\Final Fantasy VI Advance (USA).zip
 gba,100.0,fire emblem zip,fire emblem the binding blade zip,"gba\Fire Emblem (USA, Australia).zip",gba\Fire Emblem - The Binding Blade (Japan) (Translated).zip
 gba,100.0,fire emblem zip,fire emblem the sacred stones zip,"gba\Fire Emblem (USA, Australia).zip","gba\Fire Emblem - The Sacred Stones (USA, Australia).zip"
 gba,100.0,golden sun zip,golden sun the lost age zip,"gba\Golden Sun (USA, Europe).zip","gba\Golden Sun - The Lost Age (USA, Europe).zip"
@@ -114,16 +108,9 @@ gba,100.0,super mario advance zip,super mario advance 3 yoshi s island zip,"gba\
 gba,100.0,super mario advance zip,super mario advance 4 super mario bros 3 zip,"gba\Super Mario Advance (USA, Europe).zip","gba\Super Mario Advance 4 - Super Mario Bros. 3 (USA, Australia) (Rev 1).zip"
 gba,95.65217391304348,super robot taisen original generation 2 zip,super robot taisen r zip,gba\Super Robot Taisen - Original Generation 2 (USA).zip,gba\Super Robot Taisen R (Japan) (Translated).zip
 gba,100.0,teenage mutant ninja turtles zip,teenage mutant ninja turtles 2 battle nexus zip,gba\Teenage Mutant Ninja Turtles (USA).zip,gba\Teenage Mutant Ninja Turtles 2 - Battle Nexus (USA).zip
-gba,96.42857142857143,tony hawk s pro skater 2 zip,tony hawk s pro skater 3 zip,"gba\Tony Hawk's Pro Skater 2 (USA, Europe).zip","gba\Tony Hawk's Pro Skater 3 (USA, Europe).zip"
-gba,96.42857142857143,tony hawk s pro skater 2 zip,tony hawk s pro skater 4 zip,"gba\Tony Hawk's Pro Skater 2 (USA, Europe).zip","gba\Tony Hawk's Pro Skater 4 (USA, Europe).zip"
 gba,100.0,tony hawk s underground zip,tony hawk s underground 2 zip,"gba\Tony Hawk's Underground (USA, Europe).zip","gba\Tony Hawk's Underground 2 (USA, Europe).zip"
-gbc,96.42857142857143,bugs bunny crazy castle 3 zip,bugs bunny in crazy castle 4 zip,"gbc\Bugs Bunny - Crazy Castle 3 (USA, Europe) (GB Compatible).zip",gbc\Bugs Bunny in - Crazy Castle 4 (USA).zip
 gbc,100.0,croc zip,croc 2 zip,"gbc\Croc (USA, Europe).zip","gbc\Croc 2 (USA, Europe).zip"
-gbc,94.73684210526315,dragon warrior 1 and 2 zip,dragon warrior 3 zip,gbc\Dragon Warrior I & II (USA) (SGB Enhanced) (GB Compatible).zip,gbc\Dragon Warrior III (USA).zip
-gbc,100.0,dragon warrior monsters zip,dragon warrior monsters 2 cobi s journey zip,"gbc\Dragon Warrior Monsters (USA, Europe) (SGB Enhanced) (GB Compatible).zip",gbc\Dragon Warrior Monsters 2 - Cobi's Journey (USA) (SGB Enhanced) (GB Compatible).zip
-gbc,100.0,dragon warrior monsters zip,dragon warrior monsters 2 tara s adventure zip,"gbc\Dragon Warrior Monsters (USA, Europe) (SGB Enhanced) (GB Compatible).zip",gbc\Dragon Warrior Monsters 2 - Tara's Adventure (USA) (SGB Enhanced) (GB Compatible).zip
-gbc,96.42857142857143,game and watch gallery 2 zip,game and watch gallery 3 zip,"gbc\Game & Watch Gallery 2 (USA, Europe) (SGB Enhanced) (GB Compatible).zip","gbc\Game & Watch Gallery 3 (USA, Europe) (SGB Enhanced) (GB Compatible).zip"
-gbc,95.45454545454545,harvest moon 2 gbc zip,harvest moon 3 gbc zip,gbc\Harvest Moon 2 GBC (USA) (SGB Enhanced) (GB Compatible).zip,gbc\Harvest Moon 3 GBC (USA).zip
+gbc,94.73684210526315,dragon warrior 3 zip,dragon warrior monsters zip,gbc\Dragon Warrior III (USA).zip,"gbc\Dragon Warrior Monsters (USA, Europe) (SGB Enhanced) (GB Compatible).zip"
 gbc,100.0,harvest moon 2 gbc zip,harvest moon gbc zip,gbc\Harvest Moon 2 GBC (USA) (SGB Enhanced) (GB Compatible).zip,gbc\Harvest Moon GBC (USA) (SGB Enhanced) (GB Compatible).zip
 gbc,96.55172413793103,legend of the river king 2 zip,legend of the river king gbc zip,gbc\Legend of the River King 2 (USA) (SGB Enhanced) (GB Compatible).zip,gbc\Legend of the River King GBC (USA) (SGB Enhanced) (GB Compatible).zip
 gbc,92.3076923076923,legend of zelda the oracle of ages zip,legend of zelda the oracle of seasons zip,"gbc\Legend of Zelda, The - Oracle of Ages (USA, Australia).zip","gbc\Legend of Zelda, The - Oracle of Seasons (USA, Australia).zip"
@@ -132,17 +119,12 @@ gbc,100.0,pokemon trading card game zip,pokemon trading card game 2 the invasion
 gbc,100.0,rayman zip,rayman 2 zip,"gbc\Rayman (USA) (En,Fr,De,Es,It,Nl).zip","gbc\Rayman 2 (USA) (En,Fr,De,Es,It).zip"
 gbc,100.0,survival kids zip,survival kids 2 dasshutsu futago jima zip,gbc\Survival Kids (USA) (SGB Enhanced) (GB Compatible).zip,gbc\Survival Kids 2 - Dasshutsu!! Futago-Jima! (Japan) (SGB Enhanced) (GB Compatible) (Translated).zip
 gbc,100.0,tomb raider zip,tomb raider curse of the sword zip,"gbc\Tomb Raider (USA, Europe) (En,Fr,De,Es,It).zip","gbc\Tomb Raider - Curse of the Sword (USA, Europe).zip"
-gbc,93.75,wario land 3 zip,wario land 2 zip,"gbc\Wario Land 3 (World) (En,Ja).zip","gbc\Wario Land II (USA, Europe) (SGB Enhanced) (GB Compatible).zip"
-gc,98.11320754716981,baten kaitos eternal wings and the lost ocean cd1 rvz,baten kaitos eternal wings and the lost ocean cd2 rvz,gc\Baten Kaitos - Eternal Wings and the Lost Ocean (US) - CD1.rvz,gc\Baten Kaitos - Eternal Wings and the Lost Ocean (US) - CD2.rvz
-gc,93.33333333333333,killer7 cd1 rvz,killer7 cd2 rvz,gc\Killer7 (US) - CD1.rvz,gc\Killer7 (US) - CD2.rvz
-gc,97.5,metal gear solid the twin snakes cd1 rvz,metal gear solid the twin snakes cd2 rvz,gc\Metal Gear Solid - The Twin Snakes (US) - CD1.rvz,gc\Metal Gear Solid - The Twin Snakes (US) - CD2.rvz
 gc,100.0,metroid prime rvz,metroid prime 2 echoes rvz,gc\Metroid Prime (US).rvz,gc\Metroid Prime 2 - Echoes (US).rvz
 gc,100.0,pikmin rvz,pikmin 2 rvz,gc\Pikmin (US).rvz,gc\Pikmin 2 (US).rvz
-gc,95.23809523809524,resident evil cd1 rvz,resident evil cd2 rvz,gc\Resident Evil (US) - CD1.rvz,gc\Resident Evil (US) - CD2.rvz
 gc,100.0,resident evil cd1 rvz,resident evil 4 cd1 rvz,gc\Resident Evil (US) - CD1.rvz,gc\Resident Evil 4 (US) - CD1.rvz
 gc,100.0,resident evil cd1 rvz,resident evil zero cd1 rvz,gc\Resident Evil (US) - CD1.rvz,gc\Resident Evil Zero (US) - CD1.rvz
-gc,95.45454545454545,resident evil 4 cd2 rvz,resident evil zero cd2 rvz,gc\Resident Evil 4 (US) - CD2.rvz,gc\Resident Evil Zero (US) - CD2.rvz
-gc,96.15384615384616,tales of symphonia cd1 rvz,tales of symphonia cd2 rvz,gc\Tales of Symphonia (US) - CD1.rvz,gc\Tales of Symphonia (US) - CD2.rvz
+gc,100.0,resident evil cd2 rvz,resident evil 4 cd2 rvz,gc\Resident Evil (US) - CD2.rvz,gc\Resident Evil 4 (US) - CD2.rvz
+gc,100.0,resident evil cd2 rvz,resident evil zero cd2 rvz,gc\Resident Evil (US) - CD2.rvz,gc\Resident Evil Zero (US) - CD2.rvz
 intellivision,100.0,advanced dungeons and dragons zip,advanced dungeons and dragons treasure of tarmin zip,"intellivision\Advanced Dungeons & Dragons (USA, Europe).zip",intellivision\Advanced Dungeons & Dragons - Treasure of Tarmin (USA).zip
 intellivision,100.0,donkey kong zip,donkey kong junior zip,"intellivision\Donkey Kong (USA, Europe).zip","intellivision\Donkey Kong Junior (USA, Europe).zip"
 jaguar,100.0,battle sphere j64,battle sphere gold j64,jaguar\Battle Sphere (World).j64,jaguar\Battle Sphere Gold (World).j64
@@ -199,28 +181,16 @@ megadrive,100.0,jurassic park zip,lost world the jurassic park zip,megadrive\Jur
 megadrive,100.0,mortal kombat zip,mortal kombat 3 zip,megadrive\Mortal Kombat (World).zip,megadrive\Mortal Kombat 3 (USA).zip
 megadrive,100.0,mortal kombat zip,mortal kombat 2 zip,megadrive\Mortal Kombat (World).zip,megadrive\Mortal Kombat II (World).zip
 megadrive,100.0,mortal kombat zip,ultimate mortal kombat 3 zip,megadrive\Mortal Kombat (World).zip,megadrive\Ultimate Mortal Kombat 3 (USA).zip
-megadrive,94.44444444444444,phantasy star 2 zip,phantasy star 3 generations of doom zip,"megadrive\Phantasy Star II (USA, Europe) (Rev A).zip","megadrive\Phantasy Star III - Generations of Doom (USA, Europe, Korea).zip"
-megadrive,94.73684210526315,phantasy star 2 zip,phantasy star 4 zip,"megadrive\Phantasy Star II (USA, Europe) (Rev A).zip",megadrive\Phantasy Star IV (USA).zip
 megadrive,100.0,road rash zip,road rash 3 zip,"megadrive\Road Rash (USA, Europe).zip","megadrive\Road Rash 3 (USA, Europe).zip"
 megadrive,100.0,road rash zip,road rash 2 zip,"megadrive\Road Rash (USA, Europe).zip","megadrive\Road Rash II (USA, Europe) (RR206).zip"
-megadrive,95.23809523809524,rolling thunder 2 zip,rolling thunder 3 zip,megadrive\Rolling Thunder 2 (USA).zip,megadrive\Rolling Thunder 3 (USA).zip
 megadrive,100.0,shining force zip,shining force 2 zip,megadrive\Shining Force (USA).zip,megadrive\Shining Force II (USA).zip
 megadrive,100.0,sonic and knuckles sonic the hedgehog 3 zip,sonic the hedgehog zip,megadrive\Sonic & Knuckles + Sonic The Hedgehog 3 (USA).zip,"megadrive\Sonic The Hedgehog (USA, Europe).zip"
-megadrive,95.65217391304348,sonic and knuckles sonic the hedgehog 3 zip,sonic the hedgehog 2 zip,megadrive\Sonic & Knuckles + Sonic The Hedgehog 3 (USA).zip,megadrive\Sonic The Hedgehog 2 (World) (Rev B).zip
-megadrive,94.73684210526315,splatterhouse 2 zip,splatterhouse 3 zip,megadrive\Splatterhouse 2 (USA).zip,megadrive\Splatterhouse 3 (USA).zip
 megadrive,100.0,streets of rage zip,streets of rage 2 zip,megadrive\Streets of Rage (World) (Rev A).zip,megadrive\Streets of Rage 2 (USA).zip
 megadrive,100.0,streets of rage zip,streets of rage 3 zip,megadrive\Streets of Rage (World) (Rev A).zip,megadrive\Streets of Rage 3 (USA).zip
 megadrive,100.0,toejam and earl zip,toejam and earl in panic on funkotron zip,"megadrive\ToeJam & Earl (USA, Europe, Korea).zip",megadrive\ToeJam & Earl in Panic on Funkotron (USA).zip
 megadrive,100.0,vectorman zip,vectorman 2 zip,"megadrive\Vectorman (USA, Europe).zip",megadrive\Vectorman 2 (USA).zip
-n64,92.6829268292683,33 pokemon stadium z64,42 pokemon stadium 2 z64,n64\33. Pokemon Stadium (USA) (Rev 2).z64,n64\42. Pokemon Stadium 2 (USA).z64
-n64,92.3076923076923,56 snowboard kids z64,81 snowboard kids 2 z64,n64\56. Snowboard Kids (USA).z64,n64\81. Snowboard Kids 2 (USA).z64
-n64,94.54545454545455,57 tony hawk s pro skater 2 z64,67 tony hawk s pro skater z64,n64\57. Tony Hawk's Pro Skater 2 (USA).z64,n64\67. Tony Hawk's Pro Skater (USA) (Rev 1).z64
-n64,92.5,93 international superstar soccer 98 z64,97 international superstar soccer 64 z64,n64\93. International Superstar Soccer '98 (USA).z64,n64\97. International Superstar Soccer 64 (USA).z64
-naomi,94.44444444444444,capcom vs snk 2 bin,capcom vs snk millenium fight 2000 bin,naomi\Capcom vs SNK 2.bin,naomi\Capcom_vs_SNK_Millenium_Fight_2000.bin
 naomi,96.55172413793103,powerstone bin,powerstone2 bin,naomi\Powerstone.bin,naomi\PowerStone2.bin
 nds,92.85714285714286,52 mega man star force dragon nds,52 mega man star force leo nds,nds\52. Mega Man Star Force - Dragon (USA).nds,nds\52. Mega Man Star Force - Leo (USA).nds
-nds,92.3076923076923,83 etrian odyssey 2 heroes of lagaard nds,85 etrian odyssey nds,nds\83. Etrian Odyssey II - Heroes of Lagaard (USA).nds,nds\85. Etrian Odyssey (USA).nds
-nds,93.33333333333333,88 doki doki majo shinpan nds,95 doki doki majo shinpan 2 duo nds,nds\88. Doki Doki Majo Shinpan! (Japan).nds,nds\95. Doki Doki Majo Shinpan 2 Duo (Japan).nds
 neogeo,93.33333333333333,aof zip,aof2 zip,neogeo\aof.zip,neogeo\aof2.zip
 neogeo,93.33333333333333,aof zip,aof3 zip,neogeo\aof.zip,neogeo\aof3.zip
 neogeo,95.23809523809524,bstars zip,bstars2 zip,neogeo\bstars.zip,neogeo\bstars2.zip
@@ -241,7 +211,6 @@ neogeo,95.65217391304348,ssideki zip,ssideki3 zip,neogeo\ssideki.zip,neogeo\ssid
 neogeo,95.65217391304348,ssideki zip,ssideki4 zip,neogeo\ssideki.zip,neogeo\ssideki4.zip
 neogeo,95.65217391304348,stakwin zip,stakwin2 zip,neogeo\stakwin.zip,neogeo\stakwin2.zip
 neogeo,93.33333333333333,wh2 zip,wh2j zip,neogeo\wh2.zip,neogeo\wh2j.zip
-nes,94.11764705882354,56 wizards and warriors nes,64 ironsword wizards and warriors 2 nes,nes\56. Wizards & Warriors (USA).nes,nes\64. IronSword - Wizards & Warriors II (USA).nes
 nes,100.0,adventure island zip,adventure island 3 zip,nes\Adventure Island (USA).zip,nes\Adventure Island 3 (USA).zip
 nes,100.0,adventure island zip,adventure island 2 zip,nes\Adventure Island (USA).zip,nes\Adventure Island II (USA).zip
 nes,100.0,adventure island zip,adventure island 4 zip,nes\Adventure Island (USA).zip,nes\Adventure Island IV (Japan) (Translated).zip
@@ -266,7 +235,6 @@ nes,100.0,final fantasy zip,final fantasy 3 zip,nes\Final Fantasy (USA).zip,nes\
 nes,100.0,ganbare goemon gaiden the missing golden pipe zip,ganbare goemon zip,nes\Ganbare Goemon Gaiden - The Missing Golden Pipe (Japan) (Translated).zip,nes\Ganbare Goemon! (Japan) (Translated).zip
 nes,100.0,gradius zip,gradius 2 zip,nes\Gradius (USA).zip,nes\Gradius II (Japan).zip
 nes,100.0,jackie chan s action kung fu zip,kung fu zip,nes\Jackie Chan's Action Kung Fu (USA).zip,"nes\Kung Fu (Japan, USA).zip"
-nes,92.85714285714286,kid niki 2 zip,kid niki 3 zip,nes\Kid Niki 2 (Japan) (Translated).zip,nes\Kid Niki 3 (Japan) (Translated).zip
 nes,100.0,mega man zip,mega man 2 zip,nes\Mega Man (USA).zip,nes\Mega Man 2 (USA).zip
 nes,100.0,mega man zip,mega man 3 zip,nes\Mega Man (USA).zip,nes\Mega Man 3 (USA).zip
 nes,100.0,mega man zip,mega man 4 zip,nes\Mega Man (USA).zip,nes\Mega Man 4 (USA) (Rev 1).zip
@@ -287,9 +255,7 @@ nes,100.0,teenage mutant ninja turtles zip,teenage mutant ninja turtles 3 the ma
 nes,100.0,tetris zip,tetris 2 zip,nes\Tetris (USA).zip,nes\Tetris 2 (USA).zip
 nes,100.0,tiny toon adventures zip,tiny toon adventures 2 trouble in wackyland zip,nes\Tiny Toon Adventures (USA).zip,nes\Tiny Toon Adventures 2 - Trouble in Wackyland (USA).zip
 nes,100.0,wai wai world zip,wai wai world 2 sos parsley castle zip,nes\Wai Wai World (Japan) (Translated).zip,nes\Wai Wai World 2 - SOS!! Parsley Castle (Japan) (Translated).zip
-ngp,97.87234042553192,king of fighters r 1 pocket fighting series zip,king of fighters r 2 pocket fighting series zip,"ngp\King of Fighters R-1 - Pocket Fighting Series (Japan, Europe) (En,Ja).zip","ngp\King of Fighters R-2 - Pocket Fighting Series (World) (En,Ja).zip"
 ngp,100.0,samurai shodown pocket fighting series zip,samurai shodown 2 pocket fighting series zip,"ngp\Samurai Shodown! - Pocket Fighting Series (Japan, Europe) (En,Ja).zip","ngp\Samurai Shodown! 2 - Pocket Fighting Series (World) (En,Ja).zip"
-pcengine,93.75,bomberman 93 zip,bomberman 94 zip,pcengine\Bomberman '93 (USA).zip,pcengine\Bomberman '94 (Japan).zip
 pcengine,100.0,bomberman 93 zip,bomberman zip,pcengine\Bomberman '93 (USA).zip,pcengine\Bomberman (USA).zip
 pcengine,100.0,bonk 3 bonk s big adventure zip,bonk s adventure zip,pcengine\Bonk 3 - Bonk's Big Adventure (USA).zip,pcengine\Bonk's Adventure (USA).zip
 pcengine,94.44444444444444,legendary axe 2 zip,legendary axe the zip,pcengine\Legendary Axe II (USA).zip,"pcengine\Legendary Axe, The (USA).zip"
@@ -307,7 +273,6 @@ pcenginecd,100.0,super darius chd,super darius 2 chd,pcenginecd\Super Darius (Ja
 pcfx,100.0,angelique special chd,angelique special 2 chd,pcfx\Angelique Special (Japan).chd,pcfx\Angelique Special 2 (Japan).chd
 ps2,100.0,black chd,twisted metal black chd,ps2\Black (USA).chd,"ps2\Twisted Metal - Black (Europe) (En,Fr,De,Es,It).chd"
 ps2,100.0,star wars battlefront iso,star wars battlefront 2 unofficial update mod iso,"ps2\Star Wars - Battlefront (Europe) (En,Es,It).iso",ps2\Star Wars - Battlefront II (USA) - Unofficial Update Mod (v1.02).iso
-psx,95.0,breath of fire 3 chd,breath of fire 4 chd,psx\Breath of Fire III (USA).chd,psx\Breath of Fire IV (USA).chd
 psx,100.0,crash bandicoot chd,crash bandicoot warped chd,psx\Crash Bandicoot (USA).chd,psx\Crash Bandicoot - Warped (USA).chd
 psx,100.0,crash bandicoot chd,crash bandicoot 2 cortex strikes back chd,psx\Crash Bandicoot (USA).chd,psx\Crash Bandicoot 2 - Cortex Strikes Back (USA).chd
 psx,100.0,digimon world chd,digimon world 2 chd,psx\Digimon World (USA).chd,psx\Digimon World 2 (USA).chd
@@ -339,12 +304,9 @@ snes,100.0,alien 3 zip,contra 3 the alien wars zip,snes\Alien 3 (USA) (Rev 1).zi
 snes,100.0,breath of fire zip,breath of fire 2 zip,snes\Breath of Fire (USA).zip,snes\Breath of Fire II (USA).zip
 snes,100.0,donkey kong country zip,donkey kong country 2 diddy s kong quest zip,snes\Donkey Kong Country (USA) (Rev 2).zip,"snes\Donkey Kong Country 2 - Diddy's Kong Quest (USA) (En,Fr) (Rev 1).zip"
 snes,100.0,donkey kong country zip,donkey kong country 3 dixie kong s double trouble zip,snes\Donkey Kong Country (USA) (Rev 2).zip,"snes\Donkey Kong Country 3 - Dixie Kong's Double Trouble! (USA) (En,Fr).zip"
-snes,94.11764705882354,dragon quest 1 and 2 zip,dragon quest 3 zip,snes\Dragon Quest I & II (Japan) (Translated).zip,snes\Dragon Quest III (Japan) (Translated).zip
 snes,94.11764705882354,dragon quest 1 and 2 zip,dragon quest v zip,snes\Dragon Quest I & II (Japan) (Translated).zip,snes\Dragon Quest V (Japan) (Translated).zip
-snes,94.11764705882354,dragon quest 1 and 2 zip,dragon quest 6 zip,snes\Dragon Quest I & II (Japan) (Translated).zip,snes\Dragon Quest VI (Translated).zip
 snes,100.0,earthworm jim zip,earthworm jim 2 zip,snes\Earthworm Jim (USA).zip,snes\Earthworm Jim 2 (USA).zip
 snes,100.0,fatal fury zip,fatal fury 2 zip,snes\Fatal Fury (USA).zip,snes\Fatal Fury 2 (USA).zip
-snes,94.73684210526315,final fantasy 2 zip,final fantasy 3 zip,snes\Final Fantasy II (USA) (Rev 1).zip,snes\Final Fantasy III (USA) (Rev 1).zip
 snes,94.73684210526315,final fantasy 2 zip,final fantasy v zip,snes\Final Fantasy II (USA) (Rev 1).zip,snes\Final Fantasy V (Japan) (Translated).zip
 snes,100.0,front mission zip,front mission series gun hazard zip,snes\Front Mission (Japan) (Translated).zip,snes\Front Mission Series - Gun Hazard (Japan) (Translated).zip
 snes,100.0,gokujou parodius zip,parodius zip,snes\Gokujou Parodius (Japan).zip,snes\Parodius (Europe).zip
@@ -358,7 +320,6 @@ snes,92.3076923076923,mega man 7 zip,mega man soccer zip,snes\Mega Man 7 (USA).z
 snes,92.85714285714286,mega man 7 zip,mega man x zip,snes\Mega Man 7 (USA).zip,snes\Mega Man X (USA) (Rev 1).zip
 snes,92.3076923076923,mega man 7 zip,mega man x2 zip,snes\Mega Man 7 (USA).zip,snes\Mega Man X2 (USA).zip
 snes,92.3076923076923,mega man 7 zip,mega man x3 zip,snes\Mega Man 7 (USA).zip,snes\Mega Man X3 (USA).zip
-snes,95.0,might and magic 2 zip,might and magic 3 isles of terra zip,snes\Might and Magic II (Europe).zip,snes\Might and Magic III - Isles of Terra (USA).zip
 snes,100.0,mighty morphin power rangers zip,mighty morphin power rangers the fighting edition zip,snes\Mighty Morphin Power Rangers (USA).zip,snes\Mighty Morphin Power Rangers - The Fighting Edition (USA).zip
 snes,100.0,mighty morphin power rangers zip,mighty morphin power rangers the movie zip,snes\Mighty Morphin Power Rangers (USA).zip,snes\Mighty Morphin Power Rangers - The Movie (USA).zip
 snes,100.0,mortal kombat zip,mortal kombat 2 zip,snes\Mortal Kombat (USA) (Rev 1).zip,snes\Mortal Kombat II (USA) (Rev 1).zip
@@ -367,8 +328,6 @@ snes,100.0,p t o pacific theater of operations zip,p t o 2 pacific theater of op
 snes,100.0,pocky and rocky zip,pocky and rocky 2 zip,snes\Pocky & Rocky (USA).zip,snes\Pocky & Rocky 2 (USA).zip
 snes,100.0,pop n twinbee zip,pop n twinbee rainbow bell adventures zip,snes\Pop'n TwinBee (Europe).zip,snes\Pop'n TwinBee - Rainbow Bell Adventures (Europe).zip
 snes,100.0,populous zip,populous 2 trials of the olympian gods zip,snes\Populous (USA).zip,snes\Populous II - Trials of the Olympian Gods (Europe).zip
-snes,97.05882352941177,romance of the three kingdoms 2 zip,romance of the three kingdoms 3 dragon of destiny zip,snes\Romance of the Three Kingdoms II (USA).zip,snes\Romance of the Three Kingdoms III - Dragon of Destiny (USA).zip
-snes,97.05882352941177,romance of the three kingdoms 2 zip,romance of the three kingdoms 4 wall of fire zip,snes\Romance of the Three Kingdoms II (USA).zip,snes\Romance of the Three Kingdoms IV - Wall of Fire (USA).zip
 snes,100.0,shin megami tensei zip,shin megami tensei 2 zip,snes\Shin Megami Tensei (Japan) (Translated).zip,snes\Shin Megami Tensei II (Japan) (Translated).zip
 snes,100.0,simcity zip,simcity 2000 the ultimate city simulator zip,snes\SimCity (USA).zip,snes\SimCity 2000 - The Ultimate City Simulator (USA).zip
 snes,100.0,sonic blast man zip,sonic blast man 2 zip,snes\Sonic Blast Man (USA).zip,snes\Sonic Blast Man II (USA).zip
