@@ -10,6 +10,7 @@ from rapidfuzz import process, fuzz
 import requests
 from bs4 import BeautifulSoup
 from difflib import SequenceMatcher
+import subprocess
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'wizardry')
 SALES_CSV = os.path.join(DATA_DIR, 'sales_2019.csv')
@@ -714,7 +715,12 @@ def download_games(snapshot_dir):
         f.write('\n'.join(entries))
     cmd = [ARIA2, '-i', links_file, '-j', '5']
     print('Running:', ' '.join(cmd))
-    os.system(' '.join(cmd))
+    try:
+        subprocess.run(cmd, check=True)
+    except FileNotFoundError:
+        print('Error: aria2c not found. Ensure aria2c.exe is present in the wizardry folder or added to PATH.')
+    except subprocess.CalledProcessError as e:
+        print(f'aria2c exited with code {e.returncode}')
 
 
 def convert_to_chd():
@@ -731,7 +737,15 @@ def convert_to_chd():
                 out_path = os.path.splitext(in_path)[0] + '.chd'
                 if os.path.exists(out_path):
                     continue
-                os.system(f"{CHDMAN} createcd -i \"{in_path}\" -o \"{out_path}\"")
+                cmd = [CHDMAN, 'createcd', '-i', in_path, '-o', out_path]
+                try:
+                    subprocess.run(cmd, check=True)
+                except FileNotFoundError:
+                    print('Error: chdman.exe not found. Ensure it is in the wizardry folder or in your PATH.')
+                    return
+                except subprocess.CalledProcessError as e:
+                    print(f'chdman exited with code {e.returncode}')
+                    continue
                 os.remove(in_path)
     print('Conversion complete.')
 
