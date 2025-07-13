@@ -1,22 +1,23 @@
 # rom-wizard
 
-This repo contains helper scripts for working with ROM collections.
-You can generate a plain text list of all ROM filenames (with supported extensions) by running `list_rom_filenames.py`. The script scans the `roms` directory and writes `rom_filenames.txt` in this folder.
+This repo contains helper scripts for managing ROM collections.
 
-Platform download URLs used by `5_make_links_for_unmatched_ROMs.py` are stored
-in `platforms.csv`.  Each row now contains three columns:
+For a streamlined experience, run `rom_wizard.py` which provides an
+interactive menu to manage snapshots and ROM files.  On start, the
+script asks whether to load the newest existing snapshot or create a
+fresh one.  Before fuzzy searches such as duplicate detection or sales
+matching, you will be prompted for a match threshold.
+
+Helper files (`aria2c.exe`, `chdman.exe`, `sales_2019.csv`,
+`platforms.csv`) must reside in the `wizardry/` folder.
+
+Legacy scripts such as `list_rom_filenames.py` remain available for
+advanced use. Platform download URLs are configured in
+`wizardry/platforms.csv` with the columns:
 
 ```
 Platform,Directory,URL
 ```
 
-* **Platform** – name exactly as it appears in the sales dataset
-* **Directory** – folder name under `roms/` or `new_roms/` where files are
-  stored
-* **URL** – base URL to scrape for downloadable archives
-
-Fill in the `URL` column for platforms you wish to scrape.
-
-To populate missing URLs automatically, run `scrape_platform_urls.py`.
-
-Run `7_convert_to_chd.py` to convert disc images to CHD format.
+Fill in the `URL` column for platforms you wish to scrape.  To
+populate missing URLs automatically, run `scrape_platform_urls.py`.
