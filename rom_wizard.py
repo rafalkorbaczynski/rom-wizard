@@ -25,6 +25,15 @@ import re
 import unicodedata
 _ROMAN_RE = re.compile(r'\b(' + '|'.join(sorted(_ROMAN, key=len, reverse=True)) + r')\b')
 
+# Region mapping for summary statistics
+REGION_SYNONYMS = {
+    'EU': ['eu', 'europe', 'eur', 'pal', 'uk'],
+    'US': ['us', 'usa', 'ntsc', 'ntsc-u'],
+    'JP': ['jp', 'jpn', 'japan', 'ntsc-j'],
+    'World': ['world']
+}
+REGIONS = list(REGION_SYNONYMS.keys()) + ['Other']
+
 def norm(text):
     s = unicodedata.normalize('NFKD', str(text))
     s = ''.join(c for c in s if not unicodedata.combining(c))
@@ -72,33 +81,85 @@ def create_snapshot():
             continue
         tree = ET.parse(gl_path)
         games = tree.getroot().findall('game')
-        keys = [norm(g.findtext('name') or '') for g in games]
         platform = console
-        sales_subset = sales[sales['Platform'].str.lower()==platform.lower()]
+
+        sales_subset = sales[sales['Platform'].str.lower() == platform.lower()]
+        match_keys = list(sales_subset['key'])
         sales_map = dict(zip(sales_subset['key'], sales_subset['Global_Sales']))
-        match_keys = list(sales_map.keys())
+        name_map = dict(zip(sales_subset['key'], sales_subset['Name']))
+        dataset_size = sales_subset['key'].nunique()
+
+        region_counts = {r: 0 for r in REGIONS}
         matched = 0
-        for k in keys:
+
+        for g in games:
+            title = g.findtext('name') or ''
+            k = norm(title)
+
+            region_text = (g.findtext('region') or '').lower().strip()
+            region_key = None
+            if region_text:
+                for reg, toks in REGION_SYNONYMS.items():
+                    if region_text in toks:
+                        region_key = reg
+                        break
+            if not region_key:
+                text = os.path.basename(g.findtext('path') or title).lower()
+                tags = re.findall(r'\(([^()]+)\)', text)
+                for tag in tags:
+                    for token in re.split('[,;/]', tag):
+                        t = token.strip().lower()
+                        for reg, toks in REGION_SYNONYMS.items():
+                            if t in toks:
+                                region_key = reg
+                                break
+                        if region_key:
+                            break
+                    if region_key:
+                        break
+            if not region_key:
+                region_key = 'Other'
+            region_counts[region_key] += 1
+
             res = process.extractOne(k, match_keys, scorer=fuzz.token_set_ratio)
             if res and res[1] >= threshold:
                 matched += 1
-                matched_records.append((platform, res[0]))
-                unmatched_keys.discard((platform, res[0]))
-        summary_rows.append({'Platform': platform, 'ROMs': len(games), 'MatchedROMs': matched})
+                key = res[0]
+                matched_records.append({
+                    'Dataset Name': name_map[key],
+                    'Platform': platform,
+                    'ROM': title,
+                    'Sales': sales_map[key],
+                    'Match Score': res[1]
+                })
+                unmatched_keys.discard((platform, key))
+
+        summary_rows.append({
+            'Platform': platform,
+            'ROMs': len(games),
+            'Dataset': dataset_size,
+            'Matched ROMs': matched,
+            **region_counts
+        })
 
     summary_df = pd.DataFrame(summary_rows)
     if not summary_df.empty:
-        summary_df['ROMs%'] = summary_df['MatchedROMs']/summary_df['ROMs'].replace(0,1)*100
+        summary_df['ROMs%'] = (summary_df['Matched ROMs'] / summary_df['ROMs'].replace(0,1) * 100)
+        for col in summary_df.select_dtypes(include='float'):
+            summary_df[col] = summary_df[col].round(1)
     summary_csv = os.path.join(snap_dir, 'summary.csv')
     summary_df.to_csv(summary_csv, index=False)
 
-    unmatched_list = [ {'Platform':p, 'key':k} for p,k in unmatched_keys ]
+    unmatched_list = [{'Platform': p, 'key': k} for p, k in unmatched_keys]
     unmatched_df = pd.DataFrame(unmatched_list)
+    unmatched_df = unmatched_df.merge(sales[['Platform','Name','Global_Sales','key']], on=['Platform','key'], how='left')
+    unmatched_df = unmatched_df.rename(columns={'Name':'Dataset Name','Global_Sales':'Sales'})
+    unmatched_df = unmatched_df[['Dataset Name','Platform','Sales']]
     unmatched_csv = os.path.join(snap_dir, 'unmatched_summary.csv')
     unmatched_df.to_csv(unmatched_csv, index=False)
 
-    match_df = pd.DataFrame(matched_records, columns=['Platform','key'])
-    match_df.to_csv(os.path.join(snap_dir, 'matched_summary.csv'), index=False)
+    match_df = pd.DataFrame(matched_records, columns=['Dataset Name','Platform','ROM','Sales','Match Score'])
+    match_df.to_csv(os.path.join(snap_dir, 'match_summary.csv'), index=False)
 
     print('Snapshot created at', snap_dir)
     print(summary_df.to_string(index=False))
@@ -112,28 +173,36 @@ def detect_duplicates(snapshot_dir):
     dup_root = os.path.join(snapshot_dir, 'duplicate_roms')
     os.makedirs(dup_root, exist_ok=True)
     report_rows = []
+
     for console in os.listdir(ROMS_ROOT):
-        folder = os.path.join(ROMS_ROOT, console)
-        if not os.path.isdir(folder):
+        console_dir = os.path.join(ROMS_ROOT, console)
+        if not os.path.isdir(console_dir):
             continue
-        files = [f for f in os.listdir(folder) if os.path.splitext(f)[1].lower().lstrip('.') in ALLOWED and 'disc' not in f.lower()]
-        norm_map = {f:norm(f) for f in files}
-        moved = set()
-        for i,f in enumerate(files):
-            for j,g in enumerate(files[i+1:], i+1):
-                if g in moved or f in moved:
+        for root, _, files in os.walk(console_dir):
+            files = [f for f in files if os.path.splitext(f)[1].lower().lstrip('.') in ALLOWED and 'disc' not in f.lower()]
+            norm_map = {f: norm(f) for f in files}
+            moved = set()
+            for i, f in enumerate(files):
+                if f in moved:
                     continue
-                if fuzz.token_set_ratio(norm_map[f], norm_map[g]) >= threshold:
-                    src = os.path.join(folder, g)
-                    dst_dir = os.path.join(dup_root, console)
-                    os.makedirs(dst_dir, exist_ok=True)
-                    shutil.move(src, dst_dir)
-                    report_rows.append([console, f, g])
-                    moved.add(g)
+                for g in files[i+1:]:
+                    if g in moved:
+                        continue
+                    score = fuzz.token_set_ratio(norm_map[f], norm_map[g])
+                    if score >= threshold:
+                        src = os.path.join(root, g)
+                        rel_dir = os.path.relpath(root, ROMS_ROOT)
+                        dst_dir = os.path.join(dup_root, rel_dir)
+                        os.makedirs(dst_dir, exist_ok=True)
+                        shutil.move(src, os.path.join(dst_dir, g))
+                        keep_rel = os.path.relpath(os.path.join(root, f), ROMS_ROOT)
+                        move_rel = os.path.relpath(src, ROMS_ROOT)
+                        report_rows.append([console, score, norm_map[f], norm_map[g], keep_rel, move_rel])
+                        moved.add(g)
     csv_path = os.path.join(snapshot_dir, 'duplicates_report.csv')
     with open(csv_path, 'w', newline='', encoding='utf-8') as f:
         writer = csv.writer(f)
-        writer.writerow(['Console','Keep','Duplicate'])
+        writer.writerow(['Platform','Match Score','Kept Key','Moved Key','Kept File','Moved File'])
         writer.writerows(report_rows)
     print('Duplicate scan complete.')
 
@@ -170,12 +239,10 @@ def apply_sales(snapshot_dir):
     sales = pd.read_csv(SALES_CSV, low_memory=False)
     sales['key'] = sales['Name'].apply(norm)
     max_sales = sales['Global_Sales'].max()
-    key_to_sales = dict(zip(sales['key'], sales['Global_Sales']))
-    key_to_name = dict(zip(sales['key'], sales['Name']))
+    unmatched_keys = set(zip(sales['Platform'], sales['key']))
     output_root = os.path.join(snapshot_dir, 'roms')
     os.makedirs(output_root, exist_ok=True)
     match_rows = []
-    unmatched = []
     summary_rows = []
 
     for console in os.listdir(ROMS_ROOT):
@@ -185,36 +252,91 @@ def apply_sales(snapshot_dir):
         tree = ET.parse(gl_path)
         root = tree.getroot()
         games = root.findall('game')
+
+        subset = sales[sales['Platform'].str.lower() == console.lower()]
+        match_keys = list(subset['key'])
+        sales_map = dict(zip(subset['key'], subset['Global_Sales']))
+        name_map = dict(zip(subset['key'], subset['Name']))
+        dataset_size = subset['key'].nunique()
+
+        region_counts = {r: 0 for r in REGIONS}
         matched = 0
+
         for g in games:
             for tag in g.findall('rating') + g.findall('ratingMax'):
                 g.remove(tag)
+
             title = g.findtext('name') or ''
             k = norm(title)
-            res = process.extractOne(k, sales['key'], scorer=fuzz.token_set_ratio)
+
+            region_text = (g.findtext('region') or '').lower().strip()
+            region_key = None
+            if region_text:
+                for reg, toks in REGION_SYNONYMS.items():
+                    if region_text in toks:
+                        region_key = reg
+                        break
+            if not region_key:
+                text = os.path.basename(g.findtext('path') or title).lower()
+                tags = re.findall(r'\(([^()]+)\)', text)
+                for tag in tags:
+                    for token in re.split('[,;/]', tag):
+                        t = token.strip().lower()
+                        for reg, toks in REGION_SYNONYMS.items():
+                            if t in toks:
+                                region_key = reg
+                                break
+                        if region_key:
+                            break
+                    if region_key:
+                        break
+            if not region_key:
+                region_key = 'Other'
+            region_counts[region_key] += 1
+
+            res = process.extractOne(k, match_keys, scorer=fuzz.token_set_ratio)
             if res and res[1] >= threshold:
-                s_key = res[0]
-                gs = key_to_sales[s_key]
+                key = res[0]
+                gs = sales_map[key]
                 rating = gs / max_sales * 100
                 ET.SubElement(g, 'rating').text = f"{rating:.2f}"
                 ET.SubElement(g, 'ratingMax').text = '100'
-                match_rows.append({'Dataset_Name': key_to_name[s_key], 'Sales_Platform': sales.loc[sales['key']==s_key,'Platform'].iloc[0], 'ROM_File': title, 'Global_Sales': gs, 'Match_Score': res[1]})
+                match_rows.append({
+                    'Dataset Name': name_map[key],
+                    'Platform': console,
+                    'ROM': title,
+                    'Sales': gs,
+                    'Match Score': res[1]
+                })
                 matched += 1
-                unmatched_key = (sales.loc[sales['key']==s_key,'Platform'].iloc[0], s_key)
-                if unmatched_key in unmatched:
-                    unmatched.remove(unmatched_key)
-            else:
-                pass
+                unmatched_keys.discard((console, key))
+
         out_dir = os.path.join(output_root, console)
         os.makedirs(out_dir, exist_ok=True)
         tree.write(os.path.join(out_dir, 'gamelist.xml'), encoding='utf-8', xml_declaration=True)
-        summary_rows.append({'Platform': console, 'ROMs': len(games), 'MatchedROMs': matched})
+        summary_rows.append({
+            'Platform': console,
+            'ROMs': len(games),
+            'Dataset': dataset_size,
+            'Matched ROMs': matched,
+            **region_counts
+        })
 
     summary_df = pd.DataFrame(summary_rows)
     if not summary_df.empty:
-        summary_df['ROMs%'] = summary_df['MatchedROMs']/summary_df['ROMs'].replace(0,1)*100
+        summary_df['ROMs%'] = (summary_df['Matched ROMs'] / summary_df['ROMs'].replace(0,1) * 100)
+        for col in summary_df.select_dtypes(include='float'):
+            summary_df[col] = summary_df[col].round(1)
     summary_df.to_csv(os.path.join(snapshot_dir, 'summary.csv'), index=False)
     pd.DataFrame(match_rows).to_csv(os.path.join(snapshot_dir, 'match_summary.csv'), index=False)
+
+    unmatched_list = [{'Platform': p, 'key': k} for p, k in unmatched_keys]
+    unmatched_df = pd.DataFrame(unmatched_list)
+    unmatched_df = unmatched_df.merge(sales[['Platform','Name','Global_Sales','key']], on=['Platform','key'], how='left')
+    unmatched_df = unmatched_df.rename(columns={'Name':'Dataset Name','Global_Sales':'Sales'})
+    unmatched_df = unmatched_df[['Dataset Name','Platform','Sales']]
+    unmatched_df.to_csv(os.path.join(snapshot_dir, 'unmatched_summary.csv'), index=False)
+
     print('Sales data applied.')
 
 
