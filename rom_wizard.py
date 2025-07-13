@@ -49,6 +49,9 @@ BOLD = "\033[1m"
 DIFF_COLOR = "\033[93m"
 HEADER_COLOR = "\033[95m"
 
+# Track sort cycling state for snapshot summaries
+SUMMARY_CYCLE_IDX = 0
+
 # Path to persistent blacklist used for manual matching
 BLACKLIST_CSV = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'blacklist.csv')
 
@@ -284,13 +287,17 @@ def detect_duplicates(snapshot_dir):
     dup_root = os.path.join(snapshot_dir, 'duplicate_roms')
     os.makedirs(dup_root, exist_ok=True)
     report_rows = []
+    summary_rows = []
 
     for console in os.listdir(ROMS_ROOT):
         console_dir = os.path.join(ROMS_ROOT, console)
         if not os.path.isdir(console_dir):
             continue
+        rom_count = 0
+        dup_count = 0
         for root, _, files in os.walk(console_dir):
             files = [f for f in files if os.path.splitext(f)[1].lower().lstrip('.') in ROM_EXTS and 'disc' not in f.lower()]
+            rom_count += len(files)
             norm_map = {f: norm(f) for f in files}
             moved = set()
             for i, f in enumerate(files):
@@ -310,12 +317,19 @@ def detect_duplicates(snapshot_dir):
                         move_rel = os.path.relpath(src, ROMS_ROOT)
                         report_rows.append([console, score, norm_map[f], norm_map[g], keep_rel, move_rel])
                         moved.add(g)
+                        dup_count += 1
+        if rom_count:
+            pct = dup_count / rom_count * 100
+            summary_rows.append({'Platform': console, 'ROMs': rom_count, 'Duplicates': dup_count, 'Duplicate %': round(pct, 1)})
     csv_path = os.path.join(snapshot_dir, 'duplicates_report.csv')
     with open(csv_path, 'w', newline='', encoding='utf-8') as f:
         writer = csv.writer(f)
         writer.writerow(['Platform','Match Score','Kept Key','Moved Key','Kept File','Moved File'])
         writer.writerows(report_rows)
     print('Duplicate scan complete.')
+    if summary_rows:
+        df = pd.DataFrame(summary_rows)
+        print(df.to_string(index=False))
 
 
 def generate_playlists():
@@ -760,24 +774,46 @@ def get_latest_snapshot():
     return os.path.join(base, snaps[0])
 
 
-def main():
-    snap_dir = None
+def select_snapshot():
+    """Prompt the user to load the latest snapshot or create/select one."""
     latest = get_latest_snapshot()
     if latest and input(f"Load latest snapshot at {latest}? [Y/n] ").strip().lower() in {'', 'y', 'yes'}:
-        snap_dir = latest
-    else:
-        path = input('Enter path to existing snapshot or press ENTER to create new: ').strip()
-        if path:
-            if os.path.isdir(path):
-                snap_dir = path
-            else:
-                print('Invalid path, creating new snapshot.')
-                snap_dir = create_snapshot()
-        else:
-            snap_dir = create_snapshot()
+        return latest
+    path = input('Enter path to existing snapshot or press ENTER to create new: ').strip()
+    if path:
+        if os.path.isdir(path):
+            return path
+        print('Invalid path, creating new snapshot.')
+    return create_snapshot()
 
+
+def show_snapshot_summary(snapshot_dir):
+    """Print the snapshot summary and cycle through sorted columns."""
+    global SUMMARY_CYCLE_IDX
+    summary_file = os.path.join(snapshot_dir, 'summary.csv')
+    if not os.path.isfile(summary_file):
+        print('summary.csv not found.')
+        return
+    df = pd.read_csv(summary_file)
+    cols = list(df.columns)
+    if SUMMARY_CYCLE_IDX == 0:
+        view = df
+    else:
+        col = cols[SUMMARY_CYCLE_IDX]
+        view = df.sort_values(col, ascending=False)
+    for col in view.select_dtypes(include='float'):
+        view[col] = view[col].round(1)
+    print(view.to_string(index=False))
+    SUMMARY_CYCLE_IDX = (SUMMARY_CYCLE_IDX + 1) % len(cols)
+
+
+def wizard_menu(snapshot_dir):
+    """Main interactive menu for a given snapshot."""
+    global SUMMARY_CYCLE_IDX
+    SUMMARY_CYCLE_IDX = 0
     while True:
         print('\nROM Wizard Menu')
+        print('0) Show snapshot summary')
         print('1) Detect duplicates')
         print('2) Generate m3u playlists')
         print('3) Apply sales data to gamelists')
@@ -786,19 +822,30 @@ def main():
         print('6) Convert disc images to CHD')
         print('7) Quit')
         choice = input('Select option: ').strip()
-        if choice=='1':
-            detect_duplicates(snap_dir)
-        elif choice=='2':
+        if choice == '0':
+            show_snapshot_summary(snapshot_dir)
+        elif choice == '1':
+            detect_duplicates(snapshot_dir)
+        elif choice == '2':
             generate_playlists()
-        elif choice=='3':
-            apply_sales(snap_dir)
-        elif choice=='4':
-            manual_add_games(snap_dir)
-        elif choice=='5':
-            download_games(snap_dir)
-        elif choice=='6':
+        elif choice == '3':
+            apply_sales(snapshot_dir)
+        elif choice == '4':
+            manual_add_games(snapshot_dir)
+        elif choice == '5':
+            download_games(snapshot_dir)
+        elif choice == '6':
             convert_to_chd()
-        elif choice=='7':
+        elif choice == '7':
+            ans = input('Restart wizard? [y/N]: ').strip().lower()
+            return ans in {'y', 'yes'}
+
+
+def main():
+    while True:
+        snap_dir = select_snapshot()
+        restart = wizard_menu(snap_dir)
+        if not restart:
             break
 
 if __name__ == '__main__':
