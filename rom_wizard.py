@@ -15,7 +15,10 @@ SALES_CSV = os.path.join(DATA_DIR, 'sales_2019.csv')
 PLATFORMS_CSV = os.path.join(DATA_DIR, 'platforms.csv')
 ARIA2 = os.path.join(DATA_DIR, 'aria2c.exe')
 CHDMAN = os.path.join(DATA_DIR, 'chdman.exe')
-ROMS_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), 'roms'))
+# The ROM library lives in the parent directory of this script under "roms".
+# Make ROMS_ROOT point there so the wizard can locate existing ROMs when run
+# from the scripts_github folder.
+ROMS_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'roms'))
 
 _ROMAN = {'ix':9,'viii':8,'vii':7,'vi':6,'iv':4,'iii':3,'ii':2,'i':1}
 import re
