@@ -107,6 +107,23 @@ def color_diff(candidate: str, search: str) -> str:
             out.append(DIFF_COLOR + segment + RESET)
     return ''.join(out)
 
+# --- Multi-disc helpers -----------------------------------------------------
+DISC_RE = re.compile(r'(?:disc|disk|cd)\s*([0-9]+)', re.I)
+
+def remove_disc(text: str) -> str:
+    """Return string with disc information removed."""
+    return re.sub(r'\s*[\[(]?(?:disc|disk|cd)\s*[0-9]+[^\])]*[\])]?', '', text,
+                  flags=re.I).strip()
+
+def disc_number(text: str) -> int:
+    match = DISC_RE.search(text)
+    if match:
+        try:
+            return int(match.group(1))
+        except ValueError:
+            return 0
+    return 0
+
 
 def ask_threshold(default=90):
     try:
@@ -539,45 +556,87 @@ def manual_add_games(snapshot_dir):
         resp.raise_for_status()
         soup = BeautifulSoup(resp.text, 'html.parser')
         files = [a['href'] for a in soup.find_all('a', href=True) if a['href'].lower().endswith('.zip')]
-        names = [requests.utils.unquote(os.path.splitext(f)[0]) for f in files]
+
+        file_map = {}
+        file_names = {}
+        group_map = {}
+        for href in files:
+            name = requests.utils.unquote(os.path.splitext(href)[0])
+            key = norm(name)
+            file_map[key] = href
+            file_names[key] = name
+            base_key = norm(remove_disc(name))
+            group_map.setdefault(base_key, []).append(key)
 
         for _, row in subset.iterrows():
             search_term = row['Dataset Name']
+            norm_search = norm(search_term)
+            selected_keys = None
+            score = 0
             while True:
-                results = process.extract(norm(search_term), names, scorer=fuzz.token_set_ratio, limit=20)
-                candidates = []
-                for cand, score, idx in results:
-                    if score < threshold:
-                        continue
-                    score = int(round(score))
-                    candidates.append((cand, score, idx))
-                candidates.sort(key=lambda t: (t[1], region_priority(names[t[2]])), reverse=True)
-                choices = candidates[:5]
-                if not choices:
-                    print(f'No matches found for "{search_term}".')
+                ts_results = process.extract(norm_search, list(file_map.keys()), scorer=fuzz.token_sort_ratio, limit=None)
+                options = []
+                if ts_results:
+                    groups = {}
+                    for cand, ts_score, _ in ts_results:
+                        base = norm(remove_disc(file_names[cand]))
+                        g = groups.setdefault(base, {'keys': [], 'score': 0})
+                        g['keys'].append(cand)
+                        g['score'] = max(g['score'], ts_score)
+                    sorted_groups = sorted(groups.values(), key=lambda g: g['score'], reverse=True)
+                    for idx, g in enumerate(sorted_groups[:3], start=1):
+                        main_key = max(g['keys'], key=lambda k: fuzz.partial_ratio(norm_search, k))
+                        pr_score = fuzz.partial_ratio(norm_search, main_key)
+                        opt_score = int(round(min(g['score'], pr_score)))
+                        disp = ' + '.join(file_names[k] for k in sorted(g['keys'], key=lambda k: disc_number(file_names[k])))
+                        disp = color_diff(disp, search_term)
+                        options.append((g['keys'], opt_score))
+                        print(f"{idx}. {disp} (score {opt_score})")
                 else:
-                    for i, (name, sc, idx) in enumerate(choices, 1):
-                        print(f"{i}. {color_diff(name, search_term)} (score {sc})")
-                sel = input(f"{row['Dataset Name']}: select 1-{len(choices)} or enter new search term, 'b' to blacklist, ENTER to skip: ").strip()
-                if not sel:
+                    print('No candidates found')
+                sel = input(f"{row['Dataset Name']}: select 1-{len(options)} or enter new search term, 'b' to blacklist, ENTER to skip: ").strip()
+                if sel == '':
                     break
                 if sel.lower() == 'b':
                     blacklist_df.loc[len(blacklist_df)] = {'Search_Term': row['Dataset Name'], 'Platform': code}
                     blacklisted_pairs.add((row['Dataset Name'], code))
                     print(f"Blacklisted {row['Dataset Name']}")
+                    selected_keys = None
                     break
-                if sel.isdigit():
+                if sel.isdigit() and options:
                     j = int(sel) - 1
-                    if 0 <= j < len(choices):
-                        name, sc, idx = choices[j]
-                        filehref = files[idx]
-                        download_rows.append({'Search_Term': row['Dataset Name'], 'Platform': code, 'Directory': directory, 'Matched_Title': filehref, 'Score': sc, 'URL': requests.compat.urljoin(url, filehref)})
+                    if 0 <= j < len(options):
+                        selected_keys, score = options[j]
+                        if score < threshold:
+                            print(f'Selected option below threshold ({score} < {threshold})')
                         break
                     else:
                         print('Invalid selection.')
+                        continue
                 else:
                     search_term = sel
+                    norm_search = norm(search_term)
                     continue
+            if not selected_keys:
+                continue
+            selected_names = [file_names[k] for k in selected_keys]
+            if any(DISC_RE.search(n) for n in selected_names):
+                base = norm(remove_disc(selected_names[0]))
+                all_keys = group_map.get(base, selected_keys)
+                if len(all_keys) > len(selected_keys):
+                    selected_keys = sorted(all_keys, key=lambda k: disc_number(file_names[k]))
+
+            uniq_keys = []
+            seen = set()
+            for k in selected_keys:
+                if k not in seen:
+                    uniq_keys.append(k)
+                    seen.add(k)
+            for k in uniq_keys:
+                filehref = file_map[k]
+                download_rows.append({'Search_Term': row['Dataset Name'], 'Platform': code,
+                                     'Directory': directory, 'Matched_Title': filehref,
+                                     'Score': score, 'URL': requests.compat.urljoin(url, filehref)})
 
     if not download_rows:
         print('No entries added.')
