@@ -34,6 +34,29 @@ REGION_SYNONYMS = {
 }
 REGIONS = list(REGION_SYNONYMS.keys()) + ['Other']
 
+# Mapping from ROM directory names to platform codes used in the sales dataset
+PLAT_MAP = {
+    'atari2600':'2600','atari5200':'5200','atari7800':'7800','atarist':'AST',
+    '3do':'3DO','3ds':'3DS','nds':'DS','ds':'DS',
+    'gb':'GB','gbc':'GBC','gba':'GBA','nes':'NES','snes':'SNES','n64':'N64',
+    'gamecube':'GC','wii':'Wii','wiiu':'WiiU','switch':'NS','ns':'NS','ngage':'NGage',
+    'virtualboy':'VB','ps':'PS','psx':'PS','ps2':'PS2','ps3':'PS3','ps4':'PS4','ps5':'PS5',
+    'psp':'PSP','psvita':'PSV','saturn':'SAT','segacd':'SCD','sega_cd':'SCD','sega32x':'S32X',
+    'gamegear':'GG','megadrive':'GEN','dreamcast':'DC','dc':'DC',
+    'xbox':'XB','xbox360':'X360','xboxone':'XOne',
+    'pc':'PC','dos':'MSD','windows':'WinP','linux':'Linux','osx':'OSX','pcfx':'PCFX',
+    'pcengine':'TG16','pce':'PCE','pcenginecd':'PCE','c64':'C64','c128':'C128','fds':'FDS',
+    'msx1':'MSX','msx2':'MSX','msx2+':'MSX','msxturbor':'MSX','bbcmicro':'BBCM',
+    'amiga1200':'AMIG','amiga4000':'AMIG','amiga500':'AMIG','amigacd32':'CD32',
+    'amigacdtv':'CD32','amstradcpc':'ACPC','apple2':'ApII','apple2gs':'ApII',
+    'intellivision':'Int','arcadia':'Arc','astrocade':'Arc','cdi':'CDi'
+}
+
+# Reverse lookup for convenience when mapping dataset platforms back to directories
+DATASET_TO_CONSOLE = {}
+for k, v in PLAT_MAP.items():
+    DATASET_TO_CONSOLE.setdefault(v.lower(), k)
+
 def norm(text):
     s = unicodedata.normalize('NFKD', str(text))
     s = ''.join(c for c in s if not unicodedata.combining(c))
@@ -82,8 +105,9 @@ def create_snapshot():
         tree = ET.parse(gl_path)
         games = tree.getroot().findall('game')
         platform = console
+        ds_plat = PLAT_MAP.get(console.lower(), console)
 
-        sales_subset = sales[sales['Platform'].str.lower() == platform.lower()]
+        sales_subset = sales[sales['Platform'].str.lower() == ds_plat.lower()]
         match_keys = list(sales_subset['key'])
         sales_map = dict(zip(sales_subset['key'], sales_subset['Global_Sales']))
         name_map = dict(zip(sales_subset['key'], sales_subset['Name']))
@@ -132,7 +156,7 @@ def create_snapshot():
                     'Sales': sales_map[key],
                     'Match Score': res[1]
                 })
-                unmatched_keys.discard((platform, key))
+                unmatched_keys.discard((ds_plat, key))
 
         summary_rows.append({
             'Platform': platform,
@@ -253,7 +277,8 @@ def apply_sales(snapshot_dir):
         root = tree.getroot()
         games = root.findall('game')
 
-        subset = sales[sales['Platform'].str.lower() == console.lower()]
+        ds_plat = PLAT_MAP.get(console.lower(), console)
+        subset = sales[sales['Platform'].str.lower() == ds_plat.lower()]
         match_keys = list(subset['key'])
         sales_map = dict(zip(subset['key'], subset['Global_Sales']))
         name_map = dict(zip(subset['key'], subset['Name']))
@@ -309,7 +334,7 @@ def apply_sales(snapshot_dir):
                     'Match Score': res[1]
                 })
                 matched += 1
-                unmatched_keys.discard((console, key))
+                unmatched_keys.discard((ds_plat, key))
 
         out_dir = os.path.join(output_root, console)
         os.makedirs(out_dir, exist_ok=True)
