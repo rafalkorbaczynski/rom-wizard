@@ -9,6 +9,7 @@ import xml.etree.ElementTree as ET
 from rapidfuzz import process, fuzz
 import requests
 from bs4 import BeautifulSoup
+from difflib import SequenceMatcher
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'wizardry')
 SALES_CSV = os.path.join(DATA_DIR, 'sales_2019.csv')
@@ -40,6 +41,14 @@ ROM_EXTS = {
     'a26','a52','a78','bin','chd','gb','gba','gbc','iso','j64',
     'md','nds','nes','pce','rvz','sfc','sms','xex','z64','zip'
 }
+
+# Terminal colors for highlighting differences
+RESET = "\033[0m"
+BOLD = "\033[1m"
+DIFF_COLOR = "\033[93m"
+
+# Path to persistent blacklist used for manual matching
+BLACKLIST_CSV = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'blacklist.csv')
 
 # Mapping from ROM directory names to platform codes used in the sales dataset
 PLAT_MAP = {
@@ -74,6 +83,29 @@ def norm(text):
     s = _ROMAN_RE.sub(lambda m: str(_ROMAN[m.group(1)]), s)
     s = re.sub(r'[^a-z0-9 ]+', ' ', s)
     return re.sub(r'\s+', ' ', s).strip()
+
+
+def region_priority(filename: str) -> int:
+    lf = filename.lower()
+    if re.search(r'\b(eu|eur|europe)\b', lf):
+        return 3
+    if re.search(r'\b(us|usa|ntsc-?u)\b', lf):
+        return 2
+    if re.search(r'\b(jp|japan|ntsc-?j)\b', lf):
+        return 1
+    return 0
+
+
+def color_diff(candidate: str, search: str) -> str:
+    sm = SequenceMatcher(None, candidate.lower(), search.lower())
+    out = []
+    for op, a1, a2, _, _ in sm.get_opcodes():
+        segment = candidate[a1:a2]
+        if op == 'equal':
+            out.append(BOLD + segment + RESET)
+        else:
+            out.append(DIFF_COLOR + segment + RESET)
+    return ''.join(out)
 
 
 def ask_threshold(default=90):
@@ -425,8 +457,19 @@ def manual_add_games(snapshot_dir):
     unmatched_df = pd.read_csv(unmatched_path)
     summary_df = pd.read_csv(summary_path) if os.path.isfile(summary_path) else pd.DataFrame()
 
-    available = sorted(unmatched_df['Platform'].unique())
-    zero_codes = sorted(summary_df[summary_df.get('ROMs', 1) == 0]['Platform'].unique())
+    if os.path.exists(BLACKLIST_CSV):
+        blacklist_df = pd.read_csv(BLACKLIST_CSV)
+        blacklist_df = blacklist_df[['Search_Term', 'Platform']]
+    else:
+        blacklist_df = pd.DataFrame(columns=['Search_Term', 'Platform'])
+    blacklisted_pairs = set(zip(blacklist_df.get('Search_Term', []), blacklist_df.get('Platform', [])))
+
+    plat_df = pd.read_csv(PLATFORMS_CSV)
+    info_map = {row['Platform']: {'dir': row.get('Directory', row['Platform']), 'url': row.get('URL', '')} for _, row in plat_df.iterrows()}
+    blacklisted_plats = {c for c, info in info_map.items() if str(info.get('url', '')).strip().upper() == 'BLACKLIST'}
+
+    available = sorted([c for c in unmatched_df['Platform'].unique() if c not in blacklisted_plats])
+    zero_codes = sorted([c for c in summary_df[summary_df.get('ROMs', 1) == 0]['Platform'].unique() if c not in blacklisted_plats])
 
     print('Available platforms:')
     print(' '.join(available))
@@ -477,9 +520,6 @@ def manual_add_games(snapshot_dir):
 
     threshold = ask_threshold()
 
-    plat_df = pd.read_csv(PLATFORMS_CSV)
-    info_map = {row['Platform']: {'dir': row.get('Directory', row['Platform']), 'url': row.get('URL', '')} for _, row in plat_df.iterrows()}
-
     download_rows = []
 
     for code in platforms:
@@ -490,6 +530,7 @@ def manual_add_games(snapshot_dir):
             print(f'Skipping {code}: no URL configured.')
             continue
         subset = unmatched_df[unmatched_df['Platform'] == code]
+        subset = subset[~subset['Dataset Name'].apply(lambda n: (n, code) in blacklisted_pairs)]
         subset = subset.sort_values('Sales', ascending=False).head(count)
         if subset.empty:
             print(f'No unmatched entries for {code}.')
@@ -504,21 +545,33 @@ def manual_add_games(snapshot_dir):
             search_term = row['Dataset Name']
             while True:
                 results = process.extract(norm(search_term), names, scorer=fuzz.token_set_ratio, limit=20)
-                choices = [(cand, score, idx) for cand, score, idx in results if score >= threshold][:5]
+                candidates = []
+                for cand, score, idx in results:
+                    if score < threshold:
+                        continue
+                    score = int(round(score))
+                    candidates.append((cand, score, idx))
+                candidates.sort(key=lambda t: (t[1], region_priority(names[t[2]])), reverse=True)
+                choices = candidates[:5]
                 if not choices:
                     print(f'No matches found for "{search_term}".')
                 else:
-                    for i, (name, score, idx) in enumerate(choices, 1):
-                        print(f"{i}. {name} (score {score})")
-                sel = input(f"{row['Dataset Name']}: select 1-{len(choices)} or enter new search term, ENTER to skip: ").strip()
+                    for i, (name, sc, idx) in enumerate(choices, 1):
+                        print(f"{i}. {color_diff(name, search_term)} (score {sc})")
+                sel = input(f"{row['Dataset Name']}: select 1-{len(choices)} or enter new search term, 'b' to blacklist, ENTER to skip: ").strip()
                 if not sel:
+                    break
+                if sel.lower() == 'b':
+                    blacklist_df.loc[len(blacklist_df)] = {'Search_Term': row['Dataset Name'], 'Platform': code}
+                    blacklisted_pairs.add((row['Dataset Name'], code))
+                    print(f"Blacklisted {row['Dataset Name']}")
                     break
                 if sel.isdigit():
                     j = int(sel) - 1
                     if 0 <= j < len(choices):
-                        name, score, idx = choices[j]
+                        name, sc, idx = choices[j]
                         filehref = files[idx]
-                        download_rows.append({'Search_Term': row['Dataset Name'], 'Platform': code, 'Directory': directory, 'Matched_Title': filehref, 'Score': score, 'URL': requests.compat.urljoin(url, filehref)})
+                        download_rows.append({'Search_Term': row['Dataset Name'], 'Platform': code, 'Directory': directory, 'Matched_Title': filehref, 'Score': sc, 'URL': requests.compat.urljoin(url, filehref)})
                         break
                     else:
                         print('Invalid selection.')
@@ -536,6 +589,8 @@ def manual_add_games(snapshot_dir):
     df = pd.concat([df_existing, new_df], ignore_index=True)
     df.to_csv(csv_path, index=False)
     print('Download list updated.')
+    if not blacklist_df.empty:
+        blacklist_df.drop_duplicates().to_csv(BLACKLIST_CSV, index=False)
     ans = input('Download now? [y/N]: ').lower()
     if ans == 'y':
         download_games(snapshot_dir)
