@@ -96,6 +96,14 @@ def region_priority(filename: str) -> int:
     return 0
 
 
+def filter_best_region(keys, file_names):
+    """Return keys belonging to the highest-priority region."""
+    if not keys:
+        return keys
+    max_prio = max(region_priority(file_names[k]) for k in keys)
+    return [k for k in keys if region_priority(file_names[k]) == max_prio]
+
+
 def color_diff(candidate: str, search: str) -> str:
     sm = SequenceMatcher(None, candidate.lower(), search.lower())
     out = []
@@ -585,12 +593,13 @@ def manual_add_games(snapshot_dir):
                         g['score'] = max(g['score'], ts_score)
                     sorted_groups = sorted(groups.values(), key=lambda g: g['score'], reverse=True)
                     for idx, g in enumerate(sorted_groups[:3], start=1):
-                        main_key = max(g['keys'], key=lambda k: fuzz.partial_ratio(norm_search, k))
+                        keys = filter_best_region(g['keys'], file_names)
+                        main_key = max(keys, key=lambda k: fuzz.partial_ratio(norm_search, k))
                         pr_score = fuzz.partial_ratio(norm_search, main_key)
                         opt_score = int(round(min(g['score'], pr_score)))
-                        disp = ' + '.join(file_names[k] for k in sorted(g['keys'], key=lambda k: disc_number(file_names[k])))
+                        disp = ' + '.join(file_names[k] for k in sorted(keys, key=lambda k: disc_number(file_names[k])))
                         disp = color_diff(disp, search_term)
-                        options.append((g['keys'], opt_score))
+                        options.append((keys, opt_score))
                         print(f"{idx}. {disp} (score {opt_score})")
                 else:
                     print('No candidates found')
@@ -622,7 +631,8 @@ def manual_add_games(snapshot_dir):
             selected_names = [file_names[k] for k in selected_keys]
             if any(DISC_RE.search(n) for n in selected_names):
                 base = norm(remove_disc(selected_names[0]))
-                all_keys = group_map.get(base, selected_keys)
+                all_keys = [k for k in group_map.get(base, selected_keys)
+                            if region_priority(file_names[k]) == region_priority(selected_names[0])]
                 if len(all_keys) > len(selected_keys):
                     selected_keys = sorted(all_keys, key=lambda k: disc_number(file_names[k]))
 
