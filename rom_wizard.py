@@ -299,6 +299,9 @@ def detect_duplicates(snapshot_dir):
             files = [f for f in files if os.path.splitext(f)[1].lower().lstrip('.') in ROM_EXTS and 'disc' not in f.lower()]
             rom_count += len(files)
             norm_map = {f: norm(f) for f in files}
+            base_map = {f: norm(remove_disc(f)) for f in files}
+            disc_map = {f: disc_number(f) for f in files}
+            num_map = {f: re.findall(r'\b\d+\b', norm_map[f]) for f in files}
             moved = set()
             for i, f in enumerate(files):
                 if f in moved:
@@ -308,6 +311,12 @@ def detect_duplicates(snapshot_dir):
                         continue
                     score = fuzz.token_set_ratio(norm_map[f], norm_map[g])
                     if score >= threshold:
+                        # Skip sequels with different numbering
+                        if num_map[f] and num_map[g] and num_map[f] != num_map[g]:
+                            continue
+                        # Skip multi-disc sets
+                        if base_map[f] == base_map[g] and disc_map[f] != disc_map[g] and (disc_map[f] or disc_map[g]):
+                            continue
                         src = os.path.join(root, g)
                         rel_dir = os.path.relpath(root, ROMS_ROOT)
                         dst_dir = os.path.join(dup_root, rel_dir)
