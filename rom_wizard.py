@@ -76,7 +76,7 @@ def norm(text):
     return re.sub(r'\s+', ' ', s).strip()
 
 
-def ask_threshold(default=85):
+def ask_threshold(default=90):
     try:
         ans = input(f"Fuzzy match threshold [0-100] (default {default}): ").strip()
         if not ans:
@@ -390,47 +390,122 @@ def scrape_file_list(code):
     return url, directory, list(zip(names, files))
 
 
-def find_new_games(snapshot_dir):
+def manual_add_games(snapshot_dir):
+    """Interactive manual mode for adding download entries."""
     unmatched_path = os.path.join(snapshot_dir, 'unmatched_summary.csv')
+    summary_path = os.path.join(snapshot_dir, 'summary.csv')
     if not os.path.isfile(unmatched_path):
         print('unmatched_summary.csv not found. Run snapshot first.')
         return
-    threshold = ask_threshold()
+
     unmatched_df = pd.read_csv(unmatched_path)
-    codes = sorted(unmatched_df['Platform'].unique())
-    code = input(f"Platform code {codes}: ")
-    if code not in codes:
-        print('Invalid platform.')
-        return
-    url, directory, files = scrape_file_list(code)
-    if not url:
-        print('No URL configured for platform.')
-        return
-    download_rows = []
+    summary_df = pd.read_csv(summary_path) if os.path.isfile(summary_path) else pd.DataFrame()
+
+    available = sorted(unmatched_df['Platform'].unique())
+    zero_codes = sorted(summary_df[summary_df.get('ROMs', 1) == 0]['Platform'].unique())
+
+    print('Available platforms:')
+    print(' '.join(available))
+    if zero_codes:
+        print('Platforms with zero ROMs:', ' '.join(zero_codes))
+    print("Enter platform codes separated by spaces. Use 'empty' to add empty platforms, 'all' to toggle all platforms, or 'run' to continue:")
+
+    active = set()
     while True:
-        term = input('Search term (blank to finish): ').strip()
-        if not term:
+        ans = input('> ').strip()
+        if ans.lower() == 'run':
             break
-        results = process.extract(norm(term), [n for n,_ in files], scorer=fuzz.token_set_ratio, limit=20)
-        choices = [(name,score,idx) for name,score,idx in results if score >= threshold][:5]
-        if not choices:
-            print('No matches above threshold.')
+        for tok in filter(None, re.split(r'[\s,]+', ans)):
+            low = tok.lower()
+            if low == 'empty':
+                active.update(zero_codes)
+                continue
+            if low == 'all':
+                if active >= set(available):
+                    active.clear()
+                else:
+                    active.update(available)
+                continue
+            code = tok.upper()
+            if code not in available and code not in zero_codes:
+                print(f'Unknown platform: {tok}')
+                continue
+            if code in active:
+                active.remove(code)
+                print(f'Removed {code}')
+            else:
+                active.add(code)
+                print(f'Added {code}')
+        if active:
+            print('Currently selected:', ', '.join(sorted(active)))
+        else:
+            print('No platforms selected')
+
+    platforms = sorted(active)
+    if not platforms:
+        print('No platforms selected.')
+        return
+
+    try:
+        count = int(input('Number of top games per platform [10]: ') or '10')
+    except ValueError:
+        count = 10
+
+    threshold = ask_threshold()
+
+    plat_df = pd.read_csv(PLATFORMS_CSV)
+    info_map = {row['Platform']: {'dir': row.get('Directory', row['Platform']), 'url': row.get('URL', '')} for _, row in plat_df.iterrows()}
+
+    download_rows = []
+
+    for code in platforms:
+        info = info_map.get(code, {})
+        url = info.get('url')
+        directory = info.get('dir', code) or code
+        if not url:
+            print(f'Skipping {code}: no URL configured.')
             continue
-        for i,(name,score,idx) in enumerate(choices,1):
-            print(f"{i}. {files[idx][0]} (score {score})")
-        sel = input('Select number or ENTER to skip: ').strip()
-        if not sel:
+        subset = unmatched_df[unmatched_df['Platform'] == code]
+        subset = subset.sort_values('Sales', ascending=False).head(count)
+        if subset.empty:
+            print(f'No unmatched entries for {code}.')
             continue
-        try:
-            idx = int(sel)-1
-            name,filehref = files[choices[idx][2]]
-        except (ValueError,IndexError):
-            print('Invalid choice')
-            continue
-        download_rows.append({'Search_Term': term, 'Platform': code, 'Directory': directory, 'Matched_Title': filehref, 'Score': choices[idx][1], 'URL': requests.compat.urljoin(url, filehref)})
+        resp = requests.get(url)
+        resp.raise_for_status()
+        soup = BeautifulSoup(resp.text, 'html.parser')
+        files = [a['href'] for a in soup.find_all('a', href=True) if a['href'].lower().endswith('.zip')]
+        names = [requests.utils.unquote(os.path.splitext(f)[0]) for f in files]
+
+        for _, row in subset.iterrows():
+            search_term = row['Dataset Name']
+            while True:
+                results = process.extract(norm(search_term), names, scorer=fuzz.token_set_ratio, limit=20)
+                choices = [(cand, score, idx) for cand, score, idx in results if score >= threshold][:5]
+                if not choices:
+                    print(f'No matches found for "{search_term}".')
+                else:
+                    for i, (name, score, idx) in enumerate(choices, 1):
+                        print(f"{i}. {name} (score {score})")
+                sel = input(f"{row['Dataset Name']}: select 1-{len(choices)} or enter new search term, ENTER to skip: ").strip()
+                if not sel:
+                    break
+                if sel.isdigit():
+                    j = int(sel) - 1
+                    if 0 <= j < len(choices):
+                        name, score, idx = choices[j]
+                        filehref = files[idx]
+                        download_rows.append({'Search_Term': row['Dataset Name'], 'Platform': code, 'Directory': directory, 'Matched_Title': filehref, 'Score': score, 'URL': requests.compat.urljoin(url, filehref)})
+                        break
+                    else:
+                        print('Invalid selection.')
+                else:
+                    search_term = sel
+                    continue
+
     if not download_rows:
         print('No entries added.')
         return
+
     csv_path = os.path.join(snapshot_dir, 'download_list.csv')
     df_existing = pd.read_csv(csv_path) if os.path.exists(csv_path) else pd.DataFrame()
     new_df = pd.DataFrame(download_rows)
@@ -438,7 +513,7 @@ def find_new_games(snapshot_dir):
     df.to_csv(csv_path, index=False)
     print('Download list updated.')
     ans = input('Download now? [y/N]: ').lower()
-    if ans=='y':
+    if ans == 'y':
         download_games(snapshot_dir)
 
 
@@ -513,7 +588,7 @@ def main():
         print('1) Detect duplicates')
         print('2) Generate m3u playlists')
         print('3) Apply sales data to gamelists')
-        print('4) Find new games (manual search)')
+        print('4) Add new games (manual mode)')
         print('5) Download games from list')
         print('6) Convert disc images to CHD')
         print('7) Quit')
@@ -525,7 +600,7 @@ def main():
         elif choice=='3':
             apply_sales(snap_dir)
         elif choice=='4':
-            find_new_games(snap_dir)
+            manual_add_games(snap_dir)
         elif choice=='5':
             download_games(snap_dir)
         elif choice=='6':
