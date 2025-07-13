@@ -301,7 +301,9 @@ def detect_duplicates(snapshot_dir):
             norm_map = {f: norm(f) for f in files}
             base_map = {f: norm(remove_disc(f)) for f in files}
             disc_map = {f: disc_number(f) for f in files}
-            num_map = {f: re.findall(r'\b\d+\b', norm_map[f]) for f in files}
+            token_map = {f: norm_map[f].split() for f in files}
+            token_no_num = {f: [t for t in token_map[f] if not t.isdigit()] for f in files}
+            num_map = {f: [t for t in token_map[f] if t.isdigit()] for f in files}
             moved = set()
             for i, f in enumerate(files):
                 if f in moved:
@@ -312,7 +314,10 @@ def detect_duplicates(snapshot_dir):
                     score = fuzz.token_set_ratio(norm_map[f], norm_map[g])
                     if score >= threshold:
                         # Skip sequels with different numbering
-                        if num_map[f] and num_map[g] and num_map[f] != num_map[g]:
+                        if num_map[f] != num_map[g] and (num_map[f] or num_map[g]):
+                            continue
+                        # Skip titles with different word sets (likely different games)
+                        if set(token_no_num[f]) != set(token_no_num[g]):
                             continue
                         # Skip multi-disc sets
                         if base_map[f] == base_map[g] and disc_map[f] != disc_map[g] and (disc_map[f] or disc_map[g]):
