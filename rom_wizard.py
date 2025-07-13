@@ -34,6 +34,13 @@ REGION_SYNONYMS = {
 }
 REGIONS = list(REGION_SYNONYMS.keys()) + ['Other']
 
+# Extensions considered "ROM" files for summary statistics and duplicate
+# detection.  Metadata like videos or gamelist files should be ignored.
+ROM_EXTS = {
+    'a26','a52','a78','bin','chd','gb','gba','gbc','iso','j64',
+    'md','nds','nes','pce','rvz','sfc','sms','xex','z64','zip'
+}
+
 # Mapping from ROM directory names to platform codes used in the sales dataset
 PLAT_MAP = {
     'atari2600':'2600','atari5200':'5200','atari7800':'7800','atarist':'AST',
@@ -103,7 +110,8 @@ def create_snapshot():
         if not os.path.isfile(gl_path):
             continue
         tree = ET.parse(gl_path)
-        games = tree.getroot().findall('game')
+        games = [g for g in tree.getroot().findall('game')
+                 if os.path.splitext(g.findtext('path') or '')[1].lower().lstrip('.') in ROM_EXTS]
         platform = console
         ds_plat = PLAT_MAP.get(console.lower(), console)
 
@@ -193,7 +201,6 @@ def create_snapshot():
 def detect_duplicates(snapshot_dir):
     from rapidfuzz import fuzz
     threshold = ask_threshold()
-    ALLOWED = {'a26','a52','a78','bin','chd','gb','gba','gbc','iso','j64','md','mp4','nds','nes','pce','rvz','sfc','sms','xex','xml','z64','zip'}
     dup_root = os.path.join(snapshot_dir, 'duplicate_roms')
     os.makedirs(dup_root, exist_ok=True)
     report_rows = []
@@ -203,7 +210,7 @@ def detect_duplicates(snapshot_dir):
         if not os.path.isdir(console_dir):
             continue
         for root, _, files in os.walk(console_dir):
-            files = [f for f in files if os.path.splitext(f)[1].lower().lstrip('.') in ALLOWED and 'disc' not in f.lower()]
+            files = [f for f in files if os.path.splitext(f)[1].lower().lstrip('.') in ROM_EXTS and 'disc' not in f.lower()]
             norm_map = {f: norm(f) for f in files}
             moved = set()
             for i, f in enumerate(files):
@@ -275,7 +282,8 @@ def apply_sales(snapshot_dir):
             continue
         tree = ET.parse(gl_path)
         root = tree.getroot()
-        games = root.findall('game')
+        games = [g for g in root.findall('game')
+                 if os.path.splitext(g.findtext('path') or '')[1].lower().lstrip('.') in ROM_EXTS]
 
         ds_plat = PLAT_MAP.get(console.lower(), console)
         subset = sales[sales['Platform'].str.lower() == ds_plat.lower()]
