@@ -14,6 +14,7 @@ NES,nes,https://myrient.erista.me/files/No-Intro/Nintendo%20-%20Nintendo%20Enter
 NG,neogeo,BLACKLIST
 PC,windows,BLACKLIST
 PCFX,pcfx,BLACKLIST
+ports,ports,BLACKLIST
 PS,psx,https://myrient.erista.me/files/Redump/Sony%20-%20PlayStation/
 PS2,ps2,https://myrient.erista.me/files/Redump/Sony%20-%20PlayStation%202/
 PS3,ps3,https://myrient.erista.me/files/Redump/Sony%20-%20PlayStation%203/
