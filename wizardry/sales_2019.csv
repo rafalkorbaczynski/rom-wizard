@@ -131,7 +131,7 @@ Rank,Name,Platform,release_date,Genre,Publisher,NA_Sales,EU_Sales,JP_Sales,Other
 130,Halo: Combat Evolved,XB,2001,Shooter,Microsoft Game Studios,4.98,1.3,0.08,0.07,6.43
 131,Pokémon Emerald Version,GBA,2004,Role-Playing,Nintendo,2.57,1.58,2.06,0.21,6.41
 132,Kingdom Hearts,PS2,2002,Role-Playing,Sony Computer Entertainment,3.64,1.2,1.49,0.07,6.4
-133,Pokémon Crystal Version,GB,2000,Role-Playing,Nintendo,2.55,1.56,1.29,0.99,6.39
+133,Pokémon Crystal Version,GBC,2000,Role-Playing,Nintendo,2.55,1.56,1.29,0.99,6.39
 134,Halo 3: ODST,X360,2009,Shooter,Microsoft Game Studios,4.34,1.35,0.06,0.61,6.36
 135,Red Dead Redemption,X360,2010,Action,Take-Two Interactive,3.7,1.97,0.09,0.57,6.34
 136,Super Mario Sunshine,GC,2002,Platform,Nintendo,4.01,1.26,0.87,0.17,6.31
@@ -735,7 +735,7 @@ Rank,Name,Platform,release_date,Genre,Publisher,NA_Sales,EU_Sales,JP_Sales,Other
 735,Rock Band 2,X360,2008,Misc,Electronic Arts,1.78,0.24,0,0.18,2.2
 736,Frogger,2600,1981,Action,Parker Bros.,2.06,0.12,0,0.02,2.2
 737,Guitar Hero II,X360,2007,Misc,Activision,2.01,0.02,0,0.17,2.2
-738,Wario Land 3,GB,2000,Platform,Nintendo,1.11,0.51,0.34,0.23,2.2
+738,Wario Land 3,GBC,2000,Platform,Nintendo,1.11,0.51,0.34,0.23,2.2
 739,Pro Yakyuu Family Stadium,NES,1986,Sports,Namco Bandai Games,0.15,0,2.05,0,2.2
 740,Sonic Unleashed,Wii,2008,Platform,Sega,1.28,0.68,0.02,0.21,2.2
 741,High School Musical: Makin' the Cut!,DS,2007,Puzzle,Disney Interactive Studios,1.06,0.91,0,0.23,2.2
@@ -743,7 +743,7 @@ Rank,Name,Platform,release_date,Genre,Publisher,NA_Sales,EU_Sales,JP_Sales,Other
 743,Saints Row,X360,2006,Action,THQ,1.17,0.78,0.02,0.22,2.19
 744,Star Wars: Knights of the Old Republic,XB,2003,Role-Playing,Activision,1.68,0.44,0,0.08,2.19
 745,Kirby's Pinball Land,GB,1992,Misc,Nintendo,0.87,0.17,1.1,0.05,2.19
-746,Donkey Kong Country,GB,2000,Platform,Nintendo,1.04,0.72,0.3,0.13,2.19
+746,Donkey Kong Country,GBC,2000,Platform,Nintendo,1.04,0.72,0.3,0.13,2.19
 747,Hitman: Absolution,PS3,2012,Action,Square Enix,0.59,1.07,0.07,0.45,2.19
 748,Yu-Gi-Oh: Duel Monsters 4,GB,2000,Role-Playing,Konami Digital Entertainment,0,0,2.17,0.01,2.18
 749,ATV Offroad Fury 2,PS2,2002,Racing,THQ,1.92,0.2,0,0.06,2.18
@@ -893,7 +893,7 @@ Rank,Name,Platform,release_date,Genre,Publisher,NA_Sales,EU_Sales,JP_Sales,Other
 893,Watch Dogs,PS3,2014,Action,Ubisoft,0.56,0.89,0.1,0.37,1.93
 894,Mario Super Sluggers,Wii,2008,Sports,Nintendo,1.51,0,0.29,0.12,1.93
 895,Tomb Raider (2013),X360,2013,Action,Square Enix,0.86,0.87,0.01,0.17,1.92
-896,The Legend of Zelda: Oracle of Ages,GB,2001,Action,Nintendo,0.92,0.53,0.41,0.06,1.92
+896,The Legend of Zelda: Oracle of Ages,GBC,2001,Action,Nintendo,0.92,0.53,0.41,0.06,1.92
 897,Need for Speed: Shift,X360,2009,Racing,Electronic Arts,0.73,0.97,0.01,0.22,1.92
 898,Monopoly,Wii,2008,Misc,Electronic Arts,0.87,0.85,0,0.2,1.92
 899,Red Faction,PS2,2001,Shooter,THQ,0.76,0.96,0,0.2,1.92
@@ -922,7 +922,7 @@ Rank,Name,Platform,release_date,Genre,Publisher,NA_Sales,EU_Sales,JP_Sales,Other
 922,FIFA 2000,PS,1998,Sports,Electronic Arts,0.22,1.47,0.04,0.14,1.87
 923,Dynasty Warriors 3,PS2,2001,Action,THQ,0.53,0.16,1.07,0.1,1.87
 924,Donkey Kong Country Returns,3DS,2013,Platform,Nintendo,0.73,0.62,0.4,0.12,1.87
-925,The Legend of Zelda: Oracle of Seasons,GB,2001,Adventure,Nintendo,0.87,0.52,0.41,0.06,1.86
+925,The Legend of Zelda: Oracle of Seasons,GBC,2001,Adventure,Nintendo,0.87,0.52,0.41,0.06,1.86
 926,Madden NFL 06,XB,2005,Sports,Electronic Arts,1.75,0.03,0,0.08,1.86
 927,Shrek 2,PS2,2004,Platform,Activision,1.12,0.69,0.03,0.02,1.86
 928,The Legend of Dragoon,PS,1999,Role-Playing,Sony Computer Entertainment,0.94,0.44,0.39,0.1,1.86
@@ -1027,7 +1027,7 @@ Rank,Name,Platform,release_date,Genre,Publisher,NA_Sales,EU_Sales,JP_Sales,Other
 1027,SSX Tricky,PS2,2001,Sports,Electronic Arts,0.85,0.66,0,0.22,1.73
 1028,Overwatch,PS4,2016,Shooter,Activision,0.64,0.68,0.14,0.26,1.73
 1029,Twisted Metal III,PS,1998,Action,989 Studios,1.48,0.2,0,0.05,1.73
-1030,Harry Potter and the Sorcerer's Stone,GB,2001,Action,Electronic Arts,0.94,0.62,0.1,0.07,1.73
+1030,Harry Potter and the Sorcerer's Stone,GBC,2001,Action,Electronic Arts,0.94,0.62,0.1,0.07,1.73
 1031,Disney Infinity,Wii,2013,Action,Disney Interactive Studios,1.15,0.44,0,0.14,1.73
 1032,Crash Bandicoot: The Huge Adventure,GBA,2002,Platform,Universal Interactive,0.95,0.7,0,0.08,1.73
 1033,Dishonored,X360,2012,Action,Bethesda Softworks,1.06,0.52,0.01,0.14,1.73
@@ -1472,7 +1472,7 @@ Rank,Name,Platform,release_date,Genre,Publisher,NA_Sales,EU_Sales,JP_Sales,Other
 1472,NBA 2K14,PS4,2013,Sports,Take-Two Interactive,0.89,0.31,0.01,0.12,1.33
 1473,Spider-Man: The Movie,GBA,2002,Action,Activision,0.92,0.35,0.01,0.05,1.33
 1474,WWF War Zone,N64,1998,Fighting,Acclaim Entertainment,1.08,0.24,0,0.02,1.33
-1475,Tony Hawk's Pro Skater,GB,2000,Sports,Activision,0.9,0.38,0.01,0.05,1.33
+1475,Tony Hawk's Pro Skater,GBC,2000,Sports,Activision,0.9,0.38,0.01,0.05,1.33
 1476,The Sims: Bustin' Out,GBA,2003,Simulation,Electronic Arts,0.93,0.35,0,0.06,1.33
 1477,Triple Play 2001,PS,2000,Sports,Electronic Arts,0.74,0.5,0,0.09,1.33
 1478,Metroid Prime 2: Echoes,GC,2004,Shooter,Nintendo,0.87,0.35,0.07,0.04,1.33
@@ -1619,7 +1619,7 @@ Rank,Name,Platform,release_date,Genre,Publisher,NA_Sales,EU_Sales,JP_Sales,Other
 1619,Farming Simulator 2015,PC,2014,Simulation,Focus Home Interactive,0.08,1.02,0,0.13,1.23
 1620,Guitar Hero: Aerosmith,X360,2008,Misc,Activision,1,0.14,0,0.1,1.23
 1621,Medal of Honor: Airborne,PS3,2007,Shooter,Electronic Arts,0.25,0.7,0.03,0.25,1.23
-1622,Kirby Tilt 'n' Tumble,GB,2000,Puzzle,Nintendo,0.29,0.17,0.75,0.02,1.23
+1622,Kirby Tilt 'n' Tumble,GBC,2000,Puzzle,Nintendo,0.29,0.17,0.75,0.02,1.23
 1623,SpongeBob SquarePants: Battle for Bikini Bottom,GBA,2003,Platform,THQ,0.88,0.33,0,0.02,1.23
 1624,Vigilante 8,PS,1998,Racing,Activision,0.68,0.47,0,0.08,1.23
 1625,Castlevania,NES,1986,Platform,Konami Digital Entertainment,0.54,0.06,0.62,0.01,1.23
@@ -1709,7 +1709,7 @@ Rank,Name,Platform,release_date,Genre,Publisher,NA_Sales,EU_Sales,JP_Sales,Other
 1709,LEGO Indiana Jones: The Original Adventures,PSP,2008,Action,LucasArts,0.4,0.49,0,0.29,1.18
 1710,Pro Yakyuu Family Stadium '88,NES,1988,Sports,Namco Bandai Games,0.1,0,1.08,0,1.18
 1711,Shenmue,DC,1999,Adventure,Sega,0.52,0.24,0.38,0.04,1.18
-1712,Mario Tennis,GB,2000,Sports,Nintendo,0.5,0.18,0.44,0.06,1.18
+1712,Mario Tennis,GBC,2000,Sports,Nintendo,0.5,0.18,0.44,0.06,1.18
 1713,Tony Hawk's Pro Skater 2,GBA,2001,Sports,Activision,0.85,0.31,0,0.02,1.18
 1714,WWE '12,PS3,2011,Fighting,THQ,0.53,0.46,0.02,0.17,1.18
 1715,WWE SmackDown vs. Raw 2010,PS3,2009,Fighting,THQ,0.48,0.49,0.01,0.2,1.18
@@ -2530,7 +2530,7 @@ Rank,Name,Platform,release_date,Genre,Publisher,NA_Sales,EU_Sales,JP_Sales,Other
 2530,Shaun White Snowboarding,X360,N/A,Sports,Ubisoft,0.48,0.26,0,0.08,0.82
 2531,Madden NFL 25,PS4,2013,Sports,Electronic Arts,0.62,0.13,0,0.07,0.82
 2532,Twisted Metal (2012),PS3,2012,Action,Sony Computer Entertainment,0.67,0.07,0,0.07,0.82
-2533,Dragon Warrior III,GB,2000,Role-Playing,Enix Corporation,0,0,0.81,0,0.81
+2533,Dragon Warrior III,GBC,2000,Role-Playing,Enix Corporation,0,0,0.81,0,0.81
 2534,Disney's The Little Mermaid: Ariel's Undersea Adventure,DS,2006,Action,Disney Interactive Studios,0.73,0.03,0,0.06,0.81
 2535,Ready 2 Rumble Boxing: Round 2,PS2,2000,Fighting,Midway Games,0.4,0.31,0,0.1,0.81
 2536,Kamaitachi no Yoru,SNES,1994,Adventure,ChunSoft,0,0,0.81,0,0.81
@@ -2673,7 +2673,7 @@ Rank,Name,Platform,release_date,Genre,Publisher,NA_Sales,EU_Sales,JP_Sales,Other
 2673,Dragon Ball: Raging Blast,PS3,2009,Fighting,Namco Bandai Games,0.37,0.19,0.11,0.1,0.77
 2674,Crystal Castles,2600,1983,Action,Atari,0.72,0.04,0,0.01,0.77
 2675,Conker's Bad Fur Day,N64,2001,Platform,THQ,0.53,0.22,0,0.02,0.77
-2676,Dragon Warrior I&II,GB,1999,Role-Playing,Enix Corporation,0,0,0.77,0,0.77
+2676,Dragon Warrior I&II,GBC,1999,Role-Playing,Enix Corporation,0,0,0.77,0,0.77
 2677,Star Wars Episode II: Attack of the Clones,GBA,2002,Action,THQ,0.55,0.2,0,0.01,0.77
 2678,My Baby Girl,DS,2008,Simulation,Nobilis,0.61,0.1,0,0.06,0.77
 2679,LEGO Batman 2: DC Super Heroes,DS,2012,Action,Warner Bros. Interactive Entertainment,0.43,0.27,0,0.06,0.77
@@ -3598,7 +3598,7 @@ Rank,Name,Platform,release_date,Genre,Publisher,NA_Sales,EU_Sales,JP_Sales,Other
 3598,Final Fantasy IV: The Complete Collection,PSP,2011,Role-Playing,Square Enix,0.13,0.09,0.27,0.06,0.56
 3599,Frontlines: Fuel of War,X360,2008,Shooter,THQ,0.34,0.15,0.01,0.05,0.56
 3600,Lips: Number One Hits,X360,2009,Misc,Microsoft Game Studios,0.15,0.35,0,0.07,0.56
-3601,Hamtaro: Ham-Hams Unite!,GB,2001,Role-Playing,Nintendo,0,0,0.56,0,0.56
+3601,Hamtaro: Ham-Hams Unite!,GBC,2001,Role-Playing,Nintendo,0,0,0.56,0,0.56
 3602,Batman Begins,PS2,2005,Action,Electronic Arts,0.27,0.21,0,0.07,0.56
 3603,Viva Pinata: Pocket Paradise,DS,2008,Simulation,THQ,0.27,0.23,0,0.06,0.56
 3604,Dr. Seuss' The Cat in the Hat,PS2,2003,Misc,Vivendi Games,0.27,0.21,0,0.07,0.56
@@ -5715,7 +5715,7 @@ Rank,Name,Platform,release_date,Genre,Publisher,NA_Sales,EU_Sales,JP_Sales,Other
 5715,Sniper Elite 3,PS3,2014,Shooter,505 Games,0.1,0.15,0,0.06,0.31
 5716,Ganbare Goemon: KiraKira Douchuu - Boku ga Dancer ni Natta Riyuu,SNES,1995,Platform,Konami Digital Entertainment,0,0,0.31,0,0.31
 5717,Bust-A-Move Universe,3DS,2011,Puzzle,Square Enix,0.08,0.15,0.06,0.03,0.31
-5718,Mario Golf,GB,1999,Action,Nintendo,0,0,0.31,0,0.31
+5718,Mario Golf,GBC,1999,Action,Nintendo,0,0,0.31,0,0.31
 5719,Jikkyou Powerful Pro Yakyuu Portable 3,PSP,2008,Sports,Konami Digital Entertainment,0,0,0.31,0,0.31
 5720,Sesame Street: Elmo's Letter Adventure,PS,1998,Misc,NewKidCo,0.17,0.12,0,0.02,0.31
 5721,The Incredible Hulk,Wii,2008,Action,Sega,0.28,0.01,0,0.02,0.31
@@ -9799,7 +9799,7 @@ Rank,Name,Platform,release_date,Genre,Publisher,NA_Sales,EU_Sales,JP_Sales,Other
 9799,The Legend of Heroes: Trails of Cold Steel II,PS3,2014,Role-Playing,Nippon Ichi Software,0.01,0,0.11,0,0.12
 9800,Looney Tunes: Sheep Raider,PS,2001,Platform,Infogrames,0.07,0.05,0,0.01,0.12
 9801,Yard Sale Hidden Treasures: Sunnyville,DS,2010,Puzzle,Konami Digital Entertainment,0.11,0,0,0.01,0.12
-9802,Harvest Moon 2 GBC,GB,1999,Simulation,Ubisoft,0,0,0.12,0,0.12
+9802,Harvest Moon 2 GBC,GBC,1999,Simulation,Ubisoft,0,0,0.12,0,0.12
 9803,Killer is Dead,X360,2013,Action,Deep Silver,0.08,0.02,0.01,0.01,0.12
 9804,Lost in Shadow,Wii,2010,Platform,Konami Digital Entertainment,0.1,0,0.01,0.01,0.12
 9805,Cory in the House,DS,2007,Action,Disney Interactive Studios,0.11,0,0,0.01,0.12
@@ -11798,7 +11798,7 @@ Rank,Name,Platform,release_date,Genre,Publisher,NA_Sales,EU_Sales,JP_Sales,Other
 11798,The Idolm@ster: Live for You!,X360,2008,Misc,Namco Bandai Games,0,0,0.07,0,0.07
 11799,Tokimeki Memorial Girl's Side Premium: 3rd Story,PSP,2012,Adventure,Konami Digital Entertainment,0,0,0.07,0,0.07
 11800,Smashing Drive,GC,N/A,Racing,Unknown,0.06,0.01,0,0,0.07
-11801,Mega Man Xtreme,GB,2000,Platform,Capcom,0,0,0.07,0,0.07
+11801,Mega Man Xtreme,GBC,2000,Platform,Capcom,0,0,0.07,0,0.07
 11802,ZhuZhu Pets: Quest for Zhu,DS,2011,Misc,Activision,0.07,0,0,0.01,0.07
 11803,SimCity 4: Deluxe Edition,PC,2003,Simulation,Electronic Arts,0,0.06,0,0.01,0.07
 11804,Bomberman Max 2: Red Advance,GBA,2002,Puzzle,Vivendi Games,0.05,0.02,0,0,0.07
@@ -11815,7 +11815,7 @@ Rank,Name,Platform,release_date,Genre,Publisher,NA_Sales,EU_Sales,JP_Sales,Other
 11815,Goodbye Deponia,PC,2013,Adventure,Daedalic Entertainment,0,0.06,0,0.01,0.07
 11816,Uprising X,PS,1998,Action,3DO,0.04,0.03,0,0,0.07
 11817,SpongeBob's Truth or Square,X360,2009,Action,THQ,0.03,0.04,0,0,0.07
-11818,Mega Man Xtreme 2,GB,2001,Platform,Capcom,0,0,0.07,0,0.07
+11818,Mega Man Xtreme 2,GBC,2001,Platform,Capcom,0,0,0.07,0,0.07
 11819,I-Ninja,XB,2003,Platform,Namco Bandai Games,0.05,0.02,0,0,0.07
 11820,Kengo: Legend of The 9,X360,2006,Fighting,Majesco Entertainment,0.06,0.01,0,0.01,0.07
 11821,Sigma Harmonics,DS,2008,Role-Playing,Square Enix,0,0,0.07,0,0.07
@@ -11947,7 +11947,7 @@ Rank,Name,Platform,release_date,Genre,Publisher,NA_Sales,EU_Sales,JP_Sales,Other
 11947,Loons: The Fight For Fame,XB,2002,Action,Atari,0.05,0.02,0,0,0.07
 11948,Romance of the Three Kingdoms IX,PS2,2003,Strategy,Tecmo Koei,0.03,0.03,0,0.01,0.07
 11949,Second Sight,XB,2004,Adventure,Codemasters,0.05,0.02,0,0,0.07
-11950,Metal Gear Solid,GB,2000,Action,Konami Digital Entertainment,0,0,0.07,0,0.07
+11950,Metal Gear Solid,GBC,2000,Action,Konami Digital Entertainment,0,0,0.07,0,0.07
 11951,Totaled!,XB,2002,Racing,Rage Software,0.05,0.02,0,0,0.07
 11952,Bleach: Heat the Soul 3,PSP,2006,Fighting,Sony Computer Entertainment,0,0,0.07,0,0.07
 11953,Ecco: The Tides of Time,GEN,1993,Adventure,Sega,0,0,0.07,0,0.07
