@@ -600,7 +600,8 @@ def manual_add_games(snapshot_dir):
     except ValueError:
         count = 10
 
-    threshold = ask_threshold()
+    # Use a fixed fuzzy match threshold for manual mode
+    threshold = 70
 
     platform_targets = {}
     total_targets = 0
@@ -675,7 +676,7 @@ def manual_add_games(snapshot_dir):
                         disp = ' + '.join(file_names[k] for k in sorted(keys, key=lambda k: disc_number(file_names[k])))
                         disp = color_diff(disp, search_term)
                         options.append((keys, opt_score))
-                        print(f"{idx}. {disp} (score {opt_score})")
+                        print(f"{idx}. {disp}")
                 else:
                     print('No candidates found')
                 sel = input("Press 1-3, 'b' to blacklist, or ENTER to skip: ").strip()
@@ -834,6 +835,7 @@ def auto_add_games(snapshot_dir):
     threshold = ask_threshold()
 
     download_rows = []
+    summary_rows = []
 
     for code in platforms:
         info = info_map.get(code, {})
@@ -864,6 +866,8 @@ def auto_add_games(snapshot_dir):
             base_key = norm(remove_disc(name))
             group_map.setdefault(base_key, []).append(key)
 
+        match_count = 0
+        scores = []
         for _, row in subset.iterrows():
             game = row['Dataset Name']
             normed = norm(game)
@@ -893,6 +897,17 @@ def auto_add_games(snapshot_dir):
                 download_rows.append({'Search_Term': game, 'Platform': code,
                                      'Directory': directory, 'Matched_Title': title,
                                      'Score': score, 'URL': requests.compat.urljoin(url, filehref)})
+            match_count += 1
+            scores.append(score)
+
+        pct = match_count / len(subset) * 100 if len(subset) else 0
+        summary_rows.append({
+            'Platform': code,
+            'Added': match_count,
+            'Match %': round(pct, 1),
+            'Lowest Score': min(scores) if scores else 0,
+            'Average Score': round(sum(scores) / len(scores), 1) if scores else 0
+        })
 
     if not download_rows:
         print('No entries added.')
@@ -904,6 +919,10 @@ def auto_add_games(snapshot_dir):
     df = pd.concat([df_existing, new_df], ignore_index=True)
     df.to_csv(csv_path, index=False)
     print('Download list updated.')
+    if summary_rows:
+        summary_df = pd.DataFrame(summary_rows,
+                                 columns=['Platform','Added','Match %','Lowest Score','Average Score'])
+        print(summary_df.to_string(index=False))
     if not blacklist_df.empty:
         blacklist_df.drop_duplicates().to_csv(BLACKLIST_CSV, index=False)
     ans = input('Download now? [y/N]: ').lower()
