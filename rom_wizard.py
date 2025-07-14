@@ -634,7 +634,16 @@ def manual_add_games(snapshot_dir):
         resp = requests.get(url)
         resp.raise_for_status()
         soup = BeautifulSoup(resp.text, 'html.parser')
-        files = [a['href'] for a in soup.find_all('a', href=True) if a['href'].lower().endswith('.zip')]
+        files = [a['href'] for a in soup.find_all('a', href=True)
+                 if a['href'].lower().endswith('.zip')]
+        filtered = []
+        for href in files:
+            name = requests.utils.unquote(os.path.splitext(href)[0])
+            low = name.lower()
+            if '(demo)' in low or '(virtual console)' in low:
+                continue
+            filtered.append(href)
+        files = filtered
 
         file_map = {}
         file_names = {}
@@ -832,7 +841,7 @@ def auto_add_games(snapshot_dir):
     except ValueError:
         count = 10
 
-    threshold = ask_threshold()
+    threshold = ask_threshold(default=75)
 
     download_rows = []
     summary_rows = []
@@ -853,7 +862,16 @@ def auto_add_games(snapshot_dir):
         resp = requests.get(url)
         resp.raise_for_status()
         soup = BeautifulSoup(resp.text, 'html.parser')
-        files = [a['href'] for a in soup.find_all('a', href=True) if a['href'].lower().endswith('.zip')]
+        files = [a['href'] for a in soup.find_all('a', href=True)
+                 if a['href'].lower().endswith('.zip')]
+        filtered = []
+        for href in files:
+            name = requests.utils.unquote(os.path.splitext(href)[0])
+            low = name.lower()
+            if '(demo)' in low or '(virtual console)' in low:
+                continue
+            filtered.append(href)
+        files = filtered
 
         file_map = {}
         file_names = {}
