@@ -251,16 +251,16 @@ def create_snapshot():
     unmatched_keys = set(zip(sales['Platform'], sales['key']))
     found_consoles = set()
 
-    for console in iter_progress(os.listdir(ROMS_ROOT), "Scanning ROMs"):
-        gl_path = os.path.join(ROMS_ROOT, console, 'gamelist.xml')
+    for console_name in iter_progress(os.listdir(ROMS_ROOT), "Scanning ROMs"):
+        gl_path = os.path.join(ROMS_ROOT, console_name, 'gamelist.xml')
         if not os.path.isfile(gl_path):
             continue
-        found_consoles.add(console.lower())
+        found_consoles.add(console_name.lower())
         tree = ET.parse(gl_path)
         games = [g for g in tree.getroot().findall('game')
                  if os.path.splitext(g.findtext('path') or '')[1].lower().lstrip('.') in ROM_EXTS]
-        platform = console
-        ds_plat = PLAT_MAP.get(console.lower(), console)
+        platform = console_name
+        ds_plat = PLAT_MAP.get(console_name.lower(), console_name)
 
         sales_subset = sales[sales['Platform'].str.lower() == ds_plat.lower()]
         match_keys = list(sales_subset['key'])
@@ -344,8 +344,8 @@ def detect_duplicates(snapshot_dir):
     report_rows = []
     summary_rows = []
 
-    for console in iter_progress(os.listdir(ROMS_ROOT), "Scanning ROMs"):
-        console_dir = os.path.join(ROMS_ROOT, console)
+    for console_name in iter_progress(os.listdir(ROMS_ROOT), "Scanning ROMs"):
+        console_dir = os.path.join(ROMS_ROOT, console_name)
         if not os.path.isdir(console_dir):
             continue
         rom_count = 0
@@ -384,12 +384,12 @@ def detect_duplicates(snapshot_dir):
                         shutil.move(src, os.path.join(dst_dir, g))
                         keep_rel = os.path.relpath(os.path.join(root, f), ROMS_ROOT)
                         move_rel = os.path.relpath(src, ROMS_ROOT)
-                        report_rows.append([console, score, norm_map[f], norm_map[g], keep_rel, move_rel])
+                        report_rows.append([console_name, score, norm_map[f], norm_map[g], keep_rel, move_rel])
                         moved.add(g)
                         dup_count += 1
         if rom_count:
             pct = dup_count / rom_count * 100
-            summary_rows.append({'Platform': console, 'ROMs': rom_count, 'Duplicates': dup_count, 'Duplicate %': round(pct, 1)})
+            summary_rows.append({'Platform': console_name, 'ROMs': rom_count, 'Duplicates': dup_count, 'Duplicate %': round(pct, 1)})
     csv_path = os.path.join(snapshot_dir, 'duplicates_report.csv')
     with open(csv_path, 'w', newline='', encoding='utf-8') as f:
         writer = csv.writer(f)
@@ -403,8 +403,8 @@ def detect_duplicates(snapshot_dir):
 
 def generate_playlists():
     pattern = re.compile(r'(?i)^(.+?)\s*\(disc\s*(\d+)\)')
-    for console in iter_progress(os.listdir(ROMS_ROOT), "Generating playlists"):
-        folder = os.path.join(ROMS_ROOT, console)
+    for console_name in iter_progress(os.listdir(ROMS_ROOT), "Generating playlists"):
+        folder = os.path.join(ROMS_ROOT, console_name)
         if not os.path.isdir(folder):
             continue
         groups = {}
@@ -440,17 +440,17 @@ def apply_sales(snapshot_dir):
     summary_rows = []
     found_consoles = set()
 
-    for console in iter_progress(os.listdir(ROMS_ROOT), "Applying sales data"):
-        gl_path = os.path.join(ROMS_ROOT, console, 'gamelist.xml')
+    for console_name in iter_progress(os.listdir(ROMS_ROOT), "Applying sales data"):
+        gl_path = os.path.join(ROMS_ROOT, console_name, 'gamelist.xml')
         if not os.path.isfile(gl_path):
             continue
-        found_consoles.add(console.lower())
+        found_consoles.add(console_name.lower())
         tree = ET.parse(gl_path)
         root = tree.getroot()
         games = [g for g in root.findall('game')
                  if os.path.splitext(g.findtext('path') or '')[1].lower().lstrip('.') in ROM_EXTS]
 
-        ds_plat = PLAT_MAP.get(console.lower(), console)
+        ds_plat = PLAT_MAP.get(console_name.lower(), console_name)
         subset = sales[sales['Platform'].str.lower() == ds_plat.lower()]
         match_keys = list(subset['key'])
         sales_map = dict(zip(subset['key'], subset['Global_Sales']))
@@ -479,7 +479,7 @@ def apply_sales(snapshot_dir):
                 ET.SubElement(g, 'ratingMax').text = '100'
                 match_rows.append({
                     'Dataset Name': name_map[key],
-                    'Platform': console,
+                    'Platform': console_name,
                     'ROM': title,
                     'Sales': gs,
                     'Match Score': res[1]
@@ -487,11 +487,11 @@ def apply_sales(snapshot_dir):
                 matched += 1
                 unmatched_keys.discard((ds_plat, key))
 
-        out_dir = os.path.join(output_root, console)
+        out_dir = os.path.join(output_root, console_name)
         os.makedirs(out_dir, exist_ok=True)
         tree.write(os.path.join(out_dir, 'gamelist.xml'), encoding='utf-8', xml_declaration=True)
         summary_rows.append({
-            'Platform': console,
+            'Platform': console_name,
             'ROMs': len(games),
             'Dataset': dataset_size,
             'Matched ROMs': matched,
@@ -1009,8 +1009,8 @@ def download_games(snapshot_dir):
 
 def convert_to_chd():
     TARGET_EXTS = {'.cue','.bin','.gdi','.iso'}
-    for console in iter_progress(os.listdir(ROMS_ROOT), "Converting to CHD"):
-        folder = os.path.join(ROMS_ROOT, console)
+    for console_name in iter_progress(os.listdir(ROMS_ROOT), "Converting to CHD"):
+        folder = os.path.join(ROMS_ROOT, console_name)
         if not os.path.isdir(folder):
             continue
         for root,_,files in os.walk(folder):
