@@ -2,7 +2,6 @@ import os
 import sys
 import csv
 import shutil
-import argparse
 import datetime
 import pandas as pd
 import xml.etree.ElementTree as ET
@@ -11,6 +10,9 @@ import requests
 from bs4 import BeautifulSoup
 from difflib import SequenceMatcher
 import subprocess
+from rich.console import Console
+from rich.table import Table
+from rich.progress import track
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'wizardry')
 SALES_CSV = os.path.join(DATA_DIR, 'sales_2019.csv')
@@ -77,6 +79,53 @@ PLAT_MAP = {
 DATASET_TO_CONSOLE = {}
 for k, v in PLAT_MAP.items():
     DATASET_TO_CONSOLE.setdefault(v.lower(), k)
+
+# Rich console for nicer output
+console = Console()
+
+
+def print_table(df: pd.DataFrame) -> None:
+    """Pretty-print a DataFrame using rich."""
+    if df.empty:
+        console.print("[bold red]No data available.[/]")
+        return
+    table = Table(show_header=True, header_style="bold magenta")
+    for col in df.columns:
+        table.add_column(str(col))
+    for _, row in df.iterrows():
+        table.add_row(*(str(v) for v in row))
+    console.print(table)
+
+
+def iter_progress(seq, description: str):
+    """Iterate with a progress bar if output is a TTY."""
+    return track(seq, description=description) if sys.stdout.isatty() else seq
+
+
+def get_region_key(game) -> str:
+    """Return normalized region key for a gamelist entry."""
+    region_text = (game.findtext('region') or '').lower().strip()
+    if region_text:
+        for reg, toks in REGION_SYNONYMS.items():
+            if region_text in toks:
+                return reg
+    text = os.path.basename(game.findtext('path') or game.findtext('name') or '').lower()
+    tags = re.findall(r'\(([^()]+)\)', text)
+    for tag in tags:
+        for token in re.split('[,;/]', tag):
+            tok = token.strip().lower()
+            for reg, toks in REGION_SYNONYMS.items():
+                if tok in toks:
+                    return reg
+    return 'Other'
+
+
+def prompt_yes_no(prompt: str, default: bool = False) -> bool:
+    """Prompt the user for a yes/no answer."""
+    ans = input(f"{prompt} [{'Y/n' if default else 'y/N'}]: ").strip().lower()
+    if not ans:
+        return default
+    return ans in {'y', 'yes'}
 
 def norm(text):
     s = unicodedata.normalize('NFKD', str(text))
@@ -202,7 +251,7 @@ def create_snapshot():
     unmatched_keys = set(zip(sales['Platform'], sales['key']))
     found_consoles = set()
 
-    for console in os.listdir(ROMS_ROOT):
+    for console in iter_progress(os.listdir(ROMS_ROOT), "Scanning ROMs"):
         gl_path = os.path.join(ROMS_ROOT, console, 'gamelist.xml')
         if not os.path.isfile(gl_path):
             continue
@@ -226,29 +275,7 @@ def create_snapshot():
             title = g.findtext('name') or ''
             k = norm(title)
 
-            region_text = (g.findtext('region') or '').lower().strip()
-            region_key = None
-            if region_text:
-                for reg, toks in REGION_SYNONYMS.items():
-                    if region_text in toks:
-                        region_key = reg
-                        break
-            if not region_key:
-                text = os.path.basename(g.findtext('path') or title).lower()
-                tags = re.findall(r'\(([^()]+)\)', text)
-                for tag in tags:
-                    for token in re.split('[,;/]', tag):
-                        t = token.strip().lower()
-                        for reg, toks in REGION_SYNONYMS.items():
-                            if t in toks:
-                                region_key = reg
-                                break
-                        if region_key:
-                            break
-                    if region_key:
-                        break
-            if not region_key:
-                region_key = 'Other'
+            region_key = get_region_key(g)
             region_counts[region_key] += 1
 
             res = process.extractOne(k, match_keys, scorer=fuzz.token_set_ratio)
@@ -304,8 +331,8 @@ def create_snapshot():
     # Write list of ROM filenames for analysis
     write_rom_filenames(ROMS_ROOT, os.path.join(snap_dir, 'rom_filenames.txt'))
 
-    print('Snapshot created at', snap_dir)
-    print(summary_df.to_string(index=False))
+    console.print(f"[bold green]Snapshot created at {snap_dir}[/]")
+    print_table(summary_df)
     return snap_dir
 
 
@@ -317,7 +344,7 @@ def detect_duplicates(snapshot_dir):
     report_rows = []
     summary_rows = []
 
-    for console in os.listdir(ROMS_ROOT):
+    for console in iter_progress(os.listdir(ROMS_ROOT), "Scanning ROMs"):
         console_dir = os.path.join(ROMS_ROOT, console)
         if not os.path.isdir(console_dir):
             continue
@@ -368,15 +395,15 @@ def detect_duplicates(snapshot_dir):
         writer = csv.writer(f)
         writer.writerow(['Platform','Match Score','Kept Key','Moved Key','Kept File','Moved File'])
         writer.writerows(report_rows)
-    print('Duplicate scan complete.')
+    console.print('[bold green]Duplicate scan complete.[/]')
     if summary_rows:
         df = pd.DataFrame(summary_rows)
-        print(df.to_string(index=False))
+        print_table(df)
 
 
 def generate_playlists():
     pattern = re.compile(r'(?i)^(.+?)\s*\(disc\s*(\d+)\)')
-    for console in os.listdir(ROMS_ROOT):
+    for console in iter_progress(os.listdir(ROMS_ROOT), "Generating playlists"):
         folder = os.path.join(ROMS_ROOT, console)
         if not os.path.isdir(folder):
             continue
@@ -413,7 +440,7 @@ def apply_sales(snapshot_dir):
     summary_rows = []
     found_consoles = set()
 
-    for console in os.listdir(ROMS_ROOT):
+    for console in iter_progress(os.listdir(ROMS_ROOT), "Applying sales data"):
         gl_path = os.path.join(ROMS_ROOT, console, 'gamelist.xml')
         if not os.path.isfile(gl_path):
             continue
@@ -440,29 +467,7 @@ def apply_sales(snapshot_dir):
             title = g.findtext('name') or ''
             k = norm(title)
 
-            region_text = (g.findtext('region') or '').lower().strip()
-            region_key = None
-            if region_text:
-                for reg, toks in REGION_SYNONYMS.items():
-                    if region_text in toks:
-                        region_key = reg
-                        break
-            if not region_key:
-                text = os.path.basename(g.findtext('path') or title).lower()
-                tags = re.findall(r'\(([^()]+)\)', text)
-                for tag in tags:
-                    for token in re.split('[,;/]', tag):
-                        t = token.strip().lower()
-                        for reg, toks in REGION_SYNONYMS.items():
-                            if t in toks:
-                                region_key = reg
-                                break
-                        if region_key:
-                            break
-                    if region_key:
-                        break
-            if not region_key:
-                region_key = 'Other'
+            region_key = get_region_key(g)
             region_counts[region_key] += 1
 
             res = process.extractOne(k, match_keys, scorer=fuzz.token_set_ratio)
@@ -518,7 +523,8 @@ def apply_sales(snapshot_dir):
     unmatched_df = unmatched_df[['Dataset Name','Platform','Sales']]
     unmatched_df.to_csv(os.path.join(snapshot_dir, 'unmatched_summary.csv'), index=False)
 
-    print('Sales data applied.')
+    console.print('[bold green]Sales data applied.[/]')
+    print_table(summary_df)
 
 
 def scrape_file_list(code):
@@ -773,11 +779,10 @@ def manual_add_games(snapshot_dir):
     new_df = pd.DataFrame(download_rows)
     df = pd.concat([df_existing, new_df], ignore_index=True)
     df.to_csv(csv_path, index=False)
-    print('Download list updated.')
+    console.print('[bold green]Download list updated.[/]')
     if not blacklist_df.empty:
         blacklist_df.drop_duplicates().to_csv(BLACKLIST_CSV, index=False)
-    ans = input('Download now? [y/N]: ').lower()
-    if ans == 'y':
+    if prompt_yes_no('Download now?'):
         download_games(snapshot_dir)
 
 
@@ -964,15 +969,14 @@ def auto_add_games(snapshot_dir):
     new_df = pd.DataFrame(download_rows)
     df = pd.concat([df_existing, new_df], ignore_index=True)
     df.to_csv(csv_path, index=False)
-    print('Download list updated.')
+    console.print('[bold green]Download list updated.[/]')
     if summary_rows:
         summary_df = pd.DataFrame(summary_rows,
                                  columns=['Platform','Added','Match %','Lowest Score','Average Score'])
-        print(summary_df.to_string(index=False))
+        print_table(summary_df)
     if not blacklist_df.empty:
         blacklist_df.drop_duplicates().to_csv(BLACKLIST_CSV, index=False)
-    ans = input('Download now? [y/N]: ').lower()
-    if ans == 'y':
+    if prompt_yes_no('Download now?'):
         download_games(snapshot_dir)
 
 
@@ -1005,7 +1009,7 @@ def download_games(snapshot_dir):
 
 def convert_to_chd():
     TARGET_EXTS = {'.cue','.bin','.gdi','.iso'}
-    for console in os.listdir(ROMS_ROOT):
+    for console in iter_progress(os.listdir(ROMS_ROOT), "Converting to CHD"):
         folder = os.path.join(ROMS_ROOT, console)
         if not os.path.isdir(folder):
             continue
@@ -1042,7 +1046,7 @@ def get_latest_snapshot():
 def select_snapshot():
     """Prompt the user to load the latest snapshot or create/select one."""
     latest = get_latest_snapshot()
-    if latest and input(f"Load latest snapshot at {latest}? [Y/n] ").strip().lower() in {'', 'y', 'yes'}:
+    if latest and prompt_yes_no(f"Load latest snapshot at {latest}?", True):
         return latest
     path = input('Enter path to existing snapshot or press ENTER to create new: ').strip()
     if path:
@@ -1068,7 +1072,7 @@ def show_snapshot_summary(snapshot_dir):
         view = df.sort_values(col, ascending=False)
     for col in view.select_dtypes(include='float'):
         view[col] = view[col].round(1)
-    print(view.to_string(index=False))
+    print_table(view)
     SUMMARY_CYCLE_IDX = (SUMMARY_CYCLE_IDX + 1) % len(cols)
 
 
@@ -1077,16 +1081,16 @@ def wizard_menu(snapshot_dir):
     global SUMMARY_CYCLE_IDX
     SUMMARY_CYCLE_IDX = 0
     while True:
-        print('\nROM Wizard Menu')
-        print('0) Show snapshot summary')
-        print('1) Detect duplicates')
-        print('2) Generate m3u playlists')
-        print('3) Apply sales data to gamelists')
-        print('4) Add new games (manual mode)')
-        print('5) Add new games (auto mode)')
-        print('6) Download games from list')
-        print('7) Convert disc images to CHD')
-        print('8) Quit')
+        console.print('\n[bold cyan]ROM Wizard Menu[/]')
+        console.print('0) Show snapshot summary')
+        console.print('1) Detect duplicates')
+        console.print('2) Generate m3u playlists')
+        console.print('3) Apply sales data to gamelists')
+        console.print('4) Add new games (manual mode)')
+        console.print('5) Add new games (auto mode)')
+        console.print('6) Download games from list')
+        console.print('7) Convert disc images to CHD')
+        console.print('8) Quit')
         choice = input('Select option: ').strip()
         if choice == '0':
             show_snapshot_summary(snapshot_dir)
@@ -1105,8 +1109,7 @@ def wizard_menu(snapshot_dir):
         elif choice == '7':
             convert_to_chd()
         elif choice == '8':
-            ans = input('Restart wizard? [y/N]: ').strip().lower()
-            return ans in {'y', 'yes'}
+            return prompt_yes_no('Restart wizard?')
 
 
 def main():
