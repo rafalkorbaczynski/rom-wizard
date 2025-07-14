@@ -528,12 +528,30 @@ def manual_add_games(snapshot_dir):
         blacklist_df = pd.DataFrame(columns=['Search_Term', 'Platform'])
     blacklisted_pairs = set(zip(blacklist_df.get('Search_Term', []), blacklist_df.get('Platform', [])))
 
-    plat_df = pd.read_csv(PLATFORMS_CSV)
-    info_map = {row['Platform']: {'dir': row.get('Directory', row['Platform']), 'url': row.get('URL', '')} for _, row in plat_df.iterrows()}
-    blacklisted_plats = {c for c, info in info_map.items() if str(info.get('url', '')).strip().upper() == 'BLACKLIST'}
+    def canonical(code: str) -> str:
+        """Return canonical, upper-case platform code."""
+        if not isinstance(code, str):
+            return ''
+        return PLAT_MAP.get(code.lower(), code).upper()
 
-    available = sorted([c for c in unmatched_df['Platform'].unique() if c not in blacklisted_plats])
-    zero_codes = sorted([c for c in summary_df[summary_df.get('ROMs', 1) == 0]['Platform'].unique() if c not in blacklisted_plats])
+    # Normalize platform codes for consistent comparisons
+    unmatched_df['Platform'] = unmatched_df['Platform'].apply(canonical)
+    if not summary_df.empty and 'Platform' in summary_df.columns:
+        summary_df['Platform'] = summary_df['Platform'].apply(canonical)
+
+    plat_df = pd.read_csv(PLATFORMS_CSV)
+    info_map = {canonical(row['Platform']): {
+                    'dir': row.get('Directory', row['Platform']),
+                    'url': row.get('URL', '')
+                } for _, row in plat_df.iterrows()}
+    blacklisted_plats = {c for c, info in info_map.items()
+                         if str(info.get('url', '')).strip().upper() == 'BLACKLIST'}
+
+    available = {canonical(c) for c in unmatched_df['Platform'].dropna()}
+    zero_codes = {canonical(c) for c in summary_df[summary_df.get('ROMs', 1) == 0]['Platform'].dropna()}
+    available = sorted(available - blacklisted_plats)
+    zero_codes = sorted(zero_codes - blacklisted_plats)
+    all_codes = set(available) | set(zero_codes)
 
     print('Available platforms:')
     print(' '.join(available))
@@ -557,8 +575,8 @@ def manual_add_games(snapshot_dir):
                 else:
                     active.update(available)
                 continue
-            code = tok.upper()
-            if code not in available and code not in zero_codes:
+            code = canonical(tok)
+            if code not in all_codes:
                 print(f'Unknown platform: {tok}')
                 continue
             if code in active:
