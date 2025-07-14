@@ -743,6 +743,174 @@ def manual_add_games(snapshot_dir):
         download_games(snapshot_dir)
 
 
+def auto_add_games(snapshot_dir):
+    """Automatic mode for adding download entries using fuzzy matching."""
+    unmatched_path = os.path.join(snapshot_dir, 'unmatched_summary.csv')
+    summary_path = os.path.join(snapshot_dir, 'summary.csv')
+    if not os.path.isfile(unmatched_path):
+        print('unmatched_summary.csv not found. Run snapshot first.')
+        return
+
+    unmatched_df = pd.read_csv(unmatched_path)
+    summary_df = pd.read_csv(summary_path) if os.path.isfile(summary_path) else pd.DataFrame()
+
+    if os.path.exists(BLACKLIST_CSV):
+        blacklist_df = pd.read_csv(BLACKLIST_CSV)
+        blacklist_df = blacklist_df[['Search_Term', 'Platform']]
+    else:
+        blacklist_df = pd.DataFrame(columns=['Search_Term', 'Platform'])
+    blacklisted_pairs = set(zip(blacklist_df.get('Search_Term', []), blacklist_df.get('Platform', [])))
+
+    def canonical(code: str) -> str:
+        if not isinstance(code, str):
+            return ''
+        return PLAT_MAP.get(code.lower(), code).upper()
+
+    unmatched_df['Platform'] = unmatched_df['Platform'].apply(canonical)
+    if not summary_df.empty and 'Platform' in summary_df.columns:
+        summary_df['Platform'] = summary_df['Platform'].apply(canonical)
+
+    plat_df = pd.read_csv(PLATFORMS_CSV)
+    info_map = {canonical(row['Platform']): {
+                    'dir': row.get('Directory', row['Platform']),
+                    'url': row.get('URL', '')
+                } for _, row in plat_df.iterrows()}
+    blacklisted_plats = {c for c, info in info_map.items()
+                         if str(info.get('url', '')).strip().upper() == 'BLACKLIST'}
+
+    available = {canonical(c) for c in unmatched_df['Platform'].dropna()}
+    zero_codes = {canonical(c) for c in summary_df[summary_df.get('ROMs', 1) == 0]['Platform'].dropna()}
+    available = sorted(available - blacklisted_plats)
+    zero_codes = sorted(zero_codes - blacklisted_plats)
+    all_codes = set(available) | set(zero_codes)
+
+    print('Available platforms:')
+    print(' '.join(available))
+    if zero_codes:
+        print('Platforms with zero ROMs:', ' '.join(zero_codes))
+    print("Enter platform codes separated by spaces. Use 'empty' to add empty platforms, 'all' to toggle all platforms, or 'run' to continue:")
+
+    active = set()
+    while True:
+        ans = input('> ').strip()
+        if ans.lower() == 'run':
+            break
+        for tok in filter(None, re.split(r'[\s,]+', ans)):
+            low = tok.lower()
+            if low == 'empty':
+                active.update(zero_codes)
+                continue
+            if low == 'all':
+                if active >= set(available):
+                    active.clear()
+                else:
+                    active.update(available)
+                continue
+            code = canonical(tok)
+            if code not in all_codes:
+                print(f'Unknown platform: {tok}')
+                continue
+            if code in active:
+                active.remove(code)
+                print(f'Removed {code}')
+            else:
+                active.add(code)
+                print(f'Added {code}')
+        if active:
+            print('Currently selected:', ', '.join(sorted(active)))
+        else:
+            print('No platforms selected')
+
+    platforms = sorted(active)
+    if not platforms:
+        print('No platforms selected.')
+        return
+
+    try:
+        count = int(input('Number of top games per platform [10]: ') or '10')
+    except ValueError:
+        count = 10
+
+    threshold = ask_threshold()
+
+    download_rows = []
+
+    for code in platforms:
+        info = info_map.get(code, {})
+        url = info.get('url')
+        directory = info.get('dir', code) or code
+        if not url:
+            print(f'Skipping {code}: no URL configured.')
+            continue
+        subset = unmatched_df[unmatched_df['Platform'] == code]
+        subset = subset[~subset['Dataset Name'].apply(lambda n: (n, code) in blacklisted_pairs)]
+        subset = subset.sort_values('Sales', ascending=False).head(count)
+        if subset.empty:
+            print(f'No unmatched entries for {code}.')
+            continue
+        resp = requests.get(url)
+        resp.raise_for_status()
+        soup = BeautifulSoup(resp.text, 'html.parser')
+        files = [a['href'] for a in soup.find_all('a', href=True) if a['href'].lower().endswith('.zip')]
+
+        file_map = {}
+        file_names = {}
+        group_map = {}
+        for href in files:
+            name = requests.utils.unquote(os.path.splitext(href)[0])
+            key = norm(name)
+            file_map[key] = href
+            file_names[key] = name
+            base_key = norm(remove_disc(name))
+            group_map.setdefault(base_key, []).append(key)
+
+        for _, row in subset.iterrows():
+            game = row['Dataset Name']
+            normed = norm(game)
+            ts_results = process.extract(normed, list(file_map.keys()), scorer=fuzz.token_sort_ratio, limit=None)
+            if not ts_results:
+                print(f"  [SKIP] {game} (no candidates)")
+                continue
+            max_ts = max(score for _, score, _ in ts_results)
+            keys_at_max = [key for key, score, _ in ts_results if score == max_ts]
+            best_key = max(keys_at_max, key=lambda k: region_priority(file_names[k]))
+            pr_score = fuzz.partial_ratio(normed, best_key)
+            score = int(round(min(max_ts, pr_score)))
+            if score < threshold:
+                print(f"  [SKIP] {game} (score below threshold: {score})")
+                continue
+            selected_keys = group_map.get(norm(remove_disc(file_names[best_key])), [best_key])
+
+            uniq_keys = []
+            seen = set()
+            for k in selected_keys:
+                if k not in seen:
+                    uniq_keys.append(k)
+                    seen.add(k)
+            for k in uniq_keys:
+                filehref = file_map[k]
+                title = requests.utils.unquote(os.path.basename(filehref))
+                download_rows.append({'Search_Term': game, 'Platform': code,
+                                     'Directory': directory, 'Matched_Title': title,
+                                     'Score': score, 'URL': requests.compat.urljoin(url, filehref)})
+
+    if not download_rows:
+        print('No entries added.')
+        return
+
+    csv_path = os.path.join(snapshot_dir, 'download_list.csv')
+    df_existing = pd.read_csv(csv_path) if os.path.exists(csv_path) else pd.DataFrame()
+    new_df = pd.DataFrame(download_rows)
+    df = pd.concat([df_existing, new_df], ignore_index=True)
+    df.to_csv(csv_path, index=False)
+    print('Download list updated.')
+    if not blacklist_df.empty:
+        blacklist_df.drop_duplicates().to_csv(BLACKLIST_CSV, index=False)
+    ans = input('Download now? [y/N]: ').lower()
+    if ans == 'y':
+        download_games(snapshot_dir)
+
+
 def download_games(snapshot_dir):
     csv_path = os.path.join(snapshot_dir, 'download_list.csv')
     if not os.path.isfile(csv_path):
@@ -850,9 +1018,10 @@ def wizard_menu(snapshot_dir):
         print('2) Generate m3u playlists')
         print('3) Apply sales data to gamelists')
         print('4) Add new games (manual mode)')
-        print('5) Download games from list')
-        print('6) Convert disc images to CHD')
-        print('7) Quit')
+        print('5) Add new games (auto mode)')
+        print('6) Download games from list')
+        print('7) Convert disc images to CHD')
+        print('8) Quit')
         choice = input('Select option: ').strip()
         if choice == '0':
             show_snapshot_summary(snapshot_dir)
@@ -865,10 +1034,12 @@ def wizard_menu(snapshot_dir):
         elif choice == '4':
             manual_add_games(snapshot_dir)
         elif choice == '5':
-            download_games(snapshot_dir)
+            auto_add_games(snapshot_dir)
         elif choice == '6':
-            convert_to_chd()
+            download_games(snapshot_dir)
         elif choice == '7':
+            convert_to_chd()
+        elif choice == '8':
             ans = input('Restart wizard? [y/N]: ').strip().lower()
             return ans in {'y', 'yes'}
 
