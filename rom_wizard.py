@@ -161,6 +161,31 @@ def ask_threshold(default=90):
     return default
 
 
+def write_rom_filenames(root_dir: str, output_path: str) -> None:
+    """Write a sorted list of ROM filenames to ``output_path``.
+
+    The extensions mirror those supported by ``2_relocate_duplicate_ROMs.py``
+    and the former ``list_rom_filenames.py`` helper script."""
+    allowed = {
+        'a26','a52','a78','bin','chd','gb','gba','gbc','iso','j64',
+        'md','mp4','nds','nes','pce','rvz','sfc','sms','xex','xml','z64','zip'
+    }
+
+    filenames = []
+    for dirpath, _, files in os.walk(root_dir):
+        for fname in files:
+            ext = os.path.splitext(fname)[1].lower().lstrip('.')
+            if ext in allowed:
+                rel = os.path.relpath(os.path.join(dirpath, fname), root_dir)
+                filenames.append(rel)
+
+    filenames.sort(key=str.lower)
+    with open(output_path, 'w', encoding='utf-8') as f:
+        for name in filenames:
+            f.write(name + '\n')
+
+
+
 def create_snapshot():
     ts = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
     snap_dir = os.path.join(os.path.dirname(__file__), f'snapshot_{ts}')
@@ -275,6 +300,9 @@ def create_snapshot():
 
     match_df = pd.DataFrame(matched_records, columns=['Dataset Name','Platform','ROM','Sales','Match Score'])
     match_df.to_csv(os.path.join(snap_dir, 'match_summary.csv'), index=False)
+
+    # Write list of ROM filenames for analysis
+    write_rom_filenames(ROMS_ROOT, os.path.join(snap_dir, 'rom_filenames.txt'))
 
     print('Snapshot created at', snap_dir)
     print(summary_df.to_string(index=False))

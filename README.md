@@ -10,9 +10,9 @@ matching, you will be prompted for a match threshold.
 
 Helper files (`aria2c.exe`, `chdman.exe`, `sales_2019.csv`,
 `platforms.csv`) must reside in the `wizardry/` folder.
-
-Legacy scripts such as `list_rom_filenames.py` remain available for
-advanced use. Platform download URLs are configured in
+When a snapshot is created, a `rom_filenames.txt` file listing all
+ROM paths is written to the snapshot folder (replacing the old
+`list_rom_filenames.py` helper). Platform download URLs are configured in
 `wizardry/platforms.csv` with the columns:
 
 ```
