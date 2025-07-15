@@ -81,19 +81,57 @@ for k, v in PLAT_MAP.items():
     DATASET_TO_CONSOLE.setdefault(v.lower(), k)
 
 # Rich console for nicer output
+
 console = Console()
 
 
+def shorten_path(path: str, depth: int = 2) -> str:
+    """Return ``path`` showing only the last ``depth`` directories and filename."""
+    s = str(path)
+    if "/" not in s and "\\" not in s:
+        return s
+    s = s.replace("\\", "/")
+    parts = [p for p in s.split("/") if p]
+    if len(parts) <= depth + 1:
+        return "/" + "/".join(parts)
+    return "/" + "/".join(parts[-(depth + 1):])
+
+
 def print_table(df: pd.DataFrame) -> None:
-    """Pretty-print a DataFrame using rich."""
+    """Pretty-print a DataFrame using rich.
+
+    A ``Total`` row is appended and certain platforms are filtered out."""
     if df.empty:
         console.print("[bold red]No data available.[/]")
         return
+
+    skip_plats = {"ps4", "pc", "xbox360", "xboxone", "ps", "ports"}
+    if "Platform" in df.columns:
+        df = df[~df["Platform"].str.lower().isin(skip_plats)]
+
+    if df.empty:
+        console.print("[bold red]No data available.[/]")
+        return
+
+    total_row = {}
+    for i, col in enumerate(df.columns):
+        if pd.api.types.is_numeric_dtype(df[col]):
+            total_row[col] = df[col].sum()
+        elif i == 0:
+            total_row[col] = "Total"
+        else:
+            total_row[col] = ""
+
+    df_disp = pd.concat([df, pd.DataFrame([total_row])], ignore_index=True)
+
     table = Table(show_header=True, header_style="bold magenta")
-    for col in df.columns:
+    for col in df_disp.columns:
         table.add_column(str(col))
-    for _, row in df.iterrows():
-        table.add_row(*(str(v) for v in row))
+    for _, row in df_disp.iterrows():
+        display = []
+        for v in row:
+            display.append(shorten_path(v))
+        table.add_row(*display)
     console.print(table)
 
 
@@ -331,7 +369,7 @@ def create_snapshot():
     # Write list of ROM filenames for analysis
     write_rom_filenames(ROMS_ROOT, os.path.join(snap_dir, 'rom_filenames.txt'))
 
-    console.print(f"[bold green]Snapshot created at {snap_dir}[/]")
+    console.print(f"[bold green]Snapshot created at {shorten_path(snap_dir)}[/]")
     print_table(summary_df)
     return snap_dir
 
@@ -425,7 +463,7 @@ def generate_playlists():
             with open(path, 'w', encoding='utf-8') as f:
                 for _,name in discs:
                     f.write(name+'\n')
-            print('Playlist created:', path)
+            print('Playlist created:', shorten_path(path))
 
 
 def apply_sales(snapshot_dir):
@@ -998,7 +1036,7 @@ def download_games(snapshot_dir):
     with open(links_file, 'w', encoding='utf-8') as f:
         f.write('\n'.join(entries))
     cmd = [ARIA2, '-i', links_file, '-j', '5']
-    print('Running:', ' '.join(cmd))
+    print('Running:', ' '.join(shorten_path(c) for c in cmd))
     try:
         subprocess.run(cmd, check=True)
     except FileNotFoundError:
@@ -1046,7 +1084,7 @@ def get_latest_snapshot():
 def select_snapshot():
     """Prompt the user to load the latest snapshot or create/select one."""
     latest = get_latest_snapshot()
-    if latest and prompt_yes_no(f"Load latest snapshot at {latest}?", True):
+    if latest and prompt_yes_no(f"Load latest snapshot at {shorten_path(latest)}?", True):
         return latest
     path = input('Enter path to existing snapshot or press ENTER to create new: ').strip()
     if path:
