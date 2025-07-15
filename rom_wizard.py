@@ -53,6 +53,7 @@ HEADER_COLOR = "\033[95m"
 
 # Track sort cycling state for snapshot summaries
 SUMMARY_CYCLE_IDX = 0
+SUMMARY_COLS: list[str] = []
 
 # Path to persistent blacklist used for manual matching
 BLACKLIST_CSV = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'blacklist.csv')
@@ -97,10 +98,12 @@ def shorten_path(path: str, depth: int = 2) -> str:
     return "/" + "/".join(parts[-(depth + 1):])
 
 
-def print_table(df: pd.DataFrame) -> None:
+def print_table(df: pd.DataFrame, sorted_col: str | None = None) -> None:
     """Pretty-print a DataFrame using rich.
 
-    A ``Total`` row is appended and certain platforms are filtered out."""
+    A ``Total`` row is appended and certain platforms are filtered out.  If
+    ``sorted_col`` is provided, the corresponding header is marked with an
+    ``↑`` arrow to indicate the active sort."""
     if df.empty:
         console.print("[bold red]No data available.[/]")
         return
@@ -116,7 +119,13 @@ def print_table(df: pd.DataFrame) -> None:
     total_row = {}
     for i, col in enumerate(df.columns):
         if pd.api.types.is_numeric_dtype(df[col]):
-            total_row[col] = df[col].sum()
+            if col == "ROMs%" and {"Matched ROMs", "ROMs"}.issubset(df.columns):
+                roms_total = df["ROMs"].sum()
+                matched_total = df["Matched ROMs"].sum()
+                pct = matched_total / roms_total * 100 if roms_total else 0
+                total_row[col] = round(pct, 1)
+            else:
+                total_row[col] = df[col].sum()
         elif i == 0:
             total_row[col] = "Total"
         else:
@@ -126,7 +135,10 @@ def print_table(df: pd.DataFrame) -> None:
 
     table = Table(show_header=True, header_style="bold magenta")
     for col in df_disp.columns:
-        table.add_column(str(col))
+        header = f"{col}"
+        if sorted_col and col == sorted_col:
+            header += " \u2191"
+        table.add_column(header)
     for _, row in df_disp.iterrows():
         display = []
         for v in row:
@@ -1152,38 +1164,66 @@ def select_snapshot():
 
 def show_snapshot_summary(snapshot_dir):
     """Print the snapshot summary and cycle through sorted columns."""
-    global SUMMARY_CYCLE_IDX
+    global SUMMARY_CYCLE_IDX, SUMMARY_COLS
     summary_file = os.path.join(snapshot_dir, 'summary.csv')
     if not os.path.isfile(summary_file):
         print('summary.csv not found.')
         return
     df = pd.read_csv(summary_file)
-    cols = list(df.columns)
-    if SUMMARY_CYCLE_IDX == 0:
-        view = df
+    if not SUMMARY_COLS:
+        SUMMARY_COLS = list(df.columns)
+        if 'ROMs' in SUMMARY_COLS:
+            SUMMARY_CYCLE_IDX = SUMMARY_COLS.index('ROMs')
+    if SUMMARY_COLS:
+        sort_col = SUMMARY_COLS[SUMMARY_CYCLE_IDX]
+        view = df.sort_values(sort_col, ascending=False)
     else:
-        col = cols[SUMMARY_CYCLE_IDX]
-        view = df.sort_values(col, ascending=False)
+        sort_col = None
+        view = df
     for col in view.select_dtypes(include='float'):
         view[col] = view[col].round(1)
-    print_table(view)
-    SUMMARY_CYCLE_IDX = (SUMMARY_CYCLE_IDX + 1) % len(cols)
+    print_table(view, sorted_col=sort_col)
+    if SUMMARY_COLS:
+        SUMMARY_CYCLE_IDX = (SUMMARY_CYCLE_IDX + 1) % len(SUMMARY_COLS)
 
 
 def wizard_menu(snapshot_dir):
     """Main interactive menu for a given snapshot."""
-    global SUMMARY_CYCLE_IDX
+    global SUMMARY_CYCLE_IDX, SUMMARY_COLS
+    SUMMARY_COLS = []
     SUMMARY_CYCLE_IDX = 0
     while True:
+        sort_col = None
+        summary_file = os.path.join(snapshot_dir, 'summary.csv')
+        if not SUMMARY_COLS and os.path.isfile(summary_file):
+            SUMMARY_COLS = list(pd.read_csv(summary_file, nrows=0).columns)
+            if 'ROMs' in SUMMARY_COLS:
+                SUMMARY_CYCLE_IDX = SUMMARY_COLS.index('ROMs')
+        if SUMMARY_COLS:
+            sort_col = SUMMARY_COLS[SUMMARY_CYCLE_IDX]
+
+        dup_exists = os.path.isdir(os.path.join(snapshot_dir, 'duplicate_roms'))
+        m3u_exists = False
+        gl_exists = False
+        roms_root = os.path.join(snapshot_dir, 'roms')
+        for root, _, files in os.walk(roms_root):
+            for f in files:
+                if f.lower().endswith('.m3u'):
+                    m3u_exists = True
+                if f == 'gamelist.xml':
+                    gl_exists = True
+            if m3u_exists and gl_exists:
+                break
+
         console.print('\n[bold cyan]ROM Wizard Menu[/]')
-        console.print('0) Show snapshot summary')
-        console.print('1) Detect duplicates')
-        console.print('2) Generate m3u playlists')
-        console.print('3) Apply sales data to gamelists')
-        console.print('4) Add new games (manual mode)')
-        console.print('5) Add new games (auto mode)')
-        console.print('6) Download games from list')
-        console.print('7) Convert disc images to CHD')
+        console.print(f"0) Show snapshot summary (sorted by: {sort_col or 'N/A'})")
+        console.print(f"1) {'[green]Re-detect duplicates[/]' if dup_exists else 'Detect duplicates'}")
+        console.print(f"2) {'[green]Re-generate .m3u playlists[/]' if m3u_exists else 'Generate .m3u playlists'}")
+        console.print(f"3) {'[green]Re-apply sales data to gamelists[/]' if gl_exists else 'Apply sales data to gamelists'}")
+        console.print('4) Add unmatched games to download list (manual filtering)')
+        console.print('5) Add unmatched games to download list (automatic filtering)')
+        console.print('6) Download unmatched games in list')
+        console.print('7) Convert downloaded disc images to CHD')
         console.print('8) Quit')
         choice = input('Select option: ').strip()
         if choice == '0':
