@@ -439,7 +439,8 @@ def detect_duplicates(snapshot_dir):
         print_table(df)
 
 
-def generate_playlists():
+def generate_playlists(snapshot_dir):
+    """Create m3u playlists in the snapshot's roms folder."""
     pattern = re.compile(r'(?i)^(.+?)\s*\(disc\s*(\d+)\)')
     for console_name in iter_progress(os.listdir(ROMS_ROOT), "Generating playlists"):
         folder = os.path.join(ROMS_ROOT, console_name)
@@ -459,7 +460,9 @@ def generate_playlists():
             if len(discs) < 2:
                 continue
             discs.sort()
-            path = os.path.join(folder, base + '.m3u')
+            out_folder = os.path.join(snapshot_dir, 'roms', console_name)
+            os.makedirs(out_folder, exist_ok=True)
+            path = os.path.join(out_folder, base + '.m3u')
             with open(path, 'w', encoding='utf-8') as f:
                 for _,name in discs:
                     f.write(name+'\n')
@@ -623,13 +626,10 @@ def manual_add_games(snapshot_dir):
     zero_codes = {canonical(c) for c in summary_df[summary_df.get('ROMs', 1) == 0]['Platform'].dropna()}
     available = sorted(available - blacklisted_plats)
     zero_codes = sorted(zero_codes - blacklisted_plats)
-    all_codes = set(available) | set(zero_codes)
-
-    print('Available platforms:')
-    print(' '.join(available))
-    if zero_codes:
-        print('Platforms with zero ROMs:', ' '.join(zero_codes))
-    print("Enter platform codes separated by spaces. Use 'empty' to add empty platforms, 'all' to toggle all platforms, or 'run' to continue:")
+    all_codes = sorted(set(available) | set(zero_codes))
+    print(f"All platforms: [{' '.join(all_codes)}]")
+    print(f"Platforms with zero ROMs: [{' '.join(zero_codes)}]")
+    print("Enter platform codes. Use:\n'empty' to add empty platforms, \n'all' to toggle all platforms, \n'run' to continue:")
 
     active = set()
     while True:
@@ -863,13 +863,10 @@ def auto_add_games(snapshot_dir):
     zero_codes = {canonical(c) for c in summary_df[summary_df.get('ROMs', 1) == 0]['Platform'].dropna()}
     available = sorted(available - blacklisted_plats)
     zero_codes = sorted(zero_codes - blacklisted_plats)
-    all_codes = set(available) | set(zero_codes)
-
-    print('Available platforms:')
-    print(' '.join(available))
-    if zero_codes:
-        print('Platforms with zero ROMs:', ' '.join(zero_codes))
-    print("Enter platform codes separated by spaces. Use 'empty' to add empty platforms, 'all' to toggle all platforms, or 'run' to continue:")
+    all_codes = sorted(set(available) | set(zero_codes))
+    print(f"All platforms: [{' '.join(all_codes)}]")
+    print(f"Platforms with zero ROMs: [{' '.join(zero_codes)}]")
+    print("Enter platform codes. Use:\n'empty' to add empty platforms, \n'all' to toggle all platforms, \n'run' to continue:")
 
     active = set()
     while True:
@@ -1047,10 +1044,69 @@ def download_games(snapshot_dir):
 
 def convert_to_chd():
     TARGET_EXTS = {'.cue','.bin','.gdi','.iso'}
-    for console_name in iter_progress(os.listdir(ROMS_ROOT), "Converting to CHD"):
+    rows = []
+    available = []
+    zero_codes = []
+    code_map = {}
+    for console_name in sorted(os.listdir(ROMS_ROOT)):
         folder = os.path.join(ROMS_ROOT, console_name)
         if not os.path.isdir(folder):
             continue
+        count = 0
+        for root,_,files in os.walk(folder):
+            for f in files:
+                if os.path.splitext(f)[1].lower() in TARGET_EXTS:
+                    count += 1
+        code = PLAT_MAP.get(console_name.lower(), console_name).upper()
+        code_map[code] = console_name
+        rows.append({'Platform': code, 'Convertible Files': count})
+        if count:
+            available.append(code)
+        else:
+            zero_codes.append(code)
+    df = pd.DataFrame(rows, columns=['Platform','Convertible Files'])
+    print_table(df)
+    all_codes = sorted(set(available) | set(zero_codes))
+    print(f"All platforms: [{' '.join(all_codes)}]")
+    print(f"Platforms with zero ROMs: [{' '.join(zero_codes)}]")
+    print("Enter platform codes. Use:\n'empty' to add empty platforms, \n'all' to toggle all platforms, \n'run' to continue:")
+    active = set()
+    while True:
+        ans = input('> ').strip()
+        if ans.lower() == 'run':
+            break
+        for tok in filter(None, re.split(r'[\s,]+', ans)):
+            low = tok.lower()
+            if low == 'empty':
+                active.update(zero_codes)
+                continue
+            if low == 'all':
+                if active >= set(all_codes):
+                    active.clear()
+                else:
+                    active.update(all_codes)
+                continue
+            code = PLAT_MAP.get(low, tok).upper() if low in PLAT_MAP else tok.upper()
+            if code not in all_codes:
+                print(f'Unknown platform: {tok}')
+                continue
+            if code in active:
+                active.remove(code)
+                print(f'Removed {code}')
+            else:
+                active.add(code)
+                print(f'Added {code}')
+        if active:
+            print('Currently selected:', ', '.join(sorted(active)))
+        else:
+            print('No platforms selected')
+    platforms = sorted(active)
+    if not platforms:
+        print('No platforms selected.')
+        return
+    for code in platforms:
+        console_name = code_map.get(code, code)
+        folder = os.path.join(ROMS_ROOT, console_name)
         for root,_,files in os.walk(folder):
             for f in files:
                 if os.path.splitext(f)[1].lower() not in TARGET_EXTS:
@@ -1135,7 +1191,7 @@ def wizard_menu(snapshot_dir):
         elif choice == '1':
             detect_duplicates(snapshot_dir)
         elif choice == '2':
-            generate_playlists()
+            generate_playlists(snapshot_dir)
         elif choice == '3':
             apply_sales(snapshot_dir)
         elif choice == '4':
