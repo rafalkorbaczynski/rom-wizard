@@ -1219,7 +1219,7 @@ def wizard_menu(snapshot_dir):
         console.print(f"0) Show snapshot summary (sorted by: {sort_col or 'N/A'})")
         console.print(f"1) {'[green]Re-detect duplicates[/]' if dup_exists else 'Detect duplicates'}")
         console.print(f"2) {'[green]Re-generate .m3u playlists[/]' if m3u_exists else 'Generate .m3u playlists'}")
-        console.print(f"3) {'[green]Re-apply sales data to gamelists[/]' if gl_exists else 'Apply sales data to gamelists'}")
+        console.print(f"3) {'[green]Re-match gamelist.xml with sales data[/]' if gl_exists else 'Match gamelist.xml with sales data'}")
         console.print('4) Add unmatched games to download list (manual filtering)')
         console.print('5) Add unmatched games to download list (automatic filtering)')
         console.print('6) Download unmatched games in list')
