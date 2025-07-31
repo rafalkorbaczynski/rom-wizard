@@ -219,6 +219,15 @@ def color_diff(candidate: str, search: str) -> str:
             out.append(DIFF_COLOR + segment + RESET)
     return ''.join(out)
 
+def filter_wii_no_controller(df: pd.DataFrame) -> pd.DataFrame:
+    """Remove Wii rows without controller support."""
+    sales = pd.read_csv(SALES_CSV, usecols=['Name','Platform','controller_support'])
+    mask = (sales['Platform'].str.lower() == 'wii') & (
+        sales['controller_support'].astype(str).str.lower() == 'false')
+    bad_names = set(sales.loc[mask, 'Name'])
+    return df[~((df['Platform'].str.upper() == 'WII') & df['Dataset Name'].isin(bad_names))]
+
+
 def clear_screen():
     os.system('cls' if os.name == 'nt' else 'clear')
 
@@ -625,6 +634,8 @@ def manual_add_games(snapshot_dir):
     unmatched_df['Platform'] = unmatched_df['Platform'].apply(canonical)
     if not summary_df.empty and 'Platform' in summary_df.columns:
         summary_df['Platform'] = summary_df['Platform'].apply(canonical)
+    if prompt_yes_no('Exclude Wii games without controller support?'):
+        unmatched_df = filter_wii_no_controller(unmatched_df)
 
     plat_df = pd.read_csv(PLATFORMS_CSV)
     info_map = {canonical(row['Platform']): {
@@ -859,10 +870,12 @@ def auto_add_games(snapshot_dir):
             return ''
         return PLAT_MAP.get(code.lower(), code).upper()
 
+
     unmatched_df['Platform'] = unmatched_df['Platform'].apply(canonical)
     if not summary_df.empty and 'Platform' in summary_df.columns:
         summary_df['Platform'] = summary_df['Platform'].apply(canonical)
-
+    if prompt_yes_no('Exclude Wii games without controller support?'):
+        unmatched_df = filter_wii_no_controller(unmatched_df)
     plat_df = pd.read_csv(PLATFORMS_CSV)
     info_map = {canonical(row['Platform']): {
                     'dir': row.get('Directory', row['Platform']),
