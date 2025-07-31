@@ -1,8 +1,9 @@
 @echo off
 REM ------------------------------------------------------------
 REM install_prerequisites.bat
-REM Installs Python prerequisites for rom_duplicates.py,
-REM sales_to_gamelist.py, all_rom_formats_list.py, and m3u_multidisc.py
+REM Installs Python prerequisites for rom_wizard.py and the
+REM helper scripts such as rom_duplicates.py, sales_to_gamelist.py,
+REM all_rom_formats_list.py, and m3u_multidisc.py
 REM ------------------------------------------------------------
 
 REM 1. Check for Python
@@ -24,7 +25,7 @@ REM 3. Install required packages
 echo.
 echo Installing required Python packages...
 REM Replaced pyreadline with pyreadline3 for Python 3 compatibility
-python -m pip install rapidfuzz pandas pyreadline3
+python -m pip install rapidfuzz pandas requests beautifulsoup4 rich pyreadline3
 
 if ERRORLEVEL 1 (
     echo.
