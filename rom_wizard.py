@@ -288,6 +288,17 @@ def disc_number(text: str) -> int:
     return 0
 
 
+def remove_number_prefix(text: str) -> str:
+    """Remove leading numeric list prefixes like ``"01."`` from ``text``.
+
+    This helps detect duplicate ROMs that were sourced from ranked lists
+    where entries are prefixed with their position (e.g. ``"18. Super Game"``).
+    The function intentionally requires punctuation after the digits to avoid
+    stripping legitimate titles that start with numbers (such as "007").
+    """
+    return re.sub(r'^\s*\d+\s*[\.\-\)]\s*', '', text)
+
+
 def ask_threshold(default=90):
     try:
         ans = input(f"Fuzzy match threshold [0-100] (default {default}): ").strip()
@@ -453,12 +464,24 @@ def detect_duplicates(snapshot_dir):
         for root, _, files in os.walk(console_dir):
             files = [f for f in files if os.path.splitext(f)[1].lower().lstrip('.') in ROM_EXTS and 'disc' not in f.lower()]
             rom_count += len(files)
-            norm_map = {f: norm(f) for f in files}
-            base_map = {f: norm(remove_disc(f)) for f in files}
+
+            norm_map: dict[str, str] = {}
+            base_map: dict[str, str] = {}
             disc_map = {f: disc_number(f) for f in files}
-            token_map = {f: norm_map[f].split() for f in files}
-            token_no_num = {f: [t for t in token_map[f] if not t.isdigit()] for f in files}
-            num_map = {f: [t for t in token_map[f] if t.isdigit()] for f in files}
+            token_map: dict[str, list[str]] = {}
+            token_no_num: dict[str, list[str]] = {}
+            num_map: dict[str, list[str]] = {}
+
+            for f in files:
+                cleaned = remove_number_prefix(f)
+                norm_val = norm(cleaned)
+                norm_map[f] = norm_val
+                base_map[f] = norm(remove_disc(cleaned))
+                tokens = norm_val.split()
+                token_map[f] = tokens
+                token_no_num[f] = [t for t in tokens if not t.isdigit()]
+                num_map[f] = [t for t in tokens if t.isdigit()]
+
             moved = set()
             for i, f in enumerate(files):
                 if f in moved:
