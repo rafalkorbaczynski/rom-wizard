@@ -17,8 +17,10 @@ ROM paths is written to the snapshot folder (replacing the old
 `wizardry/platforms.csv` with the columns:
 
 ```
-Platform,Directory,URL
+Platform,Directory,URL,ignore
 ```
 
-Fill in the `URL` column for platforms you wish to scrape.  To
-populate missing URLs automatically, run `scrape_platform_urls.py`.
+Fill in the `URL` column for platforms you wish to scrape and set
+`ignore` to `TRUE` for systems that should be skipped by
+`rom_wizard.py`.  To populate missing URLs automatically, run
+`scrape_platform_urls.py`.
