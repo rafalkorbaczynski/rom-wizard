@@ -456,9 +456,23 @@ def detect_duplicates(snapshot_dir):
             norm_map = {f: norm(f) for f in files}
             base_map = {f: norm(remove_disc(f)) for f in files}
             disc_map = {f: disc_number(f) for f in files}
-            token_map = {f: norm_map[f].split() for f in files}
-            token_no_num = {f: [t for t in token_map[f] if not t.isdigit()] for f in files}
-            num_map = {f: [t for t in token_map[f] if t.isdigit()] for f in files}
+            # Break filenames into tokens and drop any leading numbers which are
+            # often used by ROM sets for simple indexing (e.g. ``"18. Super"``).
+            #
+            # These numeric prefixes shouldn't cause a mismatch when detecting
+            # duplicates, but numeric tokens appearing later in the name are
+            # significant (e.g. "Super Mario Bros. 2" vs "Super Mario Bros. 3").
+            token_map = {}
+            token_no_num = {}
+            num_map = {}
+            for f in files:
+                tokens = norm_map[f].split()
+                # Drop catalog numbers at the beginning of the filename
+                while tokens and tokens[0].isdigit():
+                    tokens.pop(0)
+                token_map[f] = tokens
+                token_no_num[f] = [t for t in tokens if not t.isdigit()]
+                num_map[f] = [t for t in tokens if t.isdigit()]
             moved = set()
             for i, f in enumerate(files):
                 if f in moved:
