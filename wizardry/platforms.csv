@@ -12,7 +12,7 @@ GEN,megadrive,https://myrient.erista.me/files/No-Intro/Sega%20-%20Mega%20Drive%2
 GG,gamegear,https://myrient.erista.me/files/No-Intro/Sega%20-%20Game%20Gear/,FALSE
 N64,n64,https://myrient.erista.me/files/No-Intro/Nintendo%20-%20Nintendo%2064%20%28BigEndian%29/,FALSE
 NES,nes,https://myrient.erista.me/files/No-Intro/Nintendo%20-%20Nintendo%20Entertainment%20System%20%28Headered%29/,FALSE
-NG,neogeo,,TRUE
+NG,neogeo,,FALSE
 PC,pc,,TRUE
 PCFX,pcfx,,TRUE
 ports,ports,,TRUE
@@ -32,3 +32,6 @@ WiiU,wiiu,https://myrient.erista.me/files/No-Intro/Nintendo%20-%20Wii%20U%20%28D
 X360,xbox360,,TRUE
 XB,xbox,https://myrient.erista.me/files/Redump/Microsoft%20-%20Xbox/,FALSE
 XOne,xboxone,,TRUE
+ATARIST,atarist,,FALSE
+MAME,mame,,FALSE
+MASTERSYSTEM,mastersystem,,FALSE
