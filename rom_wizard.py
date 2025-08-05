@@ -58,31 +58,32 @@ SUMMARY_COLS: list[str] = []
 # Path to persistent blacklist used for manual matching
 BLACKLIST_CSV = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'blacklist.csv')
 
-# Mapping from ROM directory names to platform codes used in the sales dataset
-PLAT_MAP = {
-    'atari2600':'2600','atari5200':'5200','atari7800':'7800','atarist':'AST',
-    '3do':'3DO','3ds':'3DS','nds':'DS','ds':'DS',
-    'gb':'GB','gbc':'GBC','gba':'GBA','nes':'NES','snes':'SNES','n64':'N64',
-    'gamecube':'GC','wii':'Wii','wiiu':'WiiU','switch':'NS','ns':'NS','ngage':'NGage',
-    'virtualboy':'VB','ps':'PS','psx':'PS','ps2':'PS2','ps3':'PS3','ps4':'PS4','ps5':'PS5',
-    'psp':'PSP','psvita':'PSV','saturn':'SAT','segacd':'SCD','sega_cd':'SCD','sega32x':'S32X',
-    'gamegear':'GG','megadrive':'GEN','dreamcast':'DC','dc':'DC',
-    'xbox':'XB','xbox360':'X360','xboxone':'XOne',
-    'pc':'PC','dos':'MSD','windows':'WinP','linux':'Linux','osx':'OSX','pcfx':'PCFX',
-    'pcengine':'TG16','pce':'PCE','pcenginecd':'PCE','c64':'C64','c128':'C128','fds':'FDS',
-    'msx1':'MSX','msx2':'MSX','msx2+':'MSX','msxturbor':'MSX','bbcmicro':'BBCM',
-    'amiga1200':'AMIG','amiga4000':'AMIG','amiga500':'AMIG','amigacd32':'CD32',
-    'amigacdtv':'CD32','amstradcpc':'ACPC','apple2':'ApII','apple2gs':'ApII',
-    'intellivision':'Int','arcadia':'Arc','astrocade':'Arc','cdi':'CDi'
+# Directory aliases that map alternate ROM folders to platform codes
+DIR_ALIASES = {
+    'ds': 'DS',
+    'psx': 'PS',
+    'dc': 'DC',
+    'ns': 'NS',
+    'sega_cd': 'SCD',
 }
 
-# Reverse lookup for convenience when mapping dataset platforms back to directories
-DATASET_TO_CONSOLE = {}
-for k, v in PLAT_MAP.items():
-    DATASET_TO_CONSOLE.setdefault(v.lower(), k)
+
+def load_platform_mappings():
+    df = pd.read_csv(PLATFORMS_CSV)
+    df['ignore'] = df.get('ignore', False).astype(str).str.upper().isin(['TRUE', '1', 'YES'])
+    ignore_set = {row['Platform'] for _, row in df[df['ignore']].iterrows()}
+    active = df[~df['ignore']]
+    plat_map = {row['Directory'].lower(): row['Platform'] for _, row in active.iterrows()}
+    dataset_to_console = {row['Platform'].lower(): row['Directory'] for _, row in active.iterrows()}
+    for alias, code in DIR_ALIASES.items():
+        if code.lower() in dataset_to_console:
+            plat_map.setdefault(alias, code)
+    return plat_map, dataset_to_console, {p.upper() for p in ignore_set}
+
+
+PLAT_MAP, DATASET_TO_CONSOLE, IGNORED_PLATFORMS = load_platform_mappings()
 
 # Rich console for nicer output
-
 console = Console()
 
 
@@ -108,7 +109,7 @@ def print_table(df: pd.DataFrame, sorted_col: str | None = None) -> None:
         console.print("[bold red]No data available.[/]")
         return
 
-    skip_plats = {"ps4", "pc", "xbox360", "xboxone", "ps", "ports"}
+    skip_plats = {p.lower() for p in IGNORED_PLATFORMS}
     if "Platform" in df.columns:
         df = df[~df["Platform"].str.lower().isin(skip_plats)]
 
@@ -302,6 +303,7 @@ def create_snapshot():
 
     threshold = ask_threshold()
     sales = pd.read_csv(SALES_CSV, low_memory=False)
+    sales = sales[~sales['Platform'].isin(IGNORED_PLATFORMS)]
     sales['key'] = sales['Name'].apply(norm)
     max_sales = sales['Global_Sales'].max()
 
@@ -314,12 +316,14 @@ def create_snapshot():
         gl_path = os.path.join(ROMS_ROOT, console_name, 'gamelist.xml')
         if not os.path.isfile(gl_path):
             continue
+        ds_plat = PLAT_MAP.get(console_name.lower())
+        if not ds_plat or ds_plat in IGNORED_PLATFORMS:
+            continue
         found_consoles.add(console_name.lower())
         tree = ET.parse(gl_path)
         games = [g for g in tree.getroot().findall('game')
                  if os.path.splitext(g.findtext('path') or '')[1].lower().lstrip('.') in ROM_EXTS]
         platform = console_name
-        ds_plat = PLAT_MAP.get(console_name.lower(), console_name)
 
         sales_subset = sales[sales['Platform'].str.lower() == ds_plat.lower()]
         match_keys = list(sales_subset['key'])
@@ -493,6 +497,7 @@ def generate_playlists(snapshot_dir):
 def apply_sales(snapshot_dir):
     threshold = ask_threshold()
     sales = pd.read_csv(SALES_CSV, low_memory=False)
+    sales = sales[~sales['Platform'].isin(IGNORED_PLATFORMS)]
     sales['key'] = sales['Name'].apply(norm)
     max_sales = sales['Global_Sales'].max()
     unmatched_keys = set(zip(sales['Platform'], sales['key']))
@@ -506,13 +511,15 @@ def apply_sales(snapshot_dir):
         gl_path = os.path.join(ROMS_ROOT, console_name, 'gamelist.xml')
         if not os.path.isfile(gl_path):
             continue
+        ds_plat = PLAT_MAP.get(console_name.lower())
+        if not ds_plat or ds_plat in IGNORED_PLATFORMS:
+            continue
         found_consoles.add(console_name.lower())
         tree = ET.parse(gl_path)
         root = tree.getroot()
         games = [g for g in root.findall('game')
                  if os.path.splitext(g.findtext('path') or '')[1].lower().lstrip('.') in ROM_EXTS]
 
-        ds_plat = PLAT_MAP.get(console_name.lower(), console_name)
         subset = sales[sales['Platform'].str.lower() == ds_plat.lower()]
         match_keys = list(subset['key'])
         sales_map = dict(zip(subset['key'], subset['Global_Sales']))
@@ -591,7 +598,8 @@ def apply_sales(snapshot_dir):
 
 def scrape_file_list(code):
     df = pd.read_csv(PLATFORMS_CSV)
-    row = df[df['Platform']==code]
+    df['ignore'] = df.get('ignore', False).astype(str).str.upper().isin(['TRUE', '1', 'YES'])
+    row = df[(df['Platform'] == code) & (~df['ignore'])]
     if row.empty:
         return None, None, []
     url = row['URL'].iloc[0]
@@ -638,12 +646,12 @@ def manual_add_games(snapshot_dir):
         unmatched_df = filter_wii_no_controller(unmatched_df)
 
     plat_df = pd.read_csv(PLATFORMS_CSV)
+    plat_df['ignore'] = plat_df.get('ignore', False).astype(str).str.upper().isin(['TRUE', '1', 'YES'])
     info_map = {canonical(row['Platform']): {
                     'dir': row.get('Directory', row['Platform']),
                     'url': row.get('URL', '')
                 } for _, row in plat_df.iterrows()}
-    blacklisted_plats = {c for c, info in info_map.items()
-                         if str(info.get('url', '')).strip().upper() == 'BLACKLIST'}
+    blacklisted_plats = {canonical(row['Platform']) for _, row in plat_df[plat_df['ignore']].iterrows()}
 
     available = {canonical(c) for c in unmatched_df['Platform'].dropna()}
     zero_codes = {canonical(c) for c in summary_df[summary_df.get('ROMs', 1) == 0]['Platform'].dropna()}
@@ -877,12 +885,12 @@ def auto_add_games(snapshot_dir):
     if prompt_yes_no('Exclude Wii games without controller support?'):
         unmatched_df = filter_wii_no_controller(unmatched_df)
     plat_df = pd.read_csv(PLATFORMS_CSV)
+    plat_df['ignore'] = plat_df.get('ignore', False).astype(str).str.upper().isin(['TRUE', '1', 'YES'])
     info_map = {canonical(row['Platform']): {
                     'dir': row.get('Directory', row['Platform']),
                     'url': row.get('URL', '')
                 } for _, row in plat_df.iterrows()}
-    blacklisted_plats = {c for c, info in info_map.items()
-                         if str(info.get('url', '')).strip().upper() == 'BLACKLIST'}
+    blacklisted_plats = {canonical(row['Platform']) for _, row in plat_df[plat_df['ignore']].iterrows()}
 
     available = {canonical(c) for c in unmatched_df['Platform'].dropna()}
     zero_codes = {canonical(c) for c in summary_df[summary_df.get('ROMs', 1) == 0]['Platform'].dropna()}
@@ -1077,12 +1085,15 @@ def convert_to_chd():
         folder = os.path.join(ROMS_ROOT, console_name)
         if not os.path.isdir(folder):
             continue
+        code = PLAT_MAP.get(console_name.lower())
+        if not code or code in IGNORED_PLATFORMS:
+            continue
         count = 0
         for root,_,files in os.walk(folder):
             for f in files:
                 if os.path.splitext(f)[1].lower() in TARGET_EXTS:
                     count += 1
-        code = PLAT_MAP.get(console_name.lower(), console_name).upper()
+        code = code.upper()
         code_map[code] = console_name
         rows.append({'Platform': code, 'Convertible Files': count})
         if count:
