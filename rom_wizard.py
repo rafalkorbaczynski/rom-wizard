@@ -71,6 +71,25 @@ DIR_ALIASES = {
 def load_platform_mappings():
     df = pd.read_csv(PLATFORMS_CSV)
     df['ignore'] = df.get('ignore', False).astype(str).str.upper().isin(['TRUE', '1', 'YES'])
+
+    # Ensure every directory under ROMS_ROOT exists in platforms.csv
+    if os.path.isdir(ROMS_ROOT):
+        rom_dirs = {d for d in os.listdir(ROMS_ROOT)
+                    if os.path.isdir(os.path.join(ROMS_ROOT, d))}
+        known_dirs = set(df['Directory'].str.lower())
+        missing = sorted(rom_dirs - known_dirs)
+        if missing:
+            add_rows = pd.DataFrame(
+                [{
+                    'Platform': m,
+                    'Directory': m,
+                    'URL': '',
+                    'ignore': False
+                } for m in missing]
+            )
+            df = pd.concat([df, add_rows], ignore_index=True)
+            df.to_csv(PLATFORMS_CSV, index=False)
+
     ignore_set = {row['Platform'] for _, row in df[df['ignore']].iterrows()}
     active = df[~df['ignore']]
     plat_map = {row['Directory'].lower(): row['Platform'] for _, row in active.iterrows()}
@@ -323,6 +342,8 @@ def create_snapshot():
         tree = ET.parse(gl_path)
         games = [g for g in tree.getroot().findall('game')
                  if os.path.splitext(g.findtext('path') or '')[1].lower().lstrip('.') in ROM_EXTS]
+        if not games:
+            continue
         platform = console_name
 
         sales_subset = sales[sales['Platform'].str.lower() == ds_plat.lower()]
@@ -411,6 +432,9 @@ def detect_duplicates(snapshot_dir):
         console_dir = os.path.join(ROMS_ROOT, console_name)
         if not os.path.isdir(console_dir):
             continue
+        code = PLAT_MAP.get(console_name.lower())
+        if code in IGNORED_PLATFORMS:
+            continue
         rom_count = 0
         dup_count = 0
         for root, _, files in os.walk(console_dir):
@@ -450,9 +474,10 @@ def detect_duplicates(snapshot_dir):
                         report_rows.append([console_name, score, norm_map[f], norm_map[g], keep_rel, move_rel])
                         moved.add(g)
                         dup_count += 1
-        if rom_count:
-            pct = dup_count / rom_count * 100
-            summary_rows.append({'Platform': console_name, 'ROMs': rom_count, 'Duplicates': dup_count, 'Duplicate %': round(pct, 1)})
+        if rom_count == 0:
+            continue
+        pct = dup_count / rom_count * 100
+        summary_rows.append({'Platform': console_name, 'ROMs': rom_count, 'Duplicates': dup_count, 'Duplicate %': round(pct, 1)})
     csv_path = os.path.join(snapshot_dir, 'duplicates_report.csv')
     with open(csv_path, 'w', newline='', encoding='utf-8') as f:
         writer = csv.writer(f)
@@ -471,8 +496,15 @@ def generate_playlists(snapshot_dir):
         folder = os.path.join(ROMS_ROOT, console_name)
         if not os.path.isdir(folder):
             continue
+        code = PLAT_MAP.get(console_name.lower())
+        if code in IGNORED_PLATFORMS:
+            continue
+        rom_files = [f for f in os.listdir(folder)
+                     if os.path.splitext(f)[1].lower().lstrip('.') in ROM_EXTS]
+        if not rom_files:
+            continue
         groups = {}
-        for fname in os.listdir(folder):
+        for fname in rom_files:
             if 'disc' not in fname.lower():
                 continue
             m = pattern.match(fname)
@@ -519,6 +551,8 @@ def apply_sales(snapshot_dir):
         root = tree.getroot()
         games = [g for g in root.findall('game')
                  if os.path.splitext(g.findtext('path') or '')[1].lower().lstrip('.') in ROM_EXTS]
+        if not games:
+            continue
 
         subset = sales[sales['Platform'].str.lower() == ds_plat.lower()]
         match_keys = list(subset['key'])
