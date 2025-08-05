@@ -72,20 +72,26 @@ def load_platform_mappings():
     df = pd.read_csv(PLATFORMS_CSV)
     df['ignore'] = df.get('ignore', False).astype(str).str.upper().isin(['TRUE', '1', 'YES'])
 
-    # Ensure every directory under ROMS_ROOT exists in platforms.csv
+    # Ensure every directory under ROMS_ROOT with a gamelist.xml exists in platforms.csv
     if os.path.isdir(ROMS_ROOT):
-        rom_dirs = {d for d in os.listdir(ROMS_ROOT)
-                    if os.path.isdir(os.path.join(ROMS_ROOT, d))}
+        rom_dirs = {
+            d for d in os.listdir(ROMS_ROOT)
+            if os.path.isdir(os.path.join(ROMS_ROOT, d))
+            and os.path.isfile(os.path.join(ROMS_ROOT, d, 'gamelist.xml'))
+        }
         known_dirs = set(df['Directory'].str.lower())
         missing = sorted(rom_dirs - known_dirs)
         if missing:
             add_rows = pd.DataFrame(
-                [{
-                    'Platform': m,
-                    'Directory': m,
-                    'URL': '',
-                    'ignore': False
-                } for m in missing]
+                [
+                    {
+                        'Platform': m,
+                        'Directory': m,
+                        'URL': '',
+                        'ignore': False,
+                    }
+                    for m in missing
+                ]
             )
             df = pd.concat([df, add_rows], ignore_index=True)
             df.to_csv(PLATFORMS_CSV, index=False)
