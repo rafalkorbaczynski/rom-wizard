@@ -215,6 +215,13 @@ def norm(text):
     return re.sub(r'\s+', ' ', s).strip()
 
 
+def token_set(text: str) -> set[str]:
+    tokens = text.split()
+    while tokens and tokens[0].isdigit():
+        tokens.pop(0)
+    return set(tokens)
+
+
 def region_priority(filename: str) -> int:
     lf = filename.lower()
     if re.search(r'\b(eu|eur|europe)\b', lf):
@@ -368,8 +375,8 @@ def create_snapshot():
             region_key = get_region_key(g)
             region_counts[region_key] += 1
 
-            res = process.extractOne(k, match_keys, scorer=fuzz.token_set_ratio)
-            if res and res[1] >= threshold:
+            res = process.extractOne(k, match_keys, scorer=fuzz.token_sort_ratio)
+            if res and res[1] >= threshold and token_set(k) == token_set(res[0]):
                 matched += 1
                 key = res[0]
                 matched_records.append({
@@ -579,8 +586,8 @@ def apply_sales(snapshot_dir):
             region_key = get_region_key(g)
             region_counts[region_key] += 1
 
-            res = process.extractOne(k, match_keys, scorer=fuzz.token_set_ratio)
-            if res and res[1] >= threshold:
+            res = process.extractOne(k, match_keys, scorer=fuzz.token_sort_ratio)
+            if res and res[1] >= threshold and token_set(k) == token_set(res[0]):
                 key = res[0]
                 gs = sales_map[key]
                 rating = gs / max_sales * 100
