@@ -408,9 +408,22 @@ def create_snapshot():
 
     summary_df = pd.DataFrame(summary_rows)
     if not summary_df.empty:
-        summary_df['ROMs%'] = (summary_df['Matched ROMs'] / summary_df['ROMs'].replace(0,1) * 100)
+        summary_df['ROMs%'] = (
+            summary_df['Matched ROMs'] / summary_df['ROMs'].replace(0, 1) * 100
+        )
         for col in summary_df.select_dtypes(include='float'):
             summary_df[col] = summary_df[col].round(1)
+
+        plat_info = pd.read_csv(
+            PLATFORMS_CSV, usecols=['Platform', 'FullName', 'ReleaseYear', 'Generation']
+        )
+        summary_df = summary_df.merge(plat_info, on='Platform', how='left')
+        cols = ['Platform', 'FullName', 'ReleaseYear', 'Generation'] + [
+            c for c in summary_df.columns
+            if c not in {'Platform', 'FullName', 'ReleaseYear', 'Generation'}
+        ]
+        summary_df = summary_df[cols]
+
     summary_csv = os.path.join(snap_dir, 'summary.csv')
     summary_df.to_csv(summary_csv, index=False)
 
@@ -429,7 +442,8 @@ def create_snapshot():
     write_rom_filenames(ROMS_ROOT, os.path.join(snap_dir, 'rom_filenames.txt'))
 
     console.print(f"[bold green]Snapshot created at {shorten_path(snap_dir)}[/]")
-    print_table(summary_df)
+    display_df = summary_df.drop(columns=['Platform']).rename(columns={'FullName': 'Platform'})
+    print_table(display_df)
     return snap_dir
 
 
@@ -640,9 +654,22 @@ def apply_sales(snapshot_dir):
 
     summary_df = pd.DataFrame(summary_rows)
     if not summary_df.empty:
-        summary_df['ROMs%'] = (summary_df['Matched ROMs'] / summary_df['ROMs'].replace(0,1) * 100)
+        summary_df['ROMs%'] = (
+            summary_df['Matched ROMs'] / summary_df['ROMs'].replace(0, 1) * 100
+        )
         for col in summary_df.select_dtypes(include='float'):
             summary_df[col] = summary_df[col].round(1)
+
+        plat_info = pd.read_csv(
+            PLATFORMS_CSV, usecols=['Platform', 'FullName', 'ReleaseYear', 'Generation']
+        )
+        summary_df = summary_df.merge(plat_info, on='Platform', how='left')
+        cols = ['Platform', 'FullName', 'ReleaseYear', 'Generation'] + [
+            c for c in summary_df.columns
+            if c not in {'Platform', 'FullName', 'ReleaseYear', 'Generation'}
+        ]
+        summary_df = summary_df[cols]
+
     summary_df.to_csv(os.path.join(snapshot_dir, 'summary.csv'), index=False)
     pd.DataFrame(match_rows).to_csv(os.path.join(snapshot_dir, 'match_summary.csv'), index=False)
 
@@ -654,7 +681,8 @@ def apply_sales(snapshot_dir):
     unmatched_df.to_csv(os.path.join(snapshot_dir, 'unmatched_summary.csv'), index=False)
 
     console.print('[bold green]Sales data applied.[/]')
-    print_table(summary_df)
+    display_df = summary_df.drop(columns=['Platform']).rename(columns={'FullName': 'Platform'})
+    print_table(display_df)
 
 
 def scrape_file_list(code):
@@ -1255,16 +1283,22 @@ def show_snapshot_summary(snapshot_dir):
         print('summary.csv not found.')
         return
     df = pd.read_csv(summary_file)
+    if 'FullName' in df.columns:
+        display_df = df.drop(columns=['Platform'], errors='ignore').rename(
+            columns={'FullName': 'Platform'}
+        )
+    else:
+        display_df = df
     if not SUMMARY_COLS:
-        SUMMARY_COLS = list(df.columns)
+        SUMMARY_COLS = list(display_df.columns)
         if 'ROMs' in SUMMARY_COLS:
             SUMMARY_CYCLE_IDX = SUMMARY_COLS.index('ROMs')
     if SUMMARY_COLS:
         sort_col = SUMMARY_COLS[SUMMARY_CYCLE_IDX]
-        view = df.sort_values(sort_col, ascending=False)
+        view = display_df.sort_values(sort_col, ascending=False)
     else:
         sort_col = None
-        view = df
+        view = display_df
     for col in view.select_dtypes(include='float'):
         view[col] = view[col].round(1)
     print_table(view, sorted_col=sort_col)
@@ -1281,7 +1315,14 @@ def wizard_menu(snapshot_dir):
         sort_col = None
         summary_file = os.path.join(snapshot_dir, 'summary.csv')
         if not SUMMARY_COLS and os.path.isfile(summary_file):
-            SUMMARY_COLS = list(pd.read_csv(summary_file, nrows=0).columns)
+            cols_df = pd.read_csv(summary_file, nrows=0)
+            if 'FullName' in cols_df.columns:
+                display_cols = cols_df.drop(columns=['Platform'], errors='ignore').rename(
+                    columns={'FullName': 'Platform'}
+                ).columns
+            else:
+                display_cols = cols_df.columns
+            SUMMARY_COLS = list(display_cols)
             if 'ROMs' in SUMMARY_COLS:
                 SUMMARY_CYCLE_IDX = SUMMARY_COLS.index('ROMs')
         if SUMMARY_COLS:
