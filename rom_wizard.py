@@ -357,8 +357,6 @@ def create_snapshot():
                  if os.path.splitext(g.findtext('path') or '')[1].lower().lstrip('.') in ROM_EXTS]
         if not games:
             continue
-        platform = console_name
-
         sales_subset = sales[sales['Platform'].str.lower() == ds_plat.lower()]
         match_keys = list(sales_subset['key'])
         sales_map = dict(zip(sales_subset['key'], sales_subset['Global_Sales']))
@@ -381,7 +379,7 @@ def create_snapshot():
                 key = res[0]
                 matched_records.append({
                     'Dataset Name': name_map[key],
-                    'Platform': platform,
+                    'Platform': ds_plat,
                     'ROM': title,
                     'Sales': sales_map[key],
                     'Match Score': res[1]
@@ -389,7 +387,7 @@ def create_snapshot():
                 unmatched_keys.discard((ds_plat, key))
 
         summary_rows.append({
-            'Platform': platform,
+            'Platform': ds_plat,
             'ROMs': len(games),
             'Dataset': dataset_size,
             'Matched ROMs': matched,
@@ -403,7 +401,7 @@ def create_snapshot():
         if mapped.lower() in found_consoles:
             continue
         size = sales[sales['Platform'].str.lower() == code.lower()]['key'].nunique()
-        summary_rows.append({'Platform': mapped, 'ROMs': 0, 'Dataset': size,
+        summary_rows.append({'Platform': code, 'ROMs': 0, 'Dataset': size,
                              'Matched ROMs': 0, **{r: 0 for r in REGIONS}})
 
     summary_df = pd.DataFrame(summary_rows)
@@ -623,7 +621,7 @@ def apply_sales(snapshot_dir):
                 ET.SubElement(g, 'ratingMax').text = '100'
                 match_rows.append({
                     'Dataset Name': name_map[key],
-                    'Platform': console_name,
+                    'Platform': ds_plat,
                     'ROM': title,
                     'Sales': gs,
                     'Match Score': res[1]
@@ -635,7 +633,7 @@ def apply_sales(snapshot_dir):
         os.makedirs(out_dir, exist_ok=True)
         tree.write(os.path.join(out_dir, 'gamelist.xml'), encoding='utf-8', xml_declaration=True)
         summary_rows.append({
-            'Platform': console_name,
+            'Platform': ds_plat,
             'ROMs': len(games),
             'Dataset': dataset_size,
             'Matched ROMs': matched,
@@ -649,7 +647,7 @@ def apply_sales(snapshot_dir):
         if mapped.lower() in found_consoles:
             continue
         size = sales[sales['Platform'].str.lower() == code.lower()]['key'].nunique()
-        summary_rows.append({'Platform': mapped, 'ROMs': 0, 'Dataset': size,
+        summary_rows.append({'Platform': code, 'ROMs': 0, 'Dataset': size,
                              'Matched ROMs': 0, **{r: 0 for r in REGIONS}})
 
     summary_df = pd.DataFrame(summary_rows)
