@@ -1,0 +1,1 @@
+for /r %%i in (*.pkg) do pkg2zip "%%i"
