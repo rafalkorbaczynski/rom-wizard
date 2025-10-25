@@ -45,8 +45,31 @@ REGIONS = list(REGION_SYNONYMS.keys()) + ['Other']
 # detection.  Metadata like videos or gamelist files should be ignored.
 ROM_EXTS = {
     'a26','a52','a78','bin','chd','gb','gba','gbc','iso','j64',
-    'md','nds','nes','pce','rvz','sfc','sms','xex','z64','zip'
+    'md','nds','nes','pce','psvita','rvz','sfc','sms','xex','z64','zip'
 }
+
+# Some platforms (notably PS Vita) use directory-based dumps with a file
+# extension suffix on the folder name.  Treat those specially so the wizard
+# recognises them as ROM entries when scanning the library.
+ROM_DIR_EXTS = {'psvita'}
+
+
+def rom_extension(name: str) -> str:
+    """Return the lower-case extension (without leading dot) for ``name``."""
+
+    return os.path.splitext(name)[1].lower().lstrip('.')
+
+
+def has_rom_extension(name: str) -> bool:
+    """Return ``True`` if ``name`` matches a known ROM extension."""
+
+    return rom_extension(name) in ROM_EXTS
+
+
+def is_rom_directory_name(name: str) -> bool:
+    """Return ``True`` when ``name`` represents a directory-based ROM entry."""
+
+    return rom_extension(name) in ROM_DIR_EXTS
 
 
 def directory_size_bytes(path: str, extensions: Optional[set[str]] = None) -> int:
@@ -60,10 +83,19 @@ def directory_size_bytes(path: str, extensions: Optional[set[str]] = None) -> in
 
     total = 0
     for root, _, files in os.walk(path):
+        if extensions is not None:
+            rel_root = os.path.relpath(root, path)
+            if rel_root == '.':
+                special_context = False
+            else:
+                parts = [p for p in rel_root.split(os.sep) if p not in {'.', ''}]
+                special_context = any(is_rom_directory_name(p) for p in parts)
+        else:
+            special_context = False
         for fname in files:
             if extensions is not None:
-                ext = os.path.splitext(fname)[1].lower().lstrip('.')
-                if ext not in extensions:
+                ext = rom_extension(fname)
+                if ext not in extensions and not special_context:
                     continue
             try:
                 total += os.path.getsize(os.path.join(root, fname))
@@ -221,8 +253,7 @@ def fetch_platform_file_index(url_field: str):
                 continue
             seen_urls.add(full_url)
             path = urlparse(full_url).path
-            ext = os.path.splitext(path)[1].lower().lstrip('.')
-            if ext not in ROM_EXTS:
+            if not has_rom_extension(path):
                 continue
             name = requests.utils.unquote(os.path.splitext(os.path.basename(path))[0])
             if not name:
@@ -255,8 +286,7 @@ def fetch_platform_file_index(url_field: str):
                                     fname = f.get('name') or ''
                                     if not fname:
                                         continue
-                                    ext = os.path.splitext(fname)[1].lower().lstrip('.')
-                                    if ext not in ROM_EXTS:
+                                    if not has_rom_extension(fname):
                                         continue
                                     name = requests.utils.unquote(os.path.splitext(os.path.basename(fname))[0])
                                     key = norm(name)
@@ -475,13 +505,20 @@ def write_rom_filenames(root_dir: str, output_path: str) -> None:
     and the former ``list_rom_filenames.py`` helper script."""
     allowed = {
         'a26','a52','a78','bin','chd','gb','gba','gbc','iso','j64',
-        'md','mp4','nds','nes','pce','rvz','sfc','sms','xex','xml','z64','zip'
+        'md','mp4','nds','nes','pce','psvita','rvz','sfc','sms','xex','xml','z64','zip'
     }
+    dir_allowed = ROM_DIR_EXTS
 
     filenames = []
-    for dirpath, _, files in os.walk(root_dir):
+    for dirpath, dirnames, files in os.walk(root_dir):
+        rom_dirs = [d for d in dirnames if rom_extension(d) in dir_allowed]
+        if rom_dirs:
+            dirnames[:] = [d for d in dirnames if d not in rom_dirs]
+            for d in rom_dirs:
+                rel = os.path.relpath(os.path.join(dirpath, d), root_dir)
+                filenames.append(rel)
         for fname in files:
-            ext = os.path.splitext(fname)[1].lower().lstrip('.')
+            ext = rom_extension(fname)
             if ext in allowed:
                 rel = os.path.relpath(os.path.join(dirpath, fname), root_dir)
                 filenames.append(rel)
@@ -520,8 +557,10 @@ def create_snapshot():
             continue
         found_consoles.add(console_name.lower())
         tree = ET.parse(gl_path)
-        games = [g for g in tree.getroot().findall('game')
-                 if os.path.splitext(g.findtext('path') or '')[1].lower().lstrip('.') in ROM_EXTS]
+        games = [
+            g for g in tree.getroot().findall('game')
+            if has_rom_extension(g.findtext('path') or '')
+        ]
         if not games:
             continue
         sales_subset = sales[sales['Platform'].str.lower() == ds_plat.lower()]
@@ -635,12 +674,21 @@ def detect_duplicates(snapshot_dir):
             continue
         rom_count = 0
         dup_count = 0
-        for root, _, files in os.walk(console_dir):
-            files = [f for f in files if os.path.splitext(f)[1].lower().lstrip('.') in ROM_EXTS and 'disc' not in f.lower()]
-            rom_count += len(files)
-            norm_map = {f: norm(f) for f in files}
-            base_map = {f: norm(remove_disc(f)) for f in files}
-            disc_map = {f: disc_number(f) for f in files}
+        for root, dirnames, files in os.walk(console_dir):
+            rom_dirs = [d for d in dirnames if is_rom_directory_name(d)]
+            if rom_dirs:
+                dirnames[:] = [d for d in dirnames if d not in rom_dirs]
+            entries = [
+                f for f in files
+                if has_rom_extension(f) and 'disc' not in f.lower()
+            ]
+            entries.extend(rom_dirs)
+            if not entries:
+                continue
+            rom_count += len(entries)
+            norm_map = {f: norm(f) for f in entries}
+            base_map = {f: norm(remove_disc(f)) for f in entries}
+            disc_map = {f: disc_number(f) for f in entries}
             # Break filenames into tokens and drop any leading numbers which are
             # often used by ROM sets for simple indexing (e.g. ``"18. Super"``).
             #
@@ -650,7 +698,7 @@ def detect_duplicates(snapshot_dir):
             token_map = {}
             token_no_num = {}
             num_map = {}
-            for f in files:
+            for f in entries:
                 tokens = norm_map[f].split()
                 # Drop catalog numbers at the beginning of the filename
                 while tokens and tokens[0].isdigit():
@@ -659,10 +707,10 @@ def detect_duplicates(snapshot_dir):
                 token_no_num[f] = [t for t in tokens if not t.isdigit()]
                 num_map[f] = [t for t in tokens if t.isdigit()]
             moved = set()
-            for i, f in enumerate(files):
+            for i, f in enumerate(entries):
                 if f in moved:
                     continue
-                for g in files[i+1:]:
+                for g in entries[i+1:]:
                     if g in moved:
                         continue
                     score = fuzz.token_set_ratio(norm_map[f], norm_map[g])
@@ -711,8 +759,7 @@ def generate_playlists(snapshot_dir):
         code = PLAT_MAP.get(console_name.lower())
         if code in IGNORED_PLATFORMS:
             continue
-        rom_files = [f for f in os.listdir(folder)
-                     if os.path.splitext(f)[1].lower().lstrip('.') in ROM_EXTS]
+        rom_files = [f for f in os.listdir(folder) if has_rom_extension(f)]
         if not rom_files:
             continue
         groups = {}
@@ -762,8 +809,10 @@ def apply_sales(snapshot_dir):
         found_consoles.add(console_name.lower())
         tree = ET.parse(gl_path)
         root = tree.getroot()
-        games = [g for g in root.findall('game')
-                 if os.path.splitext(g.findtext('path') or '')[1].lower().lstrip('.') in ROM_EXTS]
+        games = [
+            g for g in root.findall('game')
+            if has_rom_extension(g.findtext('path') or '')
+        ]
         if not games:
             continue
 
