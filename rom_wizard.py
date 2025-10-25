@@ -178,9 +178,29 @@ def fetch_platform_file_index(url_field: str):
     seen_urls = set()
     errors: list[tuple[str, Exception]] = []
 
+    session = requests.Session()
+    default_headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+                       'AppleWebKit/537.36 (KHTML, like Gecko) '
+                       'Chrome/124.0 Safari/537.36 ROMWizard/1.0'
+    }
+
     for page_url in urls:
+        # Normalize Archive.org item URLs to the canonical download listing with
+        # a trailing slash so relative file hrefs resolve correctly.
         try:
-            resp = requests.get(page_url)
+            parsed = urlparse(page_url)
+            if parsed.netloc.endswith('archive.org'):
+                parts = parsed.path.strip('/').split('/')
+                if parts and parts[0] in {'details', 'download'} and len(parts) >= 2:
+                    item = parts[1]
+                    # Rebuild as https://archive.org/download/<item>/
+                    page_url = f"https://archive.org/download/{item}/"
+        except Exception:
+            # If anything goes wrong in normalization, fall back to original URL
+            pass
+        try:
+            resp = session.get(page_url, headers=default_headers, timeout=30)
             resp.raise_for_status()
         except requests.RequestException as exc:
             errors.append((page_url, exc))
@@ -190,9 +210,13 @@ def fetch_platform_file_index(url_field: str):
             continue
 
         soup = BeautifulSoup(resp.text, 'html.parser')
-        for anchor in soup.find_all('a', href=True):
+        # Prefer anchors inside Archive.org directory listing table when present
+        anchor_scope = soup.select('table.directory-listing-table a[href]') or soup.find_all('a', href=True)
+        for anchor in anchor_scope:
             href = anchor['href']
-            full_url = urljoin(resp.url, href)
+            # Use the (possibly normalized) page_url as base to avoid servers
+            # that don't redirect to a trailing slash form.
+            full_url = urljoin(page_url, href)
             if full_url in seen_urls:
                 continue
             seen_urls.add(full_url)
@@ -212,9 +236,45 @@ def fetch_platform_file_index(url_field: str):
             base_key = norm(remove_disc(name))
             group_map.setdefault(base_key, []).append(key)
 
+        # Fallback: Archive.org exposes a <item>_files.xml index with all files.
+        # If we didn't capture anything via anchors and this is an archive.org
+        # item page, attempt to parse that XML.
+        if not file_map:
+            try:
+                parsed = urlparse(page_url)
+                if parsed.netloc.endswith('archive.org'):
+                    parts = parsed.path.strip('/').split('/')
+                    if parts and parts[0] in {'details', 'download'} and len(parts) >= 2:
+                        item = parts[1]
+                        files_xml_url = f"https://archive.org/download/{item}/{item}_files.xml"
+                        fx = session.get(files_xml_url, headers=default_headers, timeout=30)
+                        if fx.ok and fx.text:
+                            try:
+                                root = ET.fromstring(fx.text)
+                                for f in root.findall('.//file'):
+                                    fname = f.get('name') or ''
+                                    if not fname:
+                                        continue
+                                    ext = os.path.splitext(fname)[1].lower().lstrip('.')
+                                    if ext not in ROM_EXTS:
+                                        continue
+                                    name = requests.utils.unquote(os.path.splitext(os.path.basename(fname))[0])
+                                    key = norm(name)
+                                    full_url = f"https://archive.org/download/{item}/{requests.utils.quote(fname)}"
+                                    if full_url in seen_urls:
+                                        continue
+                                    seen_urls.add(full_url)
+                                    file_map[key] = full_url
+                                    file_names[key] = name
+                                    base_key = norm(remove_disc(name))
+                                    group_map.setdefault(base_key, []).append(key)
+                            except ET.ParseError:
+                                pass
+            except Exception:
+                pass
+
     if not file_map and errors and len(errors) == len(urls):
         raise errors[-1][1]
-
     return urls, file_map, file_names, group_map
 
 
