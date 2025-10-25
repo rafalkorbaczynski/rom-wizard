@@ -12,6 +12,7 @@ import requests
 from bs4 import BeautifulSoup
 from difflib import SequenceMatcher
 import subprocess
+from urllib.parse import urljoin, urlparse
 from rich.console import Console
 from rich.table import Table
 from rich.progress import track
@@ -136,6 +137,75 @@ PLAT_MAP, DATASET_TO_CONSOLE, IGNORED_PLATFORMS = load_platform_mappings()
 
 # Rich console for nicer output
 console = Console()
+
+
+def parse_platform_urls(url_field: str) -> list[str]:
+    """Split a platform URL field into individual URLs."""
+
+    if not isinstance(url_field, str):
+        return []
+    parts = re.split(r'[;\n]+', url_field)
+    return [p.strip() for p in parts if p and p.strip()]
+
+
+def filename_from_url(full_url: str) -> str:
+    """Return the decoded filename component for ``full_url``."""
+
+    path = urlparse(full_url).path
+    return requests.utils.unquote(os.path.basename(path))
+
+
+def fetch_platform_file_index(url_field: str):
+    """Return available download entries for the URLs in ``url_field``."""
+
+    urls = parse_platform_urls(url_field)
+    if not urls:
+        return [], {}, {}, {}
+
+    file_map = {}
+    file_names = {}
+    group_map = {}
+    seen_urls = set()
+    errors: list[tuple[str, Exception]] = []
+
+    for page_url in urls:
+        try:
+            resp = requests.get(page_url)
+            resp.raise_for_status()
+        except requests.RequestException as exc:
+            errors.append((page_url, exc))
+            if len(urls) == 1:
+                raise
+            console.print(f"[bold yellow]Warning:[/] Failed to fetch {page_url}: {exc}")
+            continue
+
+        soup = BeautifulSoup(resp.text, 'html.parser')
+        for anchor in soup.find_all('a', href=True):
+            href = anchor['href']
+            full_url = urljoin(resp.url, href)
+            if full_url in seen_urls:
+                continue
+            seen_urls.add(full_url)
+            path = urlparse(full_url).path
+            ext = os.path.splitext(path)[1].lower().lstrip('.')
+            if ext not in ROM_EXTS:
+                continue
+            name = requests.utils.unquote(os.path.splitext(os.path.basename(path))[0])
+            if not name:
+                continue
+            low = name.lower()
+            if '(demo)' in low or '(virtual console)' in low:
+                continue
+            key = norm(name)
+            file_map[key] = full_url
+            file_names[key] = name
+            base_key = norm(remove_disc(name))
+            group_map.setdefault(base_key, []).append(key)
+
+    if not file_map and errors and len(errors) == len(urls):
+        raise errors[-1][1]
+
+    return urls, file_map, file_names, group_map
 
 
 def shorten_path(path: str, depth: int = 2) -> str:
@@ -728,16 +798,13 @@ def scrape_file_list(code):
     row = df[(df['Platform'] == code) & (~df['ignore'])]
     if row.empty:
         return None, None, []
-    url = row['URL'].iloc[0]
+    url_field = row['URL'].iloc[0]
     directory = row['Directory'].iloc[0] or code
-    if not url:
+    urls, file_map, file_names, _ = fetch_platform_file_index(url_field)
+    if not urls:
         return None, directory, []
-    r = requests.get(url)
-    r.raise_for_status()
-    soup = BeautifulSoup(r.text, 'html.parser')
-    files = [a['href'] for a in soup.find_all('a', href=True) if a['href'].lower().endswith('.zip')]
-    names = [requests.utils.unquote(os.path.splitext(f)[0]) for f in files]
-    return url, directory, list(zip(names, files))
+    entries = [(file_names[k], file_map[k]) for k in file_map]
+    return urls[0], directory, entries
 
 
 def manual_add_games(snapshot_dir):
@@ -847,12 +914,20 @@ def manual_add_games(snapshot_dir):
 
     for code in platforms:
         info = info_map.get(code, {})
-        url = info.get('url')
+        url_field = info.get('url')
         directory = info.get('dir', code) or code
         platform_total = platform_targets.get(code, 0)
         platform_done = 0
-        if not url:
+        try:
+            urls, file_map, file_names, group_map = fetch_platform_file_index(url_field)
+        except requests.RequestException as exc:
+            print(f'Failed to fetch {code}: {exc}')
+            continue
+        if not urls:
             print(f'Skipping {code}: no URL configured.')
+            continue
+        if not file_map:
+            print(f'No downloadable entries found for {code}.')
             continue
         subset = unmatched_df[unmatched_df['Platform'] == code]
         subset = subset[~subset['Dataset Name'].apply(lambda n: (n, code) in blacklisted_pairs)]
@@ -860,31 +935,6 @@ def manual_add_games(snapshot_dir):
         if subset.empty:
             print(f'No unmatched entries for {code}.')
             continue
-        resp = requests.get(url)
-        resp.raise_for_status()
-        soup = BeautifulSoup(resp.text, 'html.parser')
-        files = [a['href'] for a in soup.find_all('a', href=True)
-                 if a['href'].lower().endswith('.zip')]
-        filtered = []
-        for href in files:
-            name = requests.utils.unquote(os.path.splitext(href)[0])
-            low = name.lower()
-            if '(demo)' in low or '(virtual console)' in low:
-                continue
-            filtered.append(href)
-        files = filtered
-
-        file_map = {}
-        file_names = {}
-        group_map = {}
-        for href in files:
-            name = requests.utils.unquote(os.path.splitext(href)[0])
-            key = norm(name)
-            file_map[key] = href
-            file_names[key] = name
-            base_key = norm(remove_disc(name))
-            group_map.setdefault(base_key, []).append(key)
-
         for _, row in subset.iterrows():
             platform_done += 1
             total_done += 1
@@ -959,10 +1009,10 @@ def manual_add_games(snapshot_dir):
                     seen.add(k)
             for k in uniq_keys:
                 filehref = file_map[k]
-                title = requests.utils.unquote(os.path.basename(filehref))
+                title = filename_from_url(filehref)
                 download_rows.append({'Search_Term': row['Dataset Name'], 'Platform': code,
                                      'Directory': directory, 'Matched_Title': title,
-                                     'Score': score, 'URL': requests.compat.urljoin(url, filehref)})
+                                     'Score': score, 'URL': filehref})
             clear_screen()
 
     if not download_rows:
@@ -1075,10 +1125,18 @@ def auto_add_games(snapshot_dir):
 
     for code in platforms:
         info = info_map.get(code, {})
-        url = info.get('url')
+        url_field = info.get('url')
         directory = info.get('dir', code) or code
-        if not url:
+        try:
+            urls, file_map, file_names, group_map = fetch_platform_file_index(url_field)
+        except requests.RequestException as exc:
+            print(f'Failed to fetch {code}: {exc}')
+            continue
+        if not urls:
             print(f'Skipping {code}: no URL configured.')
+            continue
+        if not file_map:
+            print(f'No downloadable entries found for {code}.')
             continue
         subset = unmatched_df[unmatched_df['Platform'] == code]
         subset = subset[~subset['Dataset Name'].apply(lambda n: (n, code) in blacklisted_pairs)]
@@ -1086,31 +1144,6 @@ def auto_add_games(snapshot_dir):
         if subset.empty:
             print(f'No unmatched entries for {code}.')
             continue
-        resp = requests.get(url)
-        resp.raise_for_status()
-        soup = BeautifulSoup(resp.text, 'html.parser')
-        files = [a['href'] for a in soup.find_all('a', href=True)
-                 if a['href'].lower().endswith('.zip')]
-        filtered = []
-        for href in files:
-            name = requests.utils.unquote(os.path.splitext(href)[0])
-            low = name.lower()
-            if '(demo)' in low or '(virtual console)' in low:
-                continue
-            filtered.append(href)
-        files = filtered
-
-        file_map = {}
-        file_names = {}
-        group_map = {}
-        for href in files:
-            name = requests.utils.unquote(os.path.splitext(href)[0])
-            key = norm(name)
-            file_map[key] = href
-            file_names[key] = name
-            base_key = norm(remove_disc(name))
-            group_map.setdefault(base_key, []).append(key)
-
         match_count = 0
         scores = []
         for _, row in subset.iterrows():
@@ -1138,10 +1171,10 @@ def auto_add_games(snapshot_dir):
                     seen.add(k)
             for k in uniq_keys:
                 filehref = file_map[k]
-                title = requests.utils.unquote(os.path.basename(filehref))
+                title = filename_from_url(filehref)
                 download_rows.append({'Search_Term': game, 'Platform': code,
                                      'Directory': directory, 'Matched_Title': title,
-                                     'Score': score, 'URL': requests.compat.urljoin(url, filehref)})
+                                     'Score': score, 'URL': filehref})
             match_count += 1
             scores.append(score)
 
