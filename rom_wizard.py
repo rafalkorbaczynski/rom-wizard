@@ -392,7 +392,7 @@ def create_snapshot():
 
         folder_bytes = directory_size_bytes(console_dir, ROM_EXTS)
         rom_total = len(games)
-        avg_size_gb = (folder_bytes / rom_total) / (1024 ** 3) if rom_total else 0
+        avg_size_mb = (folder_bytes / rom_total) / (1024 ** 2) if rom_total else 0
 
         region_counts = {r: 0 for r in REGIONS}
         matched = 0
@@ -422,7 +422,7 @@ def create_snapshot():
             'ROMs': rom_total,
             'Dataset': dataset_size,
             'Matched ROMs': matched,
-            'avg size': avg_size_gb,
+            'avg size': avg_size_mb,
             **region_counts
         })
 
@@ -634,7 +634,7 @@ def apply_sales(snapshot_dir):
         dataset_size = subset['key'].nunique()
         rom_total = len(games)
         folder_bytes = directory_size_bytes(console_dir, ROM_EXTS)
-        avg_size_gb = (folder_bytes / rom_total) / (1024 ** 3) if rom_total else 0
+        avg_size_mb = (folder_bytes / rom_total) / (1024 ** 2) if rom_total else 0
 
         region_counts = {r: 0 for r in REGIONS}
         matched = 0
@@ -674,7 +674,7 @@ def apply_sales(snapshot_dir):
             'ROMs': rom_total,
             'Dataset': dataset_size,
             'Matched ROMs': matched,
-            'avg size': avg_size_gb,
+            'avg size': avg_size_mb,
             **region_counts
         })
 
