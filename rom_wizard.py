@@ -3,6 +3,8 @@ import sys
 import csv
 import shutil
 import datetime
+from typing import Optional
+
 import pandas as pd
 import xml.etree.ElementTree as ET
 from rapidfuzz import process, fuzz
@@ -44,6 +46,30 @@ ROM_EXTS = {
     'a26','a52','a78','bin','chd','gb','gba','gbc','iso','j64',
     'md','nds','nes','pce','rvz','sfc','sms','xex','z64','zip'
 }
+
+
+def directory_size_bytes(path: str, extensions: Optional[set[str]] = None) -> int:
+    """Return the cumulative size of files under ``path``.
+
+    If ``extensions`` is provided, only files whose extension matches one of
+    the entries (case-insensitive, without the leading dot) are counted.
+    ``OSError`` from unreadable files is ignored so a single problematic file
+    does not abort the scan.
+    """
+
+    total = 0
+    for root, _, files in os.walk(path):
+        for fname in files:
+            if extensions is not None:
+                ext = os.path.splitext(fname)[1].lower().lstrip('.')
+                if ext not in extensions:
+                    continue
+            try:
+                total += os.path.getsize(os.path.join(root, fname))
+            except OSError:
+                continue
+    return total
+
 
 # Terminal colors for highlighting differences
 RESET = "\033[0m"
@@ -345,7 +371,8 @@ def create_snapshot():
     found_consoles = set()
 
     for console_name in iter_progress(os.listdir(ROMS_ROOT), "Scanning ROMs"):
-        gl_path = os.path.join(ROMS_ROOT, console_name, 'gamelist.xml')
+        console_dir = os.path.join(ROMS_ROOT, console_name)
+        gl_path = os.path.join(console_dir, 'gamelist.xml')
         if not os.path.isfile(gl_path):
             continue
         ds_plat = PLAT_MAP.get(console_name.lower())
@@ -362,6 +389,10 @@ def create_snapshot():
         sales_map = dict(zip(sales_subset['key'], sales_subset['Global_Sales']))
         name_map = dict(zip(sales_subset['key'], sales_subset['Name']))
         dataset_size = sales_subset['key'].nunique()
+
+        folder_bytes = directory_size_bytes(console_dir, ROM_EXTS)
+        rom_total = len(games)
+        avg_size_gb = (folder_bytes / rom_total) / (1024 ** 3) if rom_total else 0
 
         region_counts = {r: 0 for r in REGIONS}
         matched = 0
@@ -388,9 +419,10 @@ def create_snapshot():
 
         summary_rows.append({
             'Platform': ds_plat,
-            'ROMs': len(games),
+            'ROMs': rom_total,
             'Dataset': dataset_size,
             'Matched ROMs': matched,
+            'avg size': avg_size_gb,
             **region_counts
         })
 
@@ -402,7 +434,8 @@ def create_snapshot():
             continue
         size = sales[sales['Platform'].str.lower() == code.lower()]['key'].nunique()
         summary_rows.append({'Platform': code, 'ROMs': 0, 'Dataset': size,
-                             'Matched ROMs': 0, **{r: 0 for r in REGIONS}})
+                             'Matched ROMs': 0, 'avg size': 0.0,
+                             **{r: 0 for r in REGIONS}})
 
     summary_df = pd.DataFrame(summary_rows)
     if not summary_df.empty:
@@ -579,7 +612,8 @@ def apply_sales(snapshot_dir):
     found_consoles = set()
 
     for console_name in iter_progress(os.listdir(ROMS_ROOT), "Applying sales data"):
-        gl_path = os.path.join(ROMS_ROOT, console_name, 'gamelist.xml')
+        console_dir = os.path.join(ROMS_ROOT, console_name)
+        gl_path = os.path.join(console_dir, 'gamelist.xml')
         if not os.path.isfile(gl_path):
             continue
         ds_plat = PLAT_MAP.get(console_name.lower())
@@ -598,6 +632,9 @@ def apply_sales(snapshot_dir):
         sales_map = dict(zip(subset['key'], subset['Global_Sales']))
         name_map = dict(zip(subset['key'], subset['Name']))
         dataset_size = subset['key'].nunique()
+        rom_total = len(games)
+        folder_bytes = directory_size_bytes(console_dir, ROM_EXTS)
+        avg_size_gb = (folder_bytes / rom_total) / (1024 ** 3) if rom_total else 0
 
         region_counts = {r: 0 for r in REGIONS}
         matched = 0
@@ -634,9 +671,10 @@ def apply_sales(snapshot_dir):
         tree.write(os.path.join(out_dir, 'gamelist.xml'), encoding='utf-8', xml_declaration=True)
         summary_rows.append({
             'Platform': ds_plat,
-            'ROMs': len(games),
+            'ROMs': rom_total,
             'Dataset': dataset_size,
             'Matched ROMs': matched,
+            'avg size': avg_size_gb,
             **region_counts
         })
 
@@ -648,7 +686,8 @@ def apply_sales(snapshot_dir):
             continue
         size = sales[sales['Platform'].str.lower() == code.lower()]['key'].nunique()
         summary_rows.append({'Platform': code, 'ROMs': 0, 'Dataset': size,
-                             'Matched ROMs': 0, **{r: 0 for r in REGIONS}})
+                             'Matched ROMs': 0, 'avg size': 0.0,
+                             **{r: 0 for r in REGIONS}})
 
     summary_df = pd.DataFrame(summary_rows)
     if not summary_df.empty:
