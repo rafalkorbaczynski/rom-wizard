@@ -30,7 +30,7 @@ WS,wswan,,True,Bandai WonderSwan,1999,5
 Wii,wii,https://myrient.erista.me/files/Redump/Nintendo%20-%20Wii%20-%20NKit%20RVZ%20%5Bzstd-19-128k%5D/,False,Nintendo Wii,2006,7
 WiiU,wiiu,https://myrient.erista.me/files/No-Intro/Nintendo%20-%20Wii%20U%20%28Digital%29%20%28CDN%29/,False,Nintendo Wii U,2012,8
 X360,xbox360,,True,Microsoft Xbox 360,2005,7
-XB,xbox,https://myrient.erista.me/files/Redump/Microsoft%20-%20Xbox/,False,Microsoft Xbox,2001,6
+XB,xbox,https://archive.org/download/metal-gear-solid-2-substance-usa;https://archive.org/download/microsoft-xbox-xemu.xisoready-software-collection-part-2,False,Microsoft Xbox,2001,6
 XOne,xboxone,,True,Microsoft Xbox One,2013,8
 ATARIST,atarist,,False,Atari ST,1985,
 MAME,mame,,False,Arcade (MAME),1997,
