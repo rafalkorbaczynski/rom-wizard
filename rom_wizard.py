@@ -140,11 +140,21 @@ console = Console()
 
 
 def parse_platform_urls(url_field: str) -> list[str]:
-    """Split a platform URL field into individual URLs."""
+    """Split a platform URL field into individual URLs.
+
+    ``platforms.csv`` entries historically allowed a single URL, but some
+    platforms now provide a semi-colon separated list so that multiple archive
+    pages can be indexed together.  The data is user-maintained, meaning we may
+    encounter a mixture of separators (``;``, newlines, Windows ``\r\n``) or
+    accidental whitespace.  Treat any semi-colon immediately followed by a URL
+    as a delimiter while leaving literal query-string semi-colons untouched.
+    """
 
     if not isinstance(url_field, str):
         return []
-    parts = re.split(r'[;\n]+', url_field)
+
+    normalized = url_field.replace('\r', '\n')
+    parts = re.split(r';(?=https?://)|\n+', normalized)
     return [p.strip() for p in parts if p and p.strip()]
 
 
