@@ -589,18 +589,22 @@ class IGDBClient:
 
         if missing:
             fields = "id,name,first_release_date,release_dates.y,platforms,age_ratings"
-            where = "id = ({})".format(",".join(map(str, missing)))
-            fetched = self._post("games", f"fields {fields}; where {where}; limit 50;")
-            for g in fetched or []:
-                try:
-                    gid = int(g.get("id"))
-                except Exception:
+            for offset in range(0, len(missing), 50):
+                chunk = missing[offset : offset + 50]
+                if not chunk:
                     continue
-                if gid:
-                    results[gid] = g
-                    cache_put(self.cache, f"igdb_game::{gid}", json.dumps(g))
-                    with self._game_cache_lock:
-                        self._game_cache[gid] = g
+                where = "id = ({})".format(",".join(map(str, chunk)))
+                fetched = self._post("games", f"fields {fields}; where {where}; limit 50;")
+                for g in fetched or []:
+                    try:
+                        gid = int(g.get("id"))
+                    except Exception:
+                        continue
+                    if gid:
+                        results[gid] = g
+                        cache_put(self.cache, f"igdb_game::{gid}", json.dumps(g))
+                        with self._game_cache_lock:
+                            self._game_cache[gid] = g
 
         ordered: List[Dict[str, Any]] = []
         for gid in unique_ids:
