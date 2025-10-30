@@ -1331,6 +1331,12 @@ def main():
     ap.add_argument("--resume-from-cache", dest="resume_from_cache", action="store_true", default=True,
                     help="Reuse final ratings from SQLite for same (title, platform, year) before any API calls (default ON).")
     ap.add_argument("--no-resume-from-cache", dest="resume_from_cache", action="store_false")
+    # Cross-title reuse
+    ap.add_argument("--share-title-results", dest="share_title_results", action="store_true",
+                    help="Reuse previously fetched ratings for the same normalized title before issuing new API calls.")
+    ap.add_argument("--no-share-title-results", dest="share_title_results", action="store_false",
+                    help="Disable cross-title reuse cache.")
+    ap.set_defaults(share_title_results=True)
     # Checkpointing
     ap.add_argument("--checkpoint-every", type=int, default=0,
                     help="If >0, write CSV to disk every N attempted rows to preserve progress mid-run.")
@@ -1481,6 +1487,97 @@ def main():
 
     inflight = InFlightDeduper()
 
+    title_share_lock = threading.Lock()
+    title_share_state: Dict[str, Dict[str, Any]] = {}
+
+    def _share_platform_key(name: Optional[str]) -> Optional[str]:
+        if not name:
+            return None
+        base = _canonical_platform_name(name)
+        key = (base or name).strip().lower()
+        return key or None
+
+    def _share_year_value(year_val: Optional[int]) -> Optional[int]:
+        if year_val is None:
+            return None
+        try:
+            return int(year_val)
+        except Exception:
+            try:
+                return int(float(str(year_val)))
+            except Exception:
+                return None
+
+    def remember_title_result(norm_title_key: str, payload: Dict[str, Any], year: Optional[int], platform: Optional[str]) -> None:
+        if not args.share_title_results or not norm_title_key or not payload:
+            return
+        filtered = {k: v for k, v in payload.items() if v not in (None, "", [], {}, "None")}
+        if not filtered:
+            return
+        boards_present = {b for b, col in BOARD_COL.items() if filtered.get(col)}
+        if not boards_present:
+            return
+        platform_specific = any(b in {"3do", "sega_vrc"} for b in boards_present)
+        platform_key = _share_platform_key(platform) if platform_specific else "__ANY__"
+        year_key = _share_year_value(year)
+        with title_share_lock:
+            entry = title_share_state.get(norm_title_key)
+            if entry is None:
+                entry = {
+                    "payload": dict(filtered),
+                    "years": set(),
+                    "platforms": set(),
+                }
+                title_share_state[norm_title_key] = entry
+            else:
+                existing_payload = entry["payload"]
+                for k, v in filtered.items():
+                    if not existing_payload.get(k):
+                        existing_payload[k] = v
+            if year_key is None:
+                entry["years"].add(None)
+            else:
+                entry["years"].add(year_key)
+            if platform_key:
+                entry["platforms"].add(platform_key)
+
+    def lookup_title_result(norm_title_key: str, year: Optional[int], platform: Optional[str], boards: List[str]) -> Optional[Dict[str, Any]]:
+        if not args.share_title_results or not norm_title_key:
+            return None
+        with title_share_lock:
+            entry = title_share_state.get(norm_title_key)
+            if not entry:
+                return None
+            payload = entry.get("payload") or {}
+            if not payload:
+                return None
+            if boards:
+                if not any(payload.get(BOARD_COL[b]) for b in boards if b in BOARD_COL):
+                    return None
+            years = entry.get("years", set())
+            if year is not None and years:
+                year_int = _share_year_value(year)
+                if year_int is not None:
+                    ok = False
+                    for y in years:
+                        if y is None:
+                            ok = True
+                            break
+                        try:
+                            if abs(year_int - int(y)) <= 1:
+                                ok = True
+                                break
+                        except Exception:
+                            continue
+                    if not ok:
+                        return None
+            platforms = entry.get("platforms", set())
+            if platforms and "__ANY__" not in platforms:
+                plat_key = _share_platform_key(platform)
+                if not plat_key or plat_key not in platforms:
+                    return None
+            return dict(payload)
+
     # Worker
     def process_row(idx: int, n: int, total: int):
         dedupe_owner = False
@@ -1512,7 +1609,28 @@ def main():
             if args.verbose:
                 _progress_line(plat, title, "ROW", f"start [{n}/{total}]", True, print_lock)
 
-            def _apply_cached_result(cached_final: Dict[str, Any]) -> None:
+            norm_title_key = norm(title)
+
+            is_3do = platform_name_matches(["3DO"], plat)
+            is_sega_vrc = platform_name_matches([
+                "Master System","Sega Master System","Genesis","Mega Drive","Sega Genesis",
+                "Game Gear","Sega Game Gear","Sega CD","Mega-CD","Mega CD","32X","Sega 32X"
+            ], plat)
+            board_priority_local = [
+                b for b in board_priority
+                if not ((b == "3do" and not is_3do) or (b == "sega_vrc" and not is_sega_vrc))
+            ]
+
+            year: Optional[int] = None
+            if args.year_col and args.year_col in df.columns:
+                try:
+                    year = int(float(str(row.get(args.year_col)).strip()))
+                except Exception:
+                    year = _extract_year_from_row_any(df, row, args)
+            else:
+                year = _extract_year_from_row_any(df, row, args)
+
+            def _apply_cached_result(cached_final: Dict[str, Any], source_label: str = "Cache") -> None:
                 def _pick_best_from_cached(d: Dict[str,Any]) -> Tuple[Optional[str], Optional[str]]:
                     pri = ['pegi','esrb','cero','usk','3do','sega_vrc','vrc']
                     for b in pri:
@@ -1552,7 +1670,8 @@ def main():
                         with df_lock:
                             df.to_csv(args.out_path, index=False)
                     _emit_progress_locked()
-                _progress_line(plat, title, "Cache", "RESUMED", args.verbose, print_lock)
+                remember_title_result(norm_title_key, cached_final, year, plat)
+                _progress_line(plat, title, source_label, "RESUMED", args.verbose, print_lock)
 
             # If input CSV already has a PEGI rating, treat it as final and skip APIs
             pegi_int = _pegi_any_number_or_none(row.get(args.pegi_input_col)) if args.pegi_input_col in df.columns else None
@@ -1570,6 +1689,12 @@ def main():
                         with df_lock:
                             df.to_csv(args.out_path, index=False)
                     _emit_progress_locked()
+                remember_title_result(
+                    norm_title_key,
+                    {"rating_pegi": f"PEGI {int(pegi_int)}", "rating_pegi_source": "InputCSV"},
+                    year,
+                    plat,
+                )
                 _progress_line(plat, title, "InputCSV", f"SKIPPED APIS (PEGI present): PEGI {pegi_int}", args.verbose, print_lock)
                 return None
 
@@ -1583,16 +1708,6 @@ def main():
                     _emit_progress_locked()
                 _progress_line(plat, title, "InputCSV", "SKIPPED APIS (rating columns already filled)", args.verbose, print_lock)
                 return None
-
-            # Parse year if available
-            year = None
-            if args.year_col and args.year_col in df.columns:
-                try:
-                    year = int(float(str(row.get(args.year_col)).strip()))
-                except Exception:
-                    year = _extract_year_from_row_any(df, row, args)
-            else:
-                year = _extract_year_from_row_any(df, row, args)
 
             # Policy-based short-circuit (e.g., "3 if release_date<1994 else pegi>…")
             policy = (policy_map.get(plat) or policy_map_canon.get(plat.lower()) or "").lower()
@@ -1616,6 +1731,12 @@ def main():
                             with df_lock:
                                 df.to_csv(args.out_path, index=False)
                         _emit_progress_locked()
+                    remember_title_result(
+                        norm_title_key,
+                        {"rating_pegi": "PEGI 3", "rating_pegi_source": "Policy"},
+                        year,
+                        plat,
+                    )
                     _progress_line(plat, title, "Policy", 'PRE-1994 RULE: new_rating=3', args.verbose, print_lock)
                     return None
 
@@ -1626,6 +1747,12 @@ def main():
                     _apply_cached_result(cached_final)
                     return None
 
+            shared_payload = lookup_title_result(norm_title_key, year, plat, board_priority_local)
+            if shared_payload:
+                _apply_cached_result(shared_payload, source_label="TitleShare")
+                return None
+
+            if args.resume_from_cache:
                 dedupe_key = _final_key(title, plat, year)
                 dedupe_owner, dedupe_event = inflight.acquire(dedupe_key)
                 if not dedupe_owner and dedupe_event is not None:
@@ -1643,18 +1770,6 @@ def main():
                             _emit_progress_locked()
                     _progress_line(plat, title, "Cache", "WAIT COMPLETE (no cached result)", args.verbose, print_lock)
                     return None
-
-            # Board priority, but rate-aware: we will prefetch from IGDB/RAWG/Wikidata once, then pick the first matching board
-            # Filter boards by platform (3DO/VRC only when applicable)
-            is_3do = platform_name_matches(["3DO"], plat)
-            is_sega_vrc = platform_name_matches([
-                "Master System","Sega Master System","Genesis","Mega Drive","Sega Genesis",
-                "Game Gear","Sega Game Gear","Sega CD","Mega-CD","Mega CD","32X","Sega 32X"
-            ], plat)
-            board_priority_local = [
-                b for b in board_priority
-                if not ((b == "3do" and not is_3do) or (b == "sega_vrc" and not is_sega_vrc))
-            ]
 
             hit = collect_first_rating_tiered(
                 title=title, plat=plat, year=year, threshold=args.threshold,
@@ -1699,6 +1814,7 @@ def main():
                     final_cache_put(cache_conn, title, plat, year, hit)
                 except Exception:
                     pass
+                remember_title_result(norm_title_key, hit, year, plat)
 
                 with stats_lock:
                     stats["rows_with_any_rating"] += 1
