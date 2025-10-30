@@ -10,7 +10,9 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional, Set, Tuple
 
-import argparse, time, json, re, sqlite3, logging, datetime, random, unicodedata, threading
+from dataclasses import dataclass
+
+import argparse, time, json, re, sqlite3, logging, datetime, random, unicodedata, threading, itertools
 from collections import defaultdict, deque
 from urllib.parse import urlparse
 
@@ -390,6 +392,16 @@ class InFlightDeduper:
         if evt is not None:
             evt.set()
 
+
+@dataclass
+class IGDBPrefetchResult:
+    """Result returned by the IGDB batch prefetch queue."""
+
+    fulfilled: bool
+    via_batch: bool
+    game: Optional[Dict[str, Any]] = None
+
+
 # ===== IGDB client =====
 class IGDBClient:
     def __init__(self, client_id: str, client_secret: str, cache_conn,
@@ -596,6 +608,163 @@ class IGDBClient:
                 ordered.append(results[gid])
         return ordered
 
+    def batch_search_games(self, search_payloads: List[Dict[str, Any]]) -> Dict[str, Optional[Dict[str, Any]]]:
+        """Resolve multiple title searches via a single /multiquery call."""
+
+        out: Dict[str, Optional[Dict[str, Any]]] = {}
+        if not search_payloads:
+            return out
+
+        entries: List[Dict[str, Any]] = []
+        need_query: List[Dict[str, Any]] = []
+
+        for payload in search_payloads:
+            key = payload.get("key")
+            name_raw = (payload.get("name") or "").strip()
+            if key is None:
+                continue
+            if not name_raw:
+                out[str(key)] = None
+                continue
+
+            platform_name = payload.get("platform_name")
+            year = payload.get("year")
+            threshold = int(payload.get("threshold", 78))
+
+            norm_name = norm(name_raw)
+            platform_norm = norm(platform_name or "")
+            cache_key = f"igdb_search::{norm_name}::{platform_norm}::{year or ''}::{threshold}"
+
+            cached = cache_get(self.cache, cache_key)
+            if cached is not None:
+                try:
+                    parsed = json.loads(cached)
+                except Exception:
+                    parsed = None
+                if parsed:
+                    out[str(key)] = parsed
+                else:
+                    out[str(key)] = None
+                continue
+
+            entry = {
+                "key": str(key),
+                "name": name_raw,
+                "platform_name": platform_name,
+                "year": year,
+                "threshold": threshold,
+                "norm_name": norm_name,
+                "cache_key": cache_key,
+                "plat_ids": self._platform_ids_for_base_with_aliases(platform_name) if platform_name else set(),
+                "search_ids": None,
+            }
+
+            search_ids: Optional[List[int]] = None
+            with self._search_cache_lock:
+                if norm_name in self._search_cache:
+                    search_ids = list(self._search_cache[norm_name])
+            if search_ids is None:
+                cached_ids = cache_get(self.cache, f"igdb_search_ids::{norm_name}")
+                if cached_ids:
+                    try:
+                        parsed_ids = json.loads(cached_ids)
+                        if isinstance(parsed_ids, list):
+                            search_ids = [int(x) for x in parsed_ids if x]
+                    except Exception:
+                        search_ids = None
+
+            if search_ids:
+                entry["search_ids"] = list(dict.fromkeys(int(i) for i in search_ids if i))
+            else:
+                need_query.append(entry)
+
+            entries.append(entry)
+
+        if need_query:
+            body_bits: List[str] = []
+            for idx, entry in enumerate(need_query):
+                q = entry["name"].replace('"', "").replace("\n", " ").strip()
+                alias = f"q{idx}"
+                body_bits.append(
+                    f'query {alias} "search" {{ fields name,game; search "{q}"; limit 25; }}'
+                )
+            if body_bits:
+                try:
+                    self._log(f"[IGDB] Batch searching {len(body_bits)} titles via multiquery…")
+                    response = self._post("multiquery", "\n".join(body_bits))
+                except Exception as e:
+                    raise
+                else:
+                    for idx, entry in enumerate(need_query):
+                        rows = []
+                        if isinstance(response, list) and idx < len(response):
+                            rows = response[idx].get("result") or response[idx].get("results") or []
+                        ids = [int(r.get("game")) for r in rows if r.get("game")]
+                        entry["search_ids"] = list(dict.fromkeys(ids))
+                        cache_put(self.cache, f"igdb_search_ids::{entry['norm_name']}", json.dumps(entry["search_ids"]))
+                        with self._search_cache_lock:
+                            self._search_cache[entry["norm_name"]] = list(entry["search_ids"])
+
+        all_ids: List[int] = []
+        for entry in entries:
+            ids = entry.get("search_ids") or []
+            entry["search_ids"] = list(dict.fromkeys(int(i) for i in ids if i))
+            all_ids.extend(entry["search_ids"])
+
+        games_by_id: Dict[int, Dict[str, Any]] = {}
+        if all_ids:
+            fetched_games = self._fetch_games_by_ids(all_ids)
+            for g in fetched_games:
+                try:
+                    games_by_id[int(g.get("id"))] = g
+                except Exception:
+                    continue
+
+        for entry in entries:
+            key = entry["key"]
+            cache_key = entry["cache_key"]
+            ids = entry.get("search_ids") or []
+            if not ids:
+                cache_put(self.cache, cache_key, json.dumps({}))
+                out[key] = None
+                continue
+
+            games = [games_by_id.get(i) for i in ids if games_by_id.get(i)]
+            if not games:
+                cache_put(self.cache, cache_key, json.dumps({}))
+                out[key] = None
+                continue
+
+            plat_ids: Set[int] = entry.get("plat_ids") or set()
+            best = None
+            best_s = -999
+            for g in games:
+                plats = set(int(p) for p in (g.get("platforms") or []))
+                if plat_ids and not (plats & plat_ids):
+                    continue
+                sc = self._score_game(entry["name"], g, entry["year"], entry["threshold"])
+                if sc > best_s:
+                    best, best_s = g, sc
+            if best and same_title(entry["name"], best.get("name", ""), entry["threshold"]):
+                cache_put(self.cache, cache_key, json.dumps(best))
+                out[key] = best
+                continue
+
+            best2 = None
+            best2_s = -999
+            for g in games:
+                sc = self._score_game(entry["name"], g, entry["year"], entry["threshold"])
+                if sc > best2_s:
+                    best2, best2_s = g, sc
+            if best2 and same_title(entry["name"], best2.get("name", ""), entry["threshold"]):
+                cache_put(self.cache, cache_key, json.dumps(best2))
+                out[key] = best2
+            else:
+                cache_put(self.cache, cache_key, json.dumps({}))
+                out[key] = None
+
+        return out
+
     def search_game_tiered(self, name: str, platform_name: Optional[str], year: Optional[int], threshold: int) -> Optional[Dict[str, Any]]:
         if not name: return None
         q = name.strip()
@@ -701,6 +870,101 @@ class IGDBClient:
             r["content_description_texts"] = [desc_map.get(i, "") for i in (r.get("content_descriptions") or []) if desc_map.get(i)]
         cache_put(self.cache, cache_key, json.dumps(rs))
         return rs
+
+@dataclass
+class _IGDBBatchRequest:
+    key: str
+    title: str
+    platform: Optional[str]
+    year: Optional[int]
+    threshold: int
+    event: threading.Event
+    result: Optional[Dict[str, Any]] = None
+    fulfilled: bool = False
+    via_batch: bool = False
+    error: Optional[Exception] = None
+
+
+class IGDBBatcher:
+    """Coordinate batched IGDB searches across worker threads."""
+
+    def __init__(self, client: IGDBClient, batch_size: int, wait_seconds: float = 0.05) -> None:
+        self.client = client
+        self.batch_size = max(1, int(batch_size))
+        self.wait_seconds = max(0.0, float(wait_seconds))
+        self._lock = threading.Lock()
+        self._queue: deque[_IGDBBatchRequest] = deque()
+        self._counter = itertools.count(1)
+
+    def fetch(self, title: str, platform: Optional[str], year: Optional[int], threshold: int) -> IGDBPrefetchResult:
+        if not self.client or self.batch_size <= 1:
+            return IGDBPrefetchResult(fulfilled=False, via_batch=False, game=None)
+
+        req = _IGDBBatchRequest(
+            key=f"req{next(self._counter)}",
+            title=title,
+            platform=platform,
+            year=year,
+            threshold=threshold,
+            event=threading.Event(),
+        )
+
+        batch: Optional[List[_IGDBBatchRequest]] = None
+        with self._lock:
+            self._queue.append(req)
+            if len(self._queue) >= self.batch_size:
+                take = min(self.batch_size, len(self._queue))
+                batch = [self._queue.popleft() for _ in range(take)]
+
+        if batch:
+            self._execute_batch(batch)
+
+        if not req.event.wait(self.wait_seconds):
+            with self._lock:
+                if req in self._queue:
+                    self._queue.remove(req)
+                    batch = [req]
+                else:
+                    batch = None
+            if batch:
+                self._execute_batch(batch)
+            if not req.event.is_set():
+                req.event.wait()
+
+        if not req.fulfilled or req.error is not None:
+            return IGDBPrefetchResult(fulfilled=False, via_batch=False, game=None)
+
+        game_payload = req.result if isinstance(req.result, dict) and req.result else None
+        return IGDBPrefetchResult(fulfilled=True, via_batch=req.via_batch, game=game_payload)
+
+    def _execute_batch(self, batch: List[_IGDBBatchRequest]) -> None:
+        payloads = [
+            {
+                "key": req.key,
+                "name": req.title,
+                "platform_name": req.platform,
+                "year": req.year,
+                "threshold": req.threshold,
+            }
+            for req in batch
+        ]
+        try:
+            mapping = self.client.batch_search_games(payloads)
+        except Exception as exc:
+            log.warning("IGDB batch search failed (%d rows): %s", len(batch), exc)
+            for req in batch:
+                req.error = exc
+                req.fulfilled = False
+                req.via_batch = False
+                req.event.set()
+            return
+
+        for req in batch:
+            req.result = mapping.get(req.key)
+            req.fulfilled = True
+            req.via_batch = True
+            req.event.set()
+
 
 IGDB_ORG = {1:"ESRB",2:"PEGI",3:"CERO",4:"USK",5:"GRAC",6:"CLASS_IND",7:"ACB"}
 IGDB_RATING_NAME = {
@@ -1129,7 +1393,8 @@ def collect_first_rating_tiered(title: str, plat: str, year: Optional[int], thre
                                 board_priority: List[str], verbose: bool=False,
                                 print_lock: Optional[threading.Lock]=None,
                                 api_executor: Optional[ThreadPoolExecutor]=None,
-                                api_counter: Optional[APICallCounter]=None) -> Dict[str, Any]:
+                                api_counter: Optional[APICallCounter]=None,
+                                igdb_prefetch: Optional[IGDBPrefetchResult]=None) -> Dict[str, Any]:
     enriched: Dict[str, Any] = {}
 
     def _run_api(func):
@@ -1159,19 +1424,42 @@ def collect_first_rating_tiered(title: str, plat: str, year: Optional[int], thre
 
     # 1) IGDB (primary)
     if igdb:
-        def _igdb_task():
-            try:
-                game = igdb.search_game_tiered(title, plat, year, threshold)
-                if game:
-                    return ratings_from_igdb_full(game, igdb) or {}
-            except Exception as e:
-                log.warning("IGDB fetch failed: %s", e)
-            return {}
+        prefetched_game: Optional[Dict[str, Any]] = None
+        prefetched_attempted = False
+        prefetched_via_batch = False
+        if igdb_prefetch and igdb_prefetch.fulfilled:
+            prefetched_attempted = True
+            prefetched_via_batch = igdb_prefetch.via_batch
+            if igdb_prefetch.game:
+                prefetched_game = igdb_prefetch.game
 
-        payload = _run_api(_igdb_task)
+        payload: Dict[str, Any] = {}
+        if prefetched_attempted:
+            if prefetched_game:
+                try:
+                    payload = ratings_from_igdb_full(prefetched_game, igdb) or {}
+                except Exception as e:
+                    log.warning("IGDB prefetch parsing failed: %s", e)
+                    payload = {}
+        else:
+            def _igdb_task():
+                try:
+                    game = igdb.search_game_tiered(title, plat, year, threshold)
+                    if game:
+                        return ratings_from_igdb_full(game, igdb) or {}
+                except Exception as e:
+                    log.warning("IGDB fetch failed: %s", e)
+                return {}
+
+            payload = _run_api(_igdb_task)
+
         if isinstance(payload, dict) and payload:
             enriched.update(payload)
-            _progress_line(plat, title, "IGDB", "HAVE AGE_RATINGS", verbose, print_lock)
+            api_label = "IGDB-batch" if prefetched_via_batch else "IGDB"
+            status = "HAVE AGE_RATINGS"
+            if prefetched_via_batch:
+                status += " (prefetch)"
+            _progress_line(plat, title, api_label, status, verbose, print_lock)
             if _has_priority_hit():
                 return enriched
 
@@ -1327,6 +1615,10 @@ def main():
     ap.add_argument("--board-priority", default="pegi,esrb,cero,usk,3do,sega_vrc")
     # Concurrency
     ap.add_argument("--workers", type=int, default=6, help="Number of threads to process rows")
+    ap.add_argument("--igdb-batch-size", type=int, default=0,
+                    help="If >1, queue unresolved rows and issue IGDB multiqueries of up to this size.")
+    ap.add_argument("--igdb-batch-wait", type=float, default=0.05,
+                    help="Seconds to wait for other rows before flushing a partial IGDB batch (when enabled).")
     # Resume / final-result cache
     ap.add_argument("--resume-from-cache", dest="resume_from_cache", action="store_true", default=True,
                     help="Reuse final ratings from SQLite for same (title, platform, year) before any API calls (default ON).")
@@ -1356,6 +1648,8 @@ def main():
             "GB min spacing (s)": args.gb_min_spacing,
             "GB rps": args.rps_giantbomb,
             "IGDB rps": args.rps_igdb,
+            "IGDB batch size": args.igdb_batch_size or "—",
+            "IGDB batch wait (s)": args.igdb_batch_wait if args.igdb_batch_size > 1 else "—",
             "Resume from cache": args.resume_from_cache,
             "Checkpoint every": args.checkpoint_every or "—"
         }, True, title="Concurrency & Limits", lock=print_lock)
@@ -1382,6 +1676,10 @@ def main():
             cfg["igdb"]["client_id"], cfg["igdb"]["client_secret"], cache_conn,
             rl_global, rl_igdb, print_lock=print_lock, verbose=args.verbose, api_counter=api_counter
         )
+
+    igdb_batcher: Optional[IGDBBatcher] = None
+    if igdb and args.igdb_batch_size and args.igdb_batch_size > 1:
+        igdb_batcher = IGDBBatcher(igdb, args.igdb_batch_size, args.igdb_batch_wait)
 
     wd_user_agent = cfg.get("wikidata", {}).get("user_agent", "RatingsPipeline/1.0 (+contact)")
 
@@ -1771,11 +2069,19 @@ def main():
                     _progress_line(plat, title, "Cache", "WAIT COMPLETE (no cached result)", args.verbose, print_lock)
                     return None
 
+            igdb_prefetch_result: Optional[IGDBPrefetchResult] = None
+            if igdb_batcher:
+                try:
+                    igdb_prefetch_result = igdb_batcher.fetch(title, plat, year, args.threshold)
+                except Exception as _batch_e:
+                    log.warning("IGDB batch prefetch failed: %s", _batch_e)
+                    igdb_prefetch_result = IGDBPrefetchResult(fulfilled=False, via_batch=False, game=None)
+
             hit = collect_first_rating_tiered(
                 title=title, plat=plat, year=year, threshold=args.threshold,
                 igdb=igdb, wd_user_agent=wd_user_agent, wd_cache=cache_conn, rl_global=rl_global, rl_wd=rl_wd,
                 gb=gb, rawg=rawg, board_priority=board_priority_local, verbose=args.verbose, print_lock=print_lock,
-                api_executor=api_executor, api_counter=api_counter
+                api_executor=api_executor, api_counter=api_counter, igdb_prefetch=igdb_prefetch_result
             )
 
             with stats_lock:
