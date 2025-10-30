@@ -16,7 +16,8 @@ from urllib.parse import urlparse
 
 import requests
 import pandas as pd
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor, as_completed, Future
+from functools import lru_cache
 
 # ===== Logging =====
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -101,9 +102,9 @@ except Exception:
 _ROMAN = {'ix':9,'viii':8,'vii':7,'vi':6,'iv':4,'iii':3,'ii':2,'i':1}
 _ROMAN_RE = re.compile(r'\b(' + '|'.join(sorted(_ROMAN, key=len, reverse=True)) + r')\b')
 
-def norm(text: str) -> str:
-    s = text or ""
-    s = s.lower()
+@lru_cache(maxsize=8192)
+def _norm_cached(text: str) -> str:
+    s = text.lower()
     s = unicodedata.normalize('NFKD', s)
     s = re.sub(r"[®™©]", "", s)
     s = re.sub(r"[^a-z0-9\s\-:]", " ", s)
@@ -112,8 +113,15 @@ def norm(text: str) -> str:
     s = re.sub(r"\s+", " ", s).strip()
     return s
 
+def norm(text: str) -> str:
+    return _norm_cached("" if text is None else str(text))
+
+@lru_cache(maxsize=8192)
+def _token_tuple(text: str) -> Tuple[str, ...]:
+    return tuple(t for t in _norm_cached(text).split() if t)
+
 def token_set(text: str) -> Set[str]:
-    return set([t for t in norm(text).split() if t])
+    return set(_token_tuple("" if text is None else str(text)))
 
 # ===== Platform helpers =====
 PLATFORM_ALIASES = {
@@ -296,6 +304,8 @@ class IGDBClient:
         self.print_lock = print_lock
         self.rl_global = rl_global
         self.rl_api = rl_api
+        self._session = requests.Session()
+        self._session_lock = threading.Lock()
 
         self._tok_lock = threading.Lock()
         self._token = None
@@ -327,15 +337,16 @@ class IGDBClient:
     def _fetch_token(self):
         self._log("[IGDB] Requesting OAuth token…")
         self.rl_global.wait(); self.rl_api.wait()
-        r = requests.post(
-            "https://id.twitch.tv/oauth2/token",
-            params={
-                "client_id": self.client_id,
-                "client_secret": self.client_secret,
-                "grant_type": "client_credentials",
-            },
-            timeout=20,
-        )
+        with self._session_lock:
+            r = self._session.post(
+                "https://id.twitch.tv/oauth2/token",
+                params={
+                    "client_id": self.client_id,
+                    "client_secret": self.client_secret,
+                    "grant_type": "client_credentials",
+                },
+                timeout=20,
+            )
         r.raise_for_status()
         data = r.json()
         self._save_token(data["access_token"], data.get("expires_in", 3600))
@@ -351,7 +362,8 @@ class IGDBClient:
         url = f"https://api.igdb.com/v4/{endpoint}"
         self._log(f"[IGDB] POST /{endpoint} body={body[:120]}…")
         self.rl_global.wait(); self.rl_api.wait()
-        r = requests.post(url, data=body, headers=headers, timeout=30)
+        with self._session_lock:
+            r = self._session.post(url, data=body, headers=headers, timeout=30)
         return r
 
     def _post(self, endpoint: str, body: str):
@@ -437,11 +449,24 @@ class IGDBClient:
         q = name.strip()
         plat_ids = self._platform_ids_for_base_with_aliases(platform_name) if platform_name else set()
 
+        cache_key = f"igdb_search::{norm(name)}::{norm(platform_name or '')}::{year or ''}::{threshold}"
+        cached = cache_get(self.cache, cache_key)
+        if cached is not None:
+            try:
+                data = json.loads(cached)
+                if data:
+                    return data
+                return None
+            except Exception:
+                pass
+
         # Search by title
         self._log(f"[IGDB] Searching for '{name}' (plat={platform_name or '—'}, year={year or '—'})")
         res = self._post("search", f'fields name,game; search "{q}"; limit 25;')
         game_ids = [r.get("game") for r in res if r.get("game")]
-        if not game_ids: return None
+        if not game_ids:
+            cache_put(self.cache, cache_key, json.dumps({}))
+            return None
         games = self._fetch_games_by_ids(game_ids)
 
         # Pass A: platform-scoped (base + digital aliases)
@@ -453,6 +478,7 @@ class IGDBClient:
             sc = self._score_game(name, g, year, threshold)
             if sc > best_s: best, best_s = g, sc
         if best and same_title(name, best.get("name",""), threshold):
+            cache_put(self.cache, cache_key, json.dumps(best))
             return best
 
         # Pass B: unscoped (fallback)
@@ -461,14 +487,27 @@ class IGDBClient:
         for g in games:
             sc = self._score_game(name, g, year, threshold)
             if sc > best2_s: best2, best2_s = g, sc
+        result = None
         if best2 and same_title(name, best2.get("name",""), threshold):
-            return best2
-        return None
+            result = best2
+        cache_put(self.cache, cache_key, json.dumps(result or {}))
+        return result
 
     def age_ratings_for(self, game_id: int) -> List[Dict[str, Any]]:
         if not game_id: return []
+        cache_key = f"igdb_age::{int(game_id)}"
+        cached = cache_get(self.cache, cache_key)
+        if cached is not None:
+            try:
+                data = json.loads(cached)
+                if isinstance(data, list):
+                    return data
+            except Exception:
+                pass
         g = self._post("games", f"fields age_ratings; where id = {game_id}; limit 1;")
-        if not g or not g[0].get("age_ratings"): return []
+        if not g or not g[0].get("age_ratings"):
+            cache_put(self.cache, cache_key, json.dumps([]))
+            return []
         rating_ids = g[0]["age_ratings"]
         rs = self._post(
             "age_ratings",
@@ -486,6 +525,7 @@ class IGDBClient:
             for d in ds: desc_map[d["id"]] = d.get("description","")
         for r in rs:
             r["content_description_texts"] = [desc_map.get(i, "") for i in (r.get("content_descriptions") or []) if desc_map.get(i)]
+        cache_put(self.cache, cache_key, json.dumps(rs))
         return rs
 
 IGDB_ORG = {1:"ESRB",2:"PEGI",3:"CERO",4:"USK",5:"GRAC",6:"CLASS_IND",7:"ACB"}
@@ -573,6 +613,8 @@ class GiantBombClient:
         self.hourly_search = hourly_search
         self.hourly_details = hourly_details
         self.spacing = spacing
+        self._session = requests.Session()
+        self._session_lock = threading.Lock()
 
     def _request(self, path: str, params: Dict[str, Any], which: str, max_retries: int = 6) -> Dict[str, Any]:
         headers = {"User-Agent": self.user_agent, "Accept":"application/json"}
@@ -585,7 +627,8 @@ class GiantBombClient:
             self.spacing.wait()
             (self.hourly_search if which == "search" else self.hourly_details).wait()
 
-            r = requests.get(url, headers=headers, params=q, timeout=30, allow_redirects=True)
+            with self._session_lock:
+                r = self._session.get(url, headers=headers, params=q, timeout=30, allow_redirects=True)
             txt = r.text[:200].replace("\n"," ")
 
             if r.status_code in (420, 429, 502, 503, 504):
@@ -685,23 +728,49 @@ class RAWGClient:
         self.api_key = api_key; self.cache = cache_conn
         self.base = "https://api.rawg.io/api"
         self.rl_global = rl_global; self.rl_api = rl_api
+        self._session = requests.Session()
+        self._session_lock = threading.Lock()
     def _get(self, path: str, params: Dict[str, Any]) -> Dict[str, Any]:
         params = dict(params); params["key"] = self.api_key
         self.rl_global.wait(); self.rl_api.wait()
-        r = requests.get(f"{self.base}/{path.lstrip('/')}", params=params, timeout=30)
+        with self._session_lock:
+            r = self._session.get(f"{self.base}/{path.lstrip('/')}", params=params, timeout=30)
         if r.status_code >= 400:
             log.warning("RAWG %s error (%d): %s | url=%s", path, r.status_code, r.text[:200], r.url)
         r.raise_for_status()
         return r.json()
     def search(self, name: str, year: Optional[int]) -> List[Dict[str, Any]]:
+        cache_key = f"rawg_search::{norm(name)}::{year or ''}"
+        cached = cache_get(self.cache, cache_key)
+        if cached is not None:
+            try:
+                data = json.loads(cached)
+                if isinstance(data, list):
+                    return data
+            except Exception:
+                pass
         params = {"search": name, "page_size": 5}
         if year: params["search_precise"] = True
         data = self._get("games", params)
-        return data.get("results") or []
+        results = data.get("results") or []
+        cache_put(self.cache, cache_key, json.dumps(results))
+        return results
     def game_details(self, id_or_slug: Any) -> Dict[str, Any]:
+        cache_key = f"rawg_game::{id_or_slug}"
+        cached = cache_get(self.cache, cache_key)
+        if cached is not None:
+            try:
+                data = json.loads(cached)
+                if isinstance(data, dict):
+                    return data
+            except Exception:
+                pass
         try:
-            return self._get(f"games/{id_or_slug}", {})
+            data = self._get(f"games/{id_or_slug}", {})
+            cache_put(self.cache, cache_key, json.dumps(data))
+            return data
         except Exception:
+            cache_put(self.cache, cache_key, json.dumps({}))
             return {}
 
 def ratings_from_rawg(result: Dict[str, Any], plat_name: Optional[str]) -> Dict[str, Any]:
@@ -874,71 +943,148 @@ def collect_first_rating_tiered(title: str, plat: str, year: Optional[int], thre
                                 igdb: Optional[IGDBClient], wd_user_agent: str, wd_cache, rl_global: RPSLimiter, rl_wd: RPSLimiter,
                                 gb: Optional[GiantBombClient], rawg: Optional[RAWGClient],
                                 board_priority: List[str], verbose: bool=False,
-                                print_lock: Optional[threading.Lock]=None) -> Dict[str, Any]:
+                                print_lock: Optional[threading.Lock]=None,
+                                api_executor: Optional[ThreadPoolExecutor]=None) -> Dict[str, Any]:
     enriched: Dict[str, Any] = {}
 
-    # 1) IGDB (prefetch all boards) — higher RPS, rich data
-    igdb_game = None
-    igdb_full: Dict[str, Any] = {}
+    future_to_name: Dict[Future, str] = {}
+    futures: List[Future] = []
+
+    def _schedule(name: str, func):
+        if api_executor:
+            fut = api_executor.submit(func)
+        else:
+            fut = Future()
+            try:
+                fut.set_result(func())
+            except Exception as exc:
+                fut.set_exception(exc)
+        futures.append(fut)
+        future_to_name[fut] = name
+        return fut
+
+    def _cancel_remaining(skip: Optional[Future]):
+        for f in futures:
+            if f is skip:
+                continue
+            if not f.done():
+                f.cancel()
+
+    def _maybe_finish(label: str, current_future: Optional[Future]) -> bool:
+        for b in board_priority:
+            col = BOARD_COL[b]
+            if enriched.get(col):
+                _print_kv(
+                    {col: enriched[col], f"{col}_source": enriched.get(f"{col}_source", "(unknown)")},
+                    verbose,
+                    title=f"[HIT] {b.upper()} from {label} — stopping",
+                    lock=print_lock,
+                )
+                _cancel_remaining(current_future)
+                return True
+        return False
+
     if igdb:
-        try:
-            igdb_game = igdb.search_game_tiered(title, plat, year, threshold)
-            if igdb_game:
-                igdb_full = ratings_from_igdb_full(igdb_game, igdb)
-                if igdb_full:
-                    enriched.update(igdb_full)
-                    _progress_line(plat, title, "IGDB", "HAVE AGE_RATINGS", verbose, print_lock)
-        except Exception as e:
-            log.warning("IGDB fetch failed: %s", e)
+        def _igdb_task():
+            try:
+                game = igdb.search_game_tiered(title, plat, year, threshold)
+                if game:
+                    data = ratings_from_igdb_full(game, igdb) or {}
+                    return data
+            except Exception as e:
+                log.warning("IGDB fetch failed: %s", e)
+            return {}
 
-    # 2) RAWG (ESRB only) — medium RPS; fetch once
-    rawg_map: Dict[str,str] = {}
+        _schedule("IGDB", _igdb_task)
+
     if rawg and ("esrb" in board_priority):
+        def _rawg_task():
+            try:
+                results = rawg.search(title, year)
+                best = None; best_s = -999
+                for r0 in results:
+                    s = 0
+                    if (r0.get("name", "")) and (r0.get("name").strip().lower() == title.lower()):
+                        s += 2
+                    try:
+                        y0 = int((r0.get("released") or "")[:4])
+                        if year and abs(y0 - int(year)) <= 1:
+                            s += 1
+                    except Exception:
+                        pass
+                    if s > best_s:
+                        best, best_s = r0, s
+                if best is not None:
+                    det = rawg.game_details(best.get("slug") or best.get("id"))
+                    return ratings_from_rawg(det, plat) or {}
+            except Exception as e:
+                log.warning("RAWG fetch failed: %s", e)
+            return {}
+
+        _schedule("RAWG", _rawg_task)
+
+    def _wd_task():
         try:
-            results = rawg.search(title, year)
-            best = None; best_s = -999
-            for r0 in results:
-                s = 0
-                if (r0.get("name","")) and (r0.get("name").strip().lower() == title.lower()): s += 2
-                try:
-                    y0 = int((r0.get("released") or "")[:4])
-                    if year and abs(y0 - int(year)) <= 1: s += 1
-                except Exception:
-                    pass
-                if s > best_s: best, best_s = r0, s
-            if best is not None:
-                det = rawg.game_details(best.get("slug") or best.get("id"))
-                rawg_map = ratings_from_rawg(det, plat)
-                if rawg_map:
-                    enriched.update(rawg_map)
-                    _progress_line(plat, title, "RAWG", f"ESRB={rawg_map.get('rating_esrb')}", verbose, print_lock)
+            wd_all = wikidata_ratings(title, plat, year, wd_user_agent, wd_cache, rl_global, rl_wd, verbose)
+            if wd_all:
+                wd_map: Dict[str, Any] = {}
+                if wd_all.get("PEGI"):
+                    wd_map["rating_pegi"] = wd_all["PEGI"]
+                    wd_map["rating_pegi_source"] = "Wikidata"
+                if wd_all.get("ESRB"):
+                    wd_map["rating_esrb"] = wd_all["ESRB"]
+                    wd_map["rating_esrb_source"] = "Wikidata"
+                if wd_all.get("CERO"):
+                    wd_map["rating_cero"] = wd_all["CERO"]
+                    wd_map["rating_cero_source"] = "Wikidata"
+                if wd_all.get("USK"):
+                    wd_map["rating_usk"] = wd_all["USK"]
+                    wd_map["rating_usk_source"] = "Wikidata"
+                return wd_map
         except Exception as e:
-            log.warning("RAWG fetch failed: %s", e)
+            log.warning("Wikidata fetch failed: %s", e)
+        return {}
 
-    # 3) Wikidata (prefetch all boards) — lower RPS than IGDB/RAWG
-    wd_all: Dict[str,str] = {}
-    try:
-        wd_all = wikidata_ratings(title, plat, year, wd_user_agent, wd_cache, rl_global, rl_wd, verbose)
-        if wd_all:
-            wd_map = {}
-            if wd_all.get("PEGI"): wd_map["rating_pegi"] = wd_all["PEGI"]; wd_map["rating_pegi_source"] = "Wikidata"
-            if wd_all.get("ESRB"): wd_map["rating_esrb"] = wd_all["ESRB"]; wd_map["rating_esrb_source"] = "Wikidata"
-            if wd_all.get("CERO"): wd_map["rating_cero"] = wd_all["CERO"]; wd_map["rating_cero_source"] = "Wikidata"
-            if wd_all.get("USK"):  wd_map["rating_usk"]  = wd_all["USK"];  wd_map["rating_usk_source"]  = "Wikidata"
-            if wd_map:
-                # do not overwrite existing keys from IGDB/RAWG if set
-                for k,v in wd_map.items():
-                    enriched.setdefault(k, v)
-                _progress_line(plat, title, "Wikidata", "CANDIDATES", verbose, print_lock)
-    except Exception as e:
-        log.warning("Wikidata fetch failed: %s", e)
+    _schedule("WIKIDATA", _wd_task)
 
-    # If any board from priority is satisfied, return now (avoid GiantBomb)
+    if futures:
+        for fut in as_completed(list(futures)):
+            name = future_to_name.get(fut, "")
+            try:
+                payload = fut.result()
+            except Exception as e:
+                log.warning("%s fetch failed: %s", name or "API", e)
+                continue
+
+            if not isinstance(payload, dict):
+                payload = {}
+
+            if name == "IGDB":
+                if payload:
+                    enriched.update(payload)
+                    _progress_line(plat, title, "IGDB", "HAVE AGE_RATINGS", verbose, print_lock)
+                    if _maybe_finish("non-GB source", fut):
+                        return enriched
+            elif name == "RAWG":
+                if payload:
+                    enriched.update(payload)
+                    status = "ESRB"
+                    if payload.get("rating_esrb"):
+                        status = f"ESRB={payload.get('rating_esrb')}"
+                    _progress_line(plat, title, "RAWG", status, verbose, print_lock)
+                    if _maybe_finish("non-GB source", fut):
+                        return enriched
+            elif name == "WIKIDATA":
+                if payload:
+                    for k, v in payload.items():
+                        enriched.setdefault(k, v)
+                    _progress_line(plat, title, "Wikidata", "CANDIDATES", verbose, print_lock)
+                    if _maybe_finish("non-GB source", fut):
+                        return enriched
+
     for b in board_priority:
         col = BOARD_COL[b]
         if enriched.get(col):
-            _print_kv({col: enriched[col], f"{col}_source": enriched.get(f"{col}_source","(unknown)")}, verbose,
-                      title=f"[HIT] {b.upper()} from non-GB source — stopping", lock=print_lock)
             return enriched
 
     # 4) GiantBomb (very limited) — last resort
@@ -1145,6 +1291,16 @@ def main():
 
     board_priority = [b.strip().lower() for b in args.board_priority.split(",") if b.strip() and b.strip().lower() in BOARD_COL]
 
+    api_executor: Optional[ThreadPoolExecutor] = None
+    parallel_sources = 1  # Wikidata always runs
+    if igdb:
+        parallel_sources += 1
+    if rawg and ("esrb" in board_priority):
+        parallel_sources += 1
+    if parallel_sources > 1:
+        api_workers = min(16, max(4, args.workers * parallel_sources))
+        api_executor = ThreadPoolExecutor(max_workers=api_workers)
+
     # Worker
     def process_row(idx: int, n: int, total: int):
         row = df.loc[idx]
@@ -1262,7 +1418,8 @@ def main():
         hit = collect_first_rating_tiered(
             title=title, plat=plat, year=year, threshold=args.threshold,
             igdb=igdb, wd_user_agent=wd_user_agent, wd_cache=cache_conn, rl_global=rl_global, rl_wd=rl_wd,
-            gb=gb, rawg=rawg, board_priority=board_priority_local, verbose=args.verbose, print_lock=print_lock
+            gb=gb, rawg=rawg, board_priority=board_priority_local, verbose=args.verbose, print_lock=print_lock,
+            api_executor=api_executor
         )
 
         with stats_lock:
@@ -1341,13 +1498,17 @@ def main():
     # Run threaded
     _print_section("PROCESS (TIERED + MULTITHREADED)", args.verbose, print_lock)
     total = len(work_indices)
-    with ThreadPoolExecutor(max_workers=max(1, args.workers)) as ex:
-        futures = [ex.submit(process_row, idx, i, total) for i, idx in enumerate(work_indices, 1)]
-        for _f in as_completed(futures):
-            try:
-                _f.result()
-            except Exception as __e:
-                _print_section(f"WORKER ERROR: {type(__e).__name__}: {__e}", True, print_lock)
+    try:
+        with ThreadPoolExecutor(max_workers=max(1, args.workers)) as ex:
+            futures = [ex.submit(process_row, idx, i, total) for i, idx in enumerate(work_indices, 1)]
+            for _f in as_completed(futures):
+                try:
+                    _f.result()
+                except Exception as __e:
+                    _print_section(f"WORKER ERROR: {type(__e).__name__}: {__e}", True, print_lock)
+    finally:
+        if api_executor:
+            api_executor.shutdown(wait=True)
 
     # Finalize
     _print_section("FINALIZE", args.verbose, print_lock)
