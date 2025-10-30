@@ -302,6 +302,42 @@ def final_cache_put(conn, title: str, platform: str, year: Optional[int], result
 
 # Convenience: mark negative result in a separate table (optional noop here)
 
+def final_cache_get_negative(conn, title, platform, year):
+    try:
+        with db_lock:
+            cur = conn.cursor()
+            year_val: Optional[int]
+            try:
+                year_val = int(year) if year not in (None, "") else None
+            except Exception:
+                year_val = None
+            if year_val is None:
+                cur.execute(
+                    "SELECT payload FROM ratings_cache WHERE title=? AND platform=? AND year IS NULL ORDER BY ts DESC LIMIT 1",
+                    (str(title), str(platform)),
+                )
+            else:
+                cur.execute(
+                    "SELECT payload FROM ratings_cache WHERE title=? AND platform=? AND year=? ORDER BY ts DESC LIMIT 1",
+                    (str(title), str(platform), year_val),
+                )
+            row = cur.fetchone()
+    except sqlite3.OperationalError:
+        return None
+    except Exception:
+        return None
+    if not row or not row[0]:
+        return None
+    try:
+        payload = json.loads(row[0]) if isinstance(row[0], str) else None
+    except Exception:
+        payload = None
+    if not isinstance(payload, dict):
+        return None
+    if payload.get("__no_rating"):
+        return payload
+    return None
+
 def final_cache_put_negative(conn, title, platform, year):
     try:
         conn.execute(
@@ -1457,6 +1493,7 @@ def main():
         "rows_selected": len(work_indices),
         "rows_attempted": 0,
         "rows_with_any_rating": 0,
+        "cache_negative_hits": 0,
         "source_counts": {"InputCSV":0, "IGDB":0, "Wikidata":0, "GiantBomb":0, "RAWG":0},
         "board_counts": {"PEGI":0,"ESRB":0,"CERO":0,"USK":0,"3DO":0,"SEGA_VRC":0},
         "start_time": time.time(),
@@ -1468,7 +1505,7 @@ def main():
         lock=print_lock,
     )
 
-    per_platform = defaultdict(lambda: {"selected":0,"with_any_rating":0})
+    per_platform = defaultdict(lambda: {"selected":0,"attempted":0,"with_any_rating":0,"cached_negative":0})
     for idx in work_indices:
         p = str(df.loc[idx, args.platform_col]).strip()
         per_platform[p]["selected"] += 1
@@ -1590,6 +1627,7 @@ def main():
 
         def _increment_attempted_locked():
             stats["rows_attempted"] += 1
+            per_platform[plat]["attempted"] += 1
 
         def _emit_progress_locked():
             progress.maybe_emit(
@@ -1753,6 +1791,25 @@ def main():
                 return None
 
             if args.resume_from_cache:
+                cached_negative = final_cache_get_negative(cache_conn, title, plat, year)
+                if cached_negative:
+                    source_label = str(cached_negative.get("__source", "cache: no rating"))
+                    with df_lock:
+                        if "new_rating_source" not in df.columns:
+                            df["new_rating_source"] = ""
+                        df.at[idx, "new_rating_source"] = source_label
+                    with stats_lock:
+                        _increment_attempted_locked()
+                        stats["cache_negative_hits"] += 1
+                        per_platform[plat]["cached_negative"] += 1
+                        if args.checkpoint_every and (stats["rows_attempted"] % args.checkpoint_every == 0):
+                            with df_lock:
+                                df.to_csv(args.out_path, index=False)
+                        _emit_progress_locked()
+                    _progress_line(plat, title, "Cache", "NEGATIVE (cached miss)", args.verbose, print_lock)
+                    return None
+
+            if args.resume_from_cache:
                 dedupe_key = _final_key(title, plat, year)
                 dedupe_owner, dedupe_event = inflight.acquire(dedupe_key)
                 if not dedupe_owner and dedupe_event is not None:
@@ -1889,6 +1946,7 @@ def main():
         "rows_selected": stats["rows_selected"],
         "rows_attempted": stats["rows_attempted"],
         "rows_with_any_rating": stats["rows_with_any_rating"],
+        "cache_negative_hits": stats["cache_negative_hits"],
         "coverage_pct_attempted": round(coverage_pct, 2),
         "source_counts": stats["source_counts"],
         "board_counts": stats["board_counts"],
@@ -1898,15 +1956,29 @@ def main():
 
     plat_rows = []
     for plat_label, nums in per_platform.items():
-        sel = nums["selected"]; got = nums["with_any_rating"]; pct = (100.0 * got / sel) if sel else 0.0
-        plat_rows.append({"Platform": plat_label, "Selected": sel, "WithAnyRating": got, "CoveragePct": round(pct, 2)})
+        sel = nums["selected"]
+        att = nums.get("attempted", 0)
+        got = nums["with_any_rating"]
+        neg = nums.get("cached_negative", 0)
+        denom = att if att else sel
+        pct = (100.0 * got / denom) if denom else 0.0
+        plat_rows.append(
+            {
+                "Platform": plat_label,
+                "Selected": sel,
+                "Attempted": att,
+                "WithAnyRating": got,
+                "CachedNegative": neg,
+                "CoveragePct": round(pct, 2),
+            }
+        )
     pd.DataFrame(plat_rows).sort_values(by=["CoveragePct","Selected"], ascending=[False, False]).to_csv(args.summary_platform_csv, index=False)
 
     log.info(
-        "FINAL: %d/%d attempted (%.1f%%) have ≥1 rating | IGDB=%d, Wikidata=%d, GiantBomb=%d, RAWG=%d. Wrote %s and %s",
+        "FINAL: %d/%d attempted (%.1f%%) have ≥1 rating | IGDB=%d, Wikidata=%d, GiantBomb=%d, RAWG=%d, cache-negative=%d. Wrote %s and %s",
         stats["rows_with_any_rating"], stats["rows_attempted"], coverage_pct,
         stats["source_counts"]["IGDB"], stats["source_counts"]["Wikidata"],
-        stats["source_counts"]["GiantBomb"], stats["source_counts"]["RAWG"],
+        stats["source_counts"]["GiantBomb"], stats["source_counts"]["RAWG"], stats["cache_negative_hits"],
         args.summary_json, args.summary_platform_csv
     )
     api_totals = api_counter.snapshot()
