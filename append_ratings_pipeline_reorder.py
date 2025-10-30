@@ -1,0 +1,1386 @@
+from __future__ import annotations
+
+# Aurora Arcade — Ratings pipeline (PATCHED, rate-limit–aware)
+# - Prepass: use PEGI column if present; pre-1994 rule for most pre-ESRB era platforms (except SEGA VRC + 3DO)
+# - Cache-first: resume from SQLite cache
+# - API order (least → most rate-limited): IGDB (prefetch all boards) → RAWG (ESRB only) → Wikidata (SPARQL) → GiantBomb (last)
+# - For IGDB/RAWG/Wikidata we fetch once per row (covers all boards we can) to minimize tokens
+# - GiantBomb is only used if others failed
+# - Threaded, checkpointing, and periodic summaries
+
+from typing import Any, Dict, List, Optional, Set, Tuple
+
+import argparse, time, json, re, sqlite3, logging, datetime, random, unicodedata, threading
+from collections import defaultdict, deque
+from urllib.parse import urlparse
+
+import requests
+import pandas as pd
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
+# ===== Logging =====
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+log = logging.getLogger("ratings")
+
+# ===== Pretty printing =====
+def _pretty_table(headers: List[str], rows: List[List[Any]]) -> str:
+    cols = len(headers)
+    widths = [len(str(h)) for h in headers]
+    for r in rows:
+        for i in range(cols):
+            if i < len(r):
+                widths[i] = max(widths[i], len(str(r[i])))
+    sep = "+".join("-" * (w + 2) for w in widths)
+    sep = f"+{sep}+"
+    def _row(cells):
+        return "|" + "|".join(" " + str(cells[i])[:widths[i]].ljust(widths[i]) + " " for i in range(cols)) + "|"
+    out = [sep, _row(headers), sep]
+    for r in rows: out.append(_row(r))
+    out.append(sep)
+    return "\n".join(out)
+
+def _print_section(title: str, verbose: bool, lock: Optional[threading.Lock]=None):
+    if not verbose: return
+    if lock:
+        with lock:
+            print("\n" + "=" * 80, flush=True); print(title, flush=True); print("=" * 80, flush=True)
+    else:
+        print("\n" + "=" * 80, flush=True); print(title, flush=True); print("=" * 80, flush=True)
+
+def _print_kv(kv: Dict[str, Any], verbose: bool, title: Optional[str]=None, lock: Optional[threading.Lock]=None):
+    if not verbose: return
+    if lock:
+        with lock:
+            if title: print(title, flush=True)
+            if not kv: print("(none)", flush=True); return
+            headers = ["Field","Value"]; rows = [[k,v] for k,v in kv.items()]
+            print(_pretty_table(headers, rows), flush=True)
+    else:
+        if title: print(title, flush=True)
+        if not kv: print("(none)", flush=True); return
+        headers = ["Field","Value"]; rows = [[k,v] for k,v in kv.items()]
+        print(_pretty_table(headers, rows), flush=True)
+
+def _print_rows(headers: List[str], rows: List[List[Any]], verbose: bool, title: Optional[str]=None, lock: Optional[threading.Lock]=None):
+    if not verbose: return
+    if lock:
+        with lock:
+            if title: print(title, flush=True)
+            if not rows: print("(none)", flush=True); return
+            print(_pretty_table(headers, rows), flush=True)
+    else:
+        if title: print(title, flush=True)
+        if not rows: print("(none)", flush=True); return
+        print(_pretty_table(headers, rows), flush=True)
+
+# ===== Minimal progress line printer =====
+def _progress_line(platform: str, title: str, api: str, status: str, verbose: bool=False, lock: Optional[threading.Lock]=None):
+    if not verbose: return
+    line = f"[{platform}] | {title} | {api} | {status}"
+    if lock:
+        with lock:
+            print(line, flush=True)
+    else:
+        print(line, flush=True)
+
+# ===== Fuzzy matching =====
+try:
+    from rapidfuzz import fuzz
+except Exception:
+    from difflib import SequenceMatcher
+    class _F:
+        @staticmethod
+        def token_sort_ratio(a,b):
+            def _n(x): return ' '.join(sorted(x.split()))
+            sm = SequenceMatcher(None, _n(a), _n(b)); return int(round(sm.ratio()*100))
+        @staticmethod
+        def partial_ratio(a,b):
+            sm = SequenceMatcher(None, a, b); return int(round(sm.ratio()*100))
+    fuzz = _F()
+
+_ROMAN = {'ix':9,'viii':8,'vii':7,'vi':6,'iv':4,'iii':3,'ii':2,'i':1}
+_ROMAN_RE = re.compile(r'\b(' + '|'.join(sorted(_ROMAN, key=len, reverse=True)) + r')\b')
+
+def norm(text: str) -> str:
+    s = text or ""
+    s = s.lower()
+    s = unicodedata.normalize('NFKD', s)
+    s = re.sub(r"[®™©]", "", s)
+    s = re.sub(r"[^a-z0-9\s\-:]", " ", s)
+    s = re.sub(r"\b(the|a|an|and|of|for|edition|remastered|definitive|hd|goty|collection|complete|ultimate)\b", " ", s)
+    s = _ROMAN_RE.sub(lambda m: str(_ROMAN.get(m.group(1), m.group(1))), s)
+    s = re.sub(r"\s+", " ", s).strip()
+    return s
+
+def token_set(text: str) -> Set[str]:
+    return set([t for t in norm(text).split() if t])
+
+# ===== Platform helpers =====
+PLATFORM_ALIASES = {
+    "gc":"Nintendo GameCube","gen":"Sega Genesis","md":"Sega Mega Drive","nes":"Nintendo Entertainment System",
+    "snes":"Super Nintendo Entertainment System","ng":"Neo Geo","ngcd":"Neo Geo CD","ps":"PlayStation","ps1":"PlayStation",
+    "ps2":"PlayStation 2","ps3":"PlayStation 3","ps4":"PlayStation 4","ps5":"PlayStation 5","psp":"PlayStation Portable",
+    "vita":"PlayStation Vita","xbox":"Xbox","x360":"Xbox 360","xb1":"Xbox One","xsx":"Xbox Series X|S","switch":"Nintendo Switch",
+    "3do":"3DO Interactive Multiplayer","pc":"PC (Microsoft Windows)","2600":"Atari 2600",
+}
+
+DIGITAL_ALIASES = {
+    "Xbox 360": ["Xbox Live Arcade"],
+    "Xbox One": ["Xbox Live Arcade", "Xbox Store"],
+    "Xbox Series X|S": ["Xbox Store"],
+    "PlayStation 3": ["PlayStation Network (PS3)", "PlayStation Network"],
+    "PlayStation 4": ["PlayStation Network (PS4)", "PlayStation Network"],
+    "PlayStation 5": ["PlayStation Network (PS5)", "PlayStation Network"],
+    "PlayStation Portable": ["PlayStation Network (PSP)", "PlayStation Network"],
+    "PlayStation Vita": ["PlayStation Network (Vita)", "PlayStation Network"],
+    "Wii": ["WiiWare"],
+    "Wii U": ["Nintendo eShop (Wii U)", "Nintendo eShop"],
+    "Nintendo Switch": ["Nintendo eShop"],
+    "Nintendo 3DS": ["Nintendo eShop (3DS)", "Nintendo eShop"],
+}
+
+def _canonical_platform_name(name: Optional[str]) -> Optional[str]:
+    if not name: return name
+    key = str(name).strip().lower()
+    return PLATFORM_ALIASES.get(key, name)
+
+def platform_name_matches(platform_names: List[str], target_platform: Optional[str]) -> bool:
+    if not target_platform: return True
+    tset = token_set(str(target_platform))
+    for nm in platform_names or []:
+        if len(tset & token_set(nm)) >= max(1, min(len(tset), len(token_set(nm))) // 2):
+            return True
+    return False
+
+# Special cases for pre-1994 exemption logic
+
+def _platform_is_sega_vrc(plat: str) -> bool:
+    names = [
+        "Master System","Sega Master System",
+        "Genesis","Mega Drive","Sega Genesis",
+        "Game Gear","Sega Game Gear",
+        "Sega CD","Mega-CD","Mega CD",
+        "32X","Sega 32X"
+    ]
+    try:
+        if platform_name_matches(names, plat): return True
+    except Exception:
+        pass
+    p = (plat or "").strip().lower()
+    aliases = {"gen","md","megadrive","gg","scd","megacd","32x","mastersystem","sms","sg1000"}
+    return p in aliases
+
+def _platform_is_3do(plat: str) -> bool:
+    try:
+        return platform_name_matches(["3DO"], plat)
+    except Exception:
+        return (str(plat or "").strip().lower() == "3do")
+
+# ===== Cache (SQLite) =====
+db_lock = threading.Lock()
+
+def get_db(path="ratings_cache.sqlite"):
+    conn = sqlite3.connect(path, check_same_thread=False)
+    c = conn.cursor()
+    c.execute("""CREATE TABLE IF NOT EXISTS kv (k TEXT PRIMARY KEY, v TEXT)""")
+    conn.commit()
+    return conn
+
+def cache_get(conn, key):
+    with db_lock:
+        c = conn.cursor(); c.execute("SELECT v FROM kv WHERE k=?", (key,))
+        row = c.fetchone()
+    return None if row is None else row[0]
+
+def cache_put(conn, key, value):
+    with db_lock:
+        c = conn.cursor(); c.execute("INSERT OR REPLACE INTO kv(k,v) VALUES(?,?)", (key, value))
+        conn.commit()
+
+# Final-result cache helpers (per title/platform/year)
+
+def _final_key(title: str, platform: str, year: Optional[int]) -> str:
+    return f"final::{norm(title)}::{norm(platform)}::{year or ''}"
+
+def final_cache_get(conn, title: str, platform: str, year: Optional[int]) -> Optional[Dict[str, Any]]:
+    key = _final_key(title, platform, year)
+    raw = cache_get(conn, key)
+    if not raw:
+        return None
+    try:
+        return json.loads(raw)
+    except Exception:
+        return None
+
+def final_cache_put(conn, title: str, platform: str, year: Optional[int], result: Dict[str, Any]) -> None:
+    key = _final_key(title, platform, year)
+    try:
+        cache_put(conn, key, json.dumps(result))
+    except Exception:
+        pass
+
+# Convenience: mark negative result in a separate table (optional noop here)
+
+def final_cache_put_negative(conn, title, platform, year):
+    try:
+        conn.execute(
+            'CREATE TABLE IF NOT EXISTS ratings_cache (title TEXT, platform TEXT, year INT, payload TEXT, ts INT)'
+        )
+        conn.execute(
+            'INSERT OR REPLACE INTO ratings_cache (title, platform, year, payload, ts) VALUES (?,?,?,?,strftime("%s","now"))',
+            (str(title), str(platform), int(year) if (year not in (None, "")) else None, json.dumps({"__checked": True, "__no_rating": True}))
+        )
+        conn.commit()
+    except Exception:
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+
+# ===== Thread-safe rate limiting =====
+class RPSLimiter:
+    def __init__(self, rps: float):
+        self.interval = 1.0 / max(1e-6, rps)
+        self.next_ok = 0.0
+        self.lock = threading.Lock()
+    def wait(self):
+        with self.lock:
+            now = time.time()
+            if now < self.next_ok:
+                time.sleep(self.next_ok - now)
+                now = time.time()
+            # introduce tiny jitter
+            self.next_ok = max(now, self.next_ok) + self.interval * (0.9 + 0.2*random.random())
+
+class HourlyQuotaLimiter:
+    def __init__(self, max_calls: int, window_seconds: int = 3600):
+        self.max_calls = max_calls
+        self.window = window_seconds
+        self.events = deque()
+        self.lock = threading.Lock()
+    def wait(self):
+        while True:
+            with self.lock:
+                now = time.time()
+                while self.events and now - self.events[0] > self.window:
+                    self.events.popleft()
+                if len(self.events) < self.max_calls:
+                    self.events.append(now)
+                    return
+                wait = self.window - (now - self.events[0])
+            if wait > 0:
+                time.sleep(min(wait, 60))
+
+class MinSpacingLimiter:
+    def __init__(self, min_seconds: float):
+        self.min = float(min_seconds)
+        self.last = 0.0
+        self.lock = threading.Lock()
+    def wait(self):
+        with self.lock:
+            now = time.time()
+            delta = now - self.last
+            if delta < self.min:
+                time.sleep(self.min - delta)
+            self.last = time.time()
+
+# ===== IGDB client =====
+class IGDBClient:
+    def __init__(self, client_id: str, client_secret: str, cache_conn,
+                 rl_global: RPSLimiter, rl_api: RPSLimiter,
+                 print_lock: Optional[threading.Lock]=None, verbose: bool=False):
+        self.client_id = client_id
+        self.client_secret = client_secret
+        self.cache = cache_conn
+        self.verbose = verbose
+        self.print_lock = print_lock
+        self.rl_global = rl_global
+        self.rl_api = rl_api
+
+        self._tok_lock = threading.Lock()
+        self._token = None
+        self._token_expiry = 0.0
+
+        try:
+            payload = cache_get(self.cache, "igdb_token_payload")
+            if payload:
+                data = json.loads(payload)
+                self._token = data.get("access_token")
+                self._token_expiry = float(data.get("expiry", 0.0))
+        except Exception:
+            pass
+
+    def _log(self, msg):
+        if self.verbose:
+            if self.print_lock:
+                with self.print_lock: print(msg, flush=True)
+            else:
+                print(msg, flush=True)
+
+    def _save_token(self, access_token: str, expires_in: int):
+        expiry = time.time() + max(0, int(expires_in) - 60)
+        self._token = access_token
+        self._token_expiry = expiry
+        cache_put(self.cache, "igdb_token_payload",
+                  json.dumps({"access_token": access_token, "expiry": expiry}))
+
+    def _fetch_token(self):
+        self._log("[IGDB] Requesting OAuth token…")
+        self.rl_global.wait(); self.rl_api.wait()
+        r = requests.post(
+            "https://id.twitch.tv/oauth2/token",
+            params={
+                "client_id": self.client_id,
+                "client_secret": self.client_secret,
+                "grant_type": "client_credentials",
+            },
+            timeout=20,
+        )
+        r.raise_for_status()
+        data = r.json()
+        self._save_token(data["access_token"], data.get("expires_in", 3600))
+        self._log("[IGDB] Token acquired.")
+
+    def _ensure_token(self, force=False):
+        with self._tok_lock:
+            if force or (not self._token) or (time.time() >= self._token_expiry):
+                self._fetch_token()
+
+    def _post_once(self, endpoint: str, body: str):
+        headers = {"Client-ID": self.client_id, "Authorization": f"Bearer {self._token}"}
+        url = f"https://api.igdb.com/v4/{endpoint}"
+        self._log(f"[IGDB] POST /{endpoint} body={body[:120]}…")
+        self.rl_global.wait(); self.rl_api.wait()
+        r = requests.post(url, data=body, headers=headers, timeout=30)
+        return r
+
+    def _post(self, endpoint: str, body: str):
+        self._ensure_token(force=False)
+        r = self._post_once(endpoint, body)
+        if r.status_code == 401:
+            self._log("[IGDB] 401 received; refreshing token and retrying once…")
+            with self._tok_lock:
+                self._token = None
+                self._token_expiry = 0.0
+                cache_put(self.cache, "igdb_token_payload", json.dumps({"access_token": "", "expiry": 0.0}))
+            self._ensure_token(force=True)
+            r = self._post_once(endpoint, body)
+        if r.status_code >= 400:
+            log.warning("IGDB %s error (%d): %s | body=%s", endpoint, r.status_code, r.text[:300], body)
+        r.raise_for_status()
+        return r.json()
+
+    def _platform_id_for_name(self, plat_name: str) -> Optional[int]:
+        plat_name = _canonical_platform_name(plat_name)
+        if not plat_name: return None
+        key = f"igdb_plat_id::{plat_name}"
+        cached = cache_get(self.cache, key)
+        if cached:
+            try:
+                self._log(f"[IGDB] Cached platform id '{plat_name}' = {cached}")
+                return int(cached)
+            except Exception: pass
+        q = str(plat_name).replace('"','')
+        res = self._post("platforms", f'fields id,name,abbreviation; search "{q}"; limit 15;')
+        best = None; best_s = -1
+        for r in res:
+            cand = r.get("name") or ""
+            ts = fuzz.token_sort_ratio(norm(plat_name), norm(cand))
+            pr = fuzz.partial_ratio(norm(plat_name), norm(cand))
+            score = min(ts, pr)
+            if score > best_s: best, best_s = r, score
+        if best and best_s >= 70:
+            pid = int(best["id"]); cache_put(self.cache, key, str(pid))
+            self._log(f"[IGDB] Platform '{plat_name}' → id {pid}")
+            return pid
+        cache_put(self.cache, key, "")
+        self._log(f"[IGDB] Could not resolve platform '{plat_name}'")
+        return None
+
+    def _platform_ids_for_base_with_aliases(self, base_platform_name: Optional[str]) -> Set[int]:
+        ids: Set[int] = set()
+        if not base_platform_name: return ids
+        base = _canonical_platform_name(base_platform_name)
+        if base:
+            pid = self._platform_id_for_name(base)
+            if pid: ids.add(pid)
+        for alias in DIGITAL_ALIASES.get(base, []):
+            pid = self._platform_id_for_name(alias)
+            if pid: ids.add(pid)
+        return ids
+
+    def _score_game(self, target_title: str, g: Dict[str, Any], year: Optional[int], threshold: int) -> int:
+        s = 0; name_g = g.get("name","")
+        if same_title(target_title, name_g, threshold): s += 5
+        else:
+            a = norm(target_title); b = norm(name_g)
+            s += min(fuzz.token_sort_ratio(a,b), fuzz.partial_ratio(a,b))//40
+        if year:
+            y = None
+            if g.get('release_dates'):
+                yrs = [d.get('y') for d in g['release_dates'] if d.get('y')]
+                if yrs: y = min(yrs)
+            if not y and g.get('first_release_date'):
+                try: y = pd.to_datetime(g['first_release_date'], unit='s', utc=True).year
+                except Exception: y = None
+            if y and abs(int(y) - int(year)) <= 1: s += 1
+        return s
+
+    def _fetch_games_by_ids(self, ids: List[int]) -> List[Dict[str, Any]]:
+        if not ids: return []
+        fields = "id,name,first_release_date,release_dates.y,platforms,age_ratings"
+        where = "id = ({})".format(",".join(map(str, ids)))
+        return self._post("games", f"fields {fields}; where {where}; limit 50;")
+
+    def search_game_tiered(self, name: str, platform_name: Optional[str], year: Optional[int], threshold: int) -> Optional[Dict[str, Any]]:
+        if not name: return None
+        q = name.strip()
+        plat_ids = self._platform_ids_for_base_with_aliases(platform_name) if platform_name else set()
+
+        # Search by title
+        self._log(f"[IGDB] Searching for '{name}' (plat={platform_name or '—'}, year={year or '—'})")
+        res = self._post("search", f'fields name,game; search "{q}"; limit 25;')
+        game_ids = [r.get("game") for r in res if r.get("game")]
+        if not game_ids: return None
+        games = self._fetch_games_by_ids(game_ids)
+
+        # Pass A: platform-scoped (base + digital aliases)
+        best = None; best_s = -999
+        for g in games:
+            plats = set(int(p) for p in (g.get("platforms") or []))
+            if plat_ids and not (plats & plat_ids):
+                continue
+            sc = self._score_game(name, g, year, threshold)
+            if sc > best_s: best, best_s = g, sc
+        if best and same_title(name, best.get("name",""), threshold):
+            return best
+
+        # Pass B: unscoped (fallback)
+        self._log("[IGDB] No solid platform-scoped match; retrying without platform constraint…")
+        best2 = None; best2_s = -999
+        for g in games:
+            sc = self._score_game(name, g, year, threshold)
+            if sc > best2_s: best2, best2_s = g, sc
+        if best2 and same_title(name, best2.get("name",""), threshold):
+            return best2
+        return None
+
+    def age_ratings_for(self, game_id: int) -> List[Dict[str, Any]]:
+        if not game_id: return []
+        g = self._post("games", f"fields age_ratings; where id = {game_id}; limit 1;")
+        if not g or not g[0].get("age_ratings"): return []
+        rating_ids = g[0]["age_ratings"]
+        rs = self._post(
+            "age_ratings",
+            f"fields id,category,rating,content_descriptions,rating_cover_url; where id = ({','.join(map(str, rating_ids))}); limit 50;"
+        )
+        all_desc_ids = []
+        for r in rs: all_desc_ids.extend(r.get("content_descriptions") or [])
+        desc_map = {}
+        if all_desc_ids:
+            uniq = list(dict.fromkeys(all_desc_ids))
+            ds = self._post(
+                "age_rating_content_descriptions",
+                f"fields id,description; where id = ({','.join(map(str, uniq))}); limit 200;"
+            )
+            for d in ds: desc_map[d["id"]] = d.get("description","")
+        for r in rs:
+            r["content_description_texts"] = [desc_map.get(i, "") for i in (r.get("content_descriptions") or []) if desc_map.get(i)]
+        return rs
+
+IGDB_ORG = {1:"ESRB",2:"PEGI",3:"CERO",4:"USK",5:"GRAC",6:"CLASS_IND",7:"ACB"}
+IGDB_RATING_NAME = {
+    1:"PEGI 3",2:"PEGI 7",3:"PEGI 12",4:"PEGI 16",5:"PEGI 18",6:"RP",
+    7:"EC",8:"E",9:"E10+",10:"T",11:"M",12:"AO",
+    13:"CERO A",14:"CERO B",15:"CERO C",16:"CERO D",17:"CERO Z",
+    18:"USK 0",19:"USK 6",20:"USK 12",21:"USK 16",22:"USK 18",
+    23:"GRAC ALL",24:"GRAC 12",25:"GRAC 15",26:"GRAC 18",27:"GRAC TESTING",
+    28:"CLASS_IND L",29:"CLASS_IND 10",30:"CLASS_IND 12",31:"CLASS_IND 14",32:"CLASS_IND 16",33:"CLASS_IND 18",
+    34:"ACB G",35:"ACB PG",36:"ACB M",37:"ACB MA15+",38:"ACB R18",39:"ACB RC"
+}
+
+def ratings_from_igdb_full(game: Dict[str, Any], igdb: IGDBClient) -> Dict[str, Any]:
+    out: Dict[str, Any] = {}
+    if not game or not game.get("id"): return out
+    for r in igdb.age_ratings_for(game["id"]):
+        org_name = IGDB_ORG.get(r.get("category"))
+        label = IGDB_RATING_NAME.get(r.get("rating"))
+        if org_name and label:
+            col = f"rating_{org_name.lower()}"
+            if not out.get(col):
+                out[col] = label
+                descs = r.get("content_description_texts") or []
+                if descs: out[f"{col}_descriptors"] = "; ".join(sorted(set(d for d in descs if d)))
+                out[f"{col}_source"] = "IGDB"
+    return out
+
+# ===== Wikidata =====
+def wikidata_ratings(title: str, platform_hint: Optional[str], year: Optional[int],
+                     user_agent: str, cache_conn, rl_global: RPSLimiter, rl_api: RPSLimiter,
+                     verbose: bool=False) -> Dict[str,str]:
+    key = f"wd::{title}::{platform_hint}::{year}"
+    cached = cache_get(cache_conn, key)
+    if cached is not None:
+        try: return json.loads(cached)
+        except Exception: pass
+
+    headers = {"Accept":"application/sparql-results+json"}
+    if user_agent: headers["User-Agent"] = user_agent
+    title_escaped = title.replace('"','\\"')
+    plat_filter = f'?item wdt:P400 ?platform . ?platform rdfs:label ?plat_label . FILTER(CONTAINS(LCASE(STR(?plat_label)), LCASE("{platform_hint}"))) .' if platform_hint else ""
+    year_filter = f"FILTER (year(?date) >= {int(year)-1} && year(?date) <= {int(year)+1}) ." if year else ""
+    query = f"""
+    SELECT ?item ?itemLabel ?esrb ?esrbLabel ?pegi ?pegiLabel ?cero ?ceroLabel ?usk ?uskLabel WHERE {{
+      ?item rdfs:label "{title_escaped}"@en .
+      OPTIONAL {{ ?item wdt:P852 ?esrb . }}
+      OPTIONAL {{ ?item wdt:P908 ?pegi . }}
+      OPTIONAL {{ ?item wdt:P853 ?cero . }}
+      OPTIONAL {{ ?item wdt:P914 ?usk . }}
+      OPTIONAL {{ ?item wdt:P577 ?date . }}
+      {year_filter}
+      {plat_filter}
+      SERVICE wikibase:label {{ bd:serviceParam wikibase:language "en". }}
+    }} LIMIT 5
+    """
+    rl_global.wait(); rl_api.wait()
+    r = requests.get("https://query.wikidata.org/sparql", params={"query": query, "format":"json"}, headers=headers, timeout=30)
+    out: Dict[str,str] = {}
+    if r.status_code == 200:
+        for b in r.json().get("results",{}).get("bindings",[]):
+            if "pegiLabel" in b and not out.get("PEGI"): out["PEGI"] = b["pegiLabel"]["value"]
+            if "esrbLabel" in b and not out.get("ESRB"): out["ESRB"] = b["esrbLabel"]["value"]
+            if "ceroLabel" in b and not out.get("CERO"): out["CERO"] = b["ceroLabel"]["value"]
+            if "uskLabel"  in b and not out.get("USK"):  out["USK"]  = b["uskLabel"]["value"]
+    else:
+        log.warning("Wikidata HTTP %d: %s", r.status_code, r.text[:200])
+    cache_put(cache_conn, key, json.dumps(out))
+    return out
+
+# ===== GiantBomb =====
+class GiantBombClient:
+    def __init__(self, api_key: str, user_agent: Optional[str], cache_conn,
+                 rl_global: RPSLimiter, rps_api: RPSLimiter,
+                 hourly_search: HourlyQuotaLimiter, hourly_details: HourlyQuotaLimiter,
+                 spacing: MinSpacingLimiter, print_lock: Optional[threading.Lock]=None, verbose: bool=False):
+        self.api_key = api_key
+        self.user_agent = (user_agent or "RatingsPipeline/1.0")
+        self.cache = cache_conn
+        self.base = "https://www.giantbomb.com/api"
+        self.verbose = verbose
+        self.print_lock = print_lock
+        self.rl_global = rl_global
+        self.rps_api = rps_api
+        self.hourly_search = hourly_search
+        self.hourly_details = hourly_details
+        self.spacing = spacing
+
+    def _request(self, path: str, params: Dict[str, Any], which: str, max_retries: int = 6) -> Dict[str, Any]:
+        headers = {"User-Agent": self.user_agent, "Accept":"application/json"}
+        q = dict(params or {}); q["api_key"] = self.api_key; q["format"] = "json"
+        url = f"{self.base}/{path.lstrip('/')}"
+        backoff = 15.0
+        for attempt in range(1, max_retries+1):
+            self.rl_global.wait()
+            self.rps_api.wait()
+            self.spacing.wait()
+            (self.hourly_search if which == "search" else self.hourly_details).wait()
+
+            r = requests.get(url, headers=headers, params=q, timeout=30, allow_redirects=True)
+            txt = r.text[:200].replace("\n"," ")
+
+            if r.status_code in (420, 429, 502, 503, 504):
+                ra = r.headers.get("Retry-After")
+                wait = float(ra) if (ra and ra.isdigit()) else backoff
+                log.warning("GiantBomb %s throttle (%d). Sleeping %.1fs. Attempt %d/%d", path, r.status_code, wait, attempt, max_retries)
+                time.sleep(wait); backoff = min(backoff*1.7, 180.0); continue
+
+            if r.status_code >= 400:
+                log.warning("GiantBomb %s error (%d): %s | url=%s", path, r.status_code, txt, r.url)
+                return {}
+
+            try:
+                data = r.json()
+            except Exception:
+                log.warning("GiantBomb %s JSON parse failed; first 200 chars: %s", path, txt)
+                return {}
+
+            if isinstance(data, dict) and data.get("status_code") == 107:
+                wait = backoff
+                log.warning("GiantBomb %s status_code 107 (slow down). Sleeping %.1fs. Attempt %d/%d", path, wait, attempt, max_retries)
+                time.sleep(wait); backoff = min(backoff*1.7, 180.0); continue
+
+            return data
+        return {}
+
+    @staticmethod
+    def _strip_punct(s: str) -> str:
+        return re.sub(r"[^\w\s]", " ", s).strip()
+
+    def search_game(self, name: str, year: Optional[int]) -> List[Dict[str, Any]]:
+        def _do(qname: str, cache_key: str):
+            cached = cache_get(self.cache, cache_key)
+            if cached:
+                try:
+                    data = json.loads(cached)
+                    return data.get("results") or []
+                except Exception:
+                    pass
+            data = self._request("search/", {
+                "query": qname, "resources":"game", "limit": 8,
+                "field_list":"name,api_detail_url,original_release_date,guid"
+            }, which="search")
+            cache_put(self.cache, cache_key, json.dumps(data))
+            return data.get("results") or []
+
+        key1 = f"gb_search::{norm(name)}::{year or ''}"
+        results = _do(name, key1)
+        if results:
+            return results
+        cleaned = self._strip_punct(name)
+        if cleaned and cleaned != name:
+            key2 = f"gb_search_np::{norm(cleaned)}::{year or ''}"
+            results2 = _do(cleaned, key2)
+            return results2
+        return results
+
+    def _path_from_api_detail_url(self, api_detail_url: str) -> Optional[str]:
+        if not api_detail_url: return None
+        p = urlparse(api_detail_url); path = p.path or ""
+        if path.startswith("/api/"): path = path[len("/api/"):]
+        return path.lstrip("/") if path else None
+
+    def game_details(self, api_detail_url: str) -> Dict[str, Any]:
+        sub = self._path_from_api_detail_url(api_detail_url)
+        if not sub: return {}
+        data = self._request(sub, {"field_list":"name,platforms,original_game_rating,guid"}, which="details")
+        return data.get("results",{}) or {}
+
+def parse_giantbomb_ratings(ratings_list: Optional[List[Dict[str, Any]]]) -> Dict[str,str]:
+    out: Dict[str,str] = {}
+    if not ratings_list: return out
+    for r in ratings_list:
+        name = (r.get("name") or "").strip(); lower = name.lower()
+        if "pegi" in lower:
+            m = re.search(r'pegi[:\s]*([0-9]{1,2})', lower)
+            out.setdefault("rating_pegi", f"PEGI {m.group(1)}" if m else "PEGI"); out.setdefault("rating_pegi_source","GiantBomb")
+        elif "esrb" in lower:
+            m = re.search(r'esrb[:\s]*([a-z0-9\+\-]+)', lower); label = (m.group(1).upper() if m else None)
+            table = {"EC":"EC","E":"E","E10+":"E10+","T":"T","M":"M","AO":"AO","RP":"RP"}
+            out.setdefault("rating_esrb", table.get(label, label or "ESRB")); out.setdefault("rating_esrb_source","GiantBomb")
+        elif "cero" in lower:
+            m = re.search(r'cero[:\s]*([abcdz])', lower)
+            out.setdefault("rating_cero", f"CERO {m.group(1).upper()}" if m else "CERO"); out.setdefault("rating_cero_source","GiantBomb")
+        elif "usk" in lower:
+            m = re.search(r'usk[:\s]*([0-9]{1,2})', lower)
+            out.setdefault("rating_usk", f"USK {m.group(1)}" if m else "USK"); out.setdefault("rating_usk_source","GiantBomb")
+        elif "acb" in lower or "oflc" in lower or "au " in lower:
+            out.setdefault("rating_acb","ACB"); out.setdefault("rating_acb_source","GiantBomb")
+        elif "djctq" in lower or "classind" in lower or "class-ind" in lower:
+            out.setdefault("rating_class_ind","CLASS_IND"); out.setdefault("rating_class_ind_source","GiantBomb")
+    return out
+
+# ===== RAWG (ESRB only) =====
+class RAWGClient:
+    def __init__(self, api_key: str, cache_conn, rl_global: RPSLimiter, rl_api: RPSLimiter):
+        self.api_key = api_key; self.cache = cache_conn
+        self.base = "https://api.rawg.io/api"
+        self.rl_global = rl_global; self.rl_api = rl_api
+    def _get(self, path: str, params: Dict[str, Any]) -> Dict[str, Any]:
+        params = dict(params); params["key"] = self.api_key
+        self.rl_global.wait(); self.rl_api.wait()
+        r = requests.get(f"{self.base}/{path.lstrip('/')}", params=params, timeout=30)
+        if r.status_code >= 400:
+            log.warning("RAWG %s error (%d): %s | url=%s", path, r.status_code, r.text[:200], r.url)
+        r.raise_for_status()
+        return r.json()
+    def search(self, name: str, year: Optional[int]) -> List[Dict[str, Any]]:
+        params = {"search": name, "page_size": 5}
+        if year: params["search_precise"] = True
+        data = self._get("games", params)
+        return data.get("results") or []
+    def game_details(self, id_or_slug: Any) -> Dict[str, Any]:
+        try:
+            return self._get(f"games/{id_or_slug}", {})
+        except Exception:
+            return {}
+
+def ratings_from_rawg(result: Dict[str, Any], plat_name: Optional[str]) -> Dict[str, Any]:
+    out: Dict[str, Any] = {}
+    if not result: return out
+    if plat_name:
+        names = [p.get("platform",{}).get("name","") for p in (result.get("platforms") or [])]
+        def _matches(names, target):
+            tt = token_set(str(_canonical_platform_name(target)))
+            for nm in names:
+                if len(tt & token_set(nm)) >= max(1, min(len(tt), len(token_set(nm))) // 2):
+                    return True
+            return False
+        if not _matches(names, _canonical_platform_name(plat_name)):
+            return out
+    esrb = (result.get("esrb_rating") or {}).get("name")
+    if esrb:
+        out["rating_esrb"] = esrb; out["rating_esrb_source"] = "RAWG"
+    return out
+
+# ===== Utilities =====
+
+def _is_empty_or_nan(val) -> bool:
+    try:
+        if pd.isna(val):
+            return True
+    except Exception:
+        pass
+    s = str(val).strip().lower()
+    return (s == "") or (s in {"nan","none","null","n/a","na"})
+
+def _normalize_pegi_to_int(val) -> Optional[int]:
+    if _is_empty_or_nan(val): return None
+    m = re.search(r'(?:pegi\s*)?(\d{1,2})(?:\.0+)?', str(val).strip(), flags=re.I)
+    if m:
+        try: return int(m.group(1))
+        except Exception: return None
+    m = re.fullmatch(r'PEGI\s*(3|7|12|16|18)', str(val).strip(), flags=re.I)
+    if m: return int(m.group(1))
+    return None
+
+def _board_to_numeric(board: str, value: str) -> Tuple[Optional[int], str]:
+    b = (board or "").lower()
+    v = (value or "").strip()
+    if b == "pegi":
+        n = _normalize_pegi_to_int(v); return (n, "PEGI")
+    if b == "usk":
+        m = re.search(r'(\d{1,2})', v); return ((int(m.group(1)) if m else None), "USK")
+    if b == "esrb":
+        table = {"EC":3,"E":3,"E10+":10,"T":13,"M":17,"AO":18}
+        lab = v.upper().replace(" ", "")
+        return (table.get(lab), "ESRB")
+    if b == "cero":
+        m = re.search(r'([ABCDZ])', v.upper()); mapc = {"A":3,"B":12,"C":15,"D":17,"Z":18}
+        return ((mapc.get(m.group(1)) if m else None), "CERO")
+    if b == "sega_vrc":
+        lab = v.upper()
+        if "MA-17" in lab or "MA17" in lab: return (17, "SEGA_VRC")
+        if "MA-13" in lab or "MA13" in lab: return (13, "SEGA_VRC")
+        if "GA" in lab or "G A" in lab: return (3, "SEGA_VRC")
+        m = re.search(r'(\d{1,2})', lab); return ((int(m.group(1)) if m else None), "SEGA_VRC")
+    if b == "3do":
+        m = re.search(r'(\d{1,2})', v); return ((int(m.group(1)) if m else None), "3DO")
+    m = re.search(r'(\d{1,2})', v); return ((int(m.group(1)) if m else None), (board.upper() if board else "UNKNOWN"))
+
+BOARD_COL = {
+    "pegi":"rating_pegi","esrb":"rating_esrb","cero":"rating_cero","usk":"rating_usk","3do":"rating_3do","sega_vrc":"rating_sega_vrc"
+}
+
+# ===== Title matching convenience =====
+
+def same_title(a: str, b: str, threshold: int = 78) -> bool:
+    a1, b1 = norm(a), norm(b)
+    ts = fuzz.token_sort_ratio(a1, b1); pr = fuzz.partial_ratio(a1, b1)
+    if min(ts, pr) < threshold: return False
+    return token_set(a1) == token_set(b1)
+
+# ===== Year helpers =====
+
+def _extract_year_from_value_pre(v) -> Optional[int]:
+    try:
+        if v is None: return None
+        s = str(v).strip()
+        f = float(s); y = int(f)
+        if 1900 <= y <= 2100: return y
+    except Exception:
+        pass
+    try:
+        y = pd.to_datetime(str(v), errors="coerce").year
+        if pd.notna(y): return int(y)
+    except Exception:
+        pass
+    return None
+
+def _extract_year_from_row_any(df: pd.DataFrame, row: pd.Series, args) -> Optional[int]:
+    cands: List[str] = []
+    try:
+        if getattr(args, "year_col", None) and args.year_col in df.columns: cands.append(args.year_col)
+    except Exception:
+        pass
+    for c in ("Year","year","release_date","ReleaseDate","releaseDate"):
+        try:
+            if c in df.columns and c not in cands: cands.append(c)
+        except Exception:
+            continue
+    for c in cands:
+        y = _extract_year_from_value_pre(row.get(c))
+        if y is not None: return y
+    return None
+
+# ===== Prepass PEGI detection =====
+
+def _pegi_any_number_or_none(val) -> Optional[int]:
+    if val is None: return None
+    m = re.search(r"(\d{1,2})", str(val))
+    if m:
+        try: return int(m.group(1))
+        except Exception: return None
+    return None
+
+# Case-insensitive column resolver
+
+def _resolve_col_name(df: pd.DataFrame, desired: str) -> str:
+    want = (desired or "").strip().lower()
+    for c in df.columns:
+        if str(c).strip().lower() == want:
+            return c
+    return desired
+
+
+def _global_prepass_fill(df: pd.DataFrame, args, print_lock: Optional[threading.Lock]):
+    pre1994_set = 0; pegi_set = 0
+    pegi_numeric = 0
+
+    in_col = getattr(args, "pegi_input_col", "PEGI_Rating")
+    if in_col not in df.columns:
+        in_col = _resolve_col_name(df, in_col)
+        args.pegi_input_col = in_col
+
+    for idx, row in df.iterrows():
+        plat = str(row.get(args.platform_col, "")).strip()
+        y = _extract_year_from_row_any(df, row, args)
+        # Historical rule
+        if (y is not None) and (y <= 1994) and (not _platform_is_sega_vrc(plat)) and (not _platform_is_3do(plat)):
+            df.at[idx, "new_rating"] = 3
+            df.at[idx, "new_rating_source"] = "pre-1994"
+            pre1994_set += 1
+            continue
+        # PEGI numeric present in input CSV
+        val = row.get(in_col)
+        p = _pegi_any_number_or_none(val)
+        if p is not None:
+            pegi_numeric += 1
+            if _is_empty_or_nan(row.get("new_rating")):
+                df.at[idx, "new_rating"] = int(p)
+                df.at[idx, "new_rating_source"] = "PEGI present"
+                pegi_set += 1
+
+    _print_section("PREPASS", True, print_lock)
+    _print_kv({
+        "pegi_input_col_resolved": in_col,
+        "pegi_numeric_in_input": pegi_numeric,
+    }, True, lock=print_lock)
+    _print_kv({"pre1994_set": pre1994_set, "pegi_set": pegi_set}, True, lock=print_lock)
+    return pre1994_set, pegi_set
+
+# ===== Rate-aware, batched collection =====
+
+def collect_first_rating_tiered(title: str, plat: str, year: Optional[int], threshold: int,
+                                igdb: Optional[IGDBClient], wd_user_agent: str, wd_cache, rl_global: RPSLimiter, rl_wd: RPSLimiter,
+                                gb: Optional[GiantBombClient], rawg: Optional[RAWGClient],
+                                board_priority: List[str], verbose: bool=False,
+                                print_lock: Optional[threading.Lock]=None) -> Dict[str, Any]:
+    enriched: Dict[str, Any] = {}
+
+    # 1) IGDB (prefetch all boards) — higher RPS, rich data
+    igdb_game = None
+    igdb_full: Dict[str, Any] = {}
+    if igdb:
+        try:
+            igdb_game = igdb.search_game_tiered(title, plat, year, threshold)
+            if igdb_game:
+                igdb_full = ratings_from_igdb_full(igdb_game, igdb)
+                if igdb_full:
+                    enriched.update(igdb_full)
+                    _progress_line(plat, title, "IGDB", "HAVE AGE_RATINGS", verbose, print_lock)
+        except Exception as e:
+            log.warning("IGDB fetch failed: %s", e)
+
+    # 2) RAWG (ESRB only) — medium RPS; fetch once
+    rawg_map: Dict[str,str] = {}
+    if rawg and ("esrb" in board_priority):
+        try:
+            results = rawg.search(title, year)
+            best = None; best_s = -999
+            for r0 in results:
+                s = 0
+                if (r0.get("name","")) and (r0.get("name").strip().lower() == title.lower()): s += 2
+                try:
+                    y0 = int((r0.get("released") or "")[:4])
+                    if year and abs(y0 - int(year)) <= 1: s += 1
+                except Exception:
+                    pass
+                if s > best_s: best, best_s = r0, s
+            if best is not None:
+                det = rawg.game_details(best.get("slug") or best.get("id"))
+                rawg_map = ratings_from_rawg(det, plat)
+                if rawg_map:
+                    enriched.update(rawg_map)
+                    _progress_line(plat, title, "RAWG", f"ESRB={rawg_map.get('rating_esrb')}", verbose, print_lock)
+        except Exception as e:
+            log.warning("RAWG fetch failed: %s", e)
+
+    # 3) Wikidata (prefetch all boards) — lower RPS than IGDB/RAWG
+    wd_all: Dict[str,str] = {}
+    try:
+        wd_all = wikidata_ratings(title, plat, year, wd_user_agent, wd_cache, rl_global, rl_wd, verbose)
+        if wd_all:
+            wd_map = {}
+            if wd_all.get("PEGI"): wd_map["rating_pegi"] = wd_all["PEGI"]; wd_map["rating_pegi_source"] = "Wikidata"
+            if wd_all.get("ESRB"): wd_map["rating_esrb"] = wd_all["ESRB"]; wd_map["rating_esrb_source"] = "Wikidata"
+            if wd_all.get("CERO"): wd_map["rating_cero"] = wd_all["CERO"]; wd_map["rating_cero_source"] = "Wikidata"
+            if wd_all.get("USK"):  wd_map["rating_usk"]  = wd_all["USK"];  wd_map["rating_usk_source"]  = "Wikidata"
+            if wd_map:
+                # do not overwrite existing keys from IGDB/RAWG if set
+                for k,v in wd_map.items():
+                    enriched.setdefault(k, v)
+                _progress_line(plat, title, "Wikidata", "CANDIDATES", verbose, print_lock)
+    except Exception as e:
+        log.warning("Wikidata fetch failed: %s", e)
+
+    # If any board from priority is satisfied, return now (avoid GiantBomb)
+    for b in board_priority:
+        col = BOARD_COL[b]
+        if enriched.get(col):
+            _print_kv({col: enriched[col], f"{col}_source": enriched.get(f"{col}_source","(unknown)")}, verbose,
+                      title=f"[HIT] {b.upper()} from non-GB source — stopping", lock=print_lock)
+            return enriched
+
+    # 4) GiantBomb (very limited) — last resort
+    if gb:
+        try:
+            results = gb.search_game(title, year)
+            best = None; best_s = -1
+            for r0 in results:
+                s = 0
+                if (r0.get("name","")) and (r0.get("name").strip().lower() == title.lower()): s += 2
+                try:
+                    y0 = int((r0.get("original_release_date") or "")[:4])
+                    if year and abs(y0 - int(year)) <= 1: s += 1
+                except Exception:
+                    pass
+                if s > best_s: best, best_s = r0, s
+            if best and best.get("api_detail_url"):
+                det = gb.game_details(best["api_detail_url"]) or {}
+                gb_map = parse_giantbomb_ratings(det.get("original_game_rating"))
+                if gb_map:
+                    enriched.update(gb_map)
+                    # Only return after we can satisfy a priority board
+                    for b in board_priority:
+                        col = BOARD_COL[b]
+                        if enriched.get(col):
+                            _progress_line(plat, title, "GiantBomb", f"SUCCESS: {enriched[col]}", verbose, print_lock)
+                            _print_kv({col: enriched[col], f"{col}_source": enriched.get(f"{col}_source","GiantBomb")}, verbose,
+                                      title=f"[HIT] {b.upper()} from GiantBomb — stopping", lock=print_lock)
+                            return enriched
+        except Exception as e:
+            log.warning("GiantBomb fetch failed: %s", e)
+
+    return enriched
+
+# ===== Main =====
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--in", dest="in_path", required=True)
+    ap.add_argument("--out", dest="out_path", required=True)
+    ap.add_argument("--config", dest="config_path", required=True)
+    ap.add_argument("--platforms-csv", dest="platforms_csv", required=True)
+    ap.add_argument("--title-col", default="Name")
+    ap.add_argument("--platform-col", default="Platform")
+    ap.add_argument("--year-col", default=None)
+    ap.add_argument("--per-platform-limit", type=int, default=0)
+    ap.add_argument("--priority-col", type=str, default="")
+    ap.add_argument("--descending", action="store_true")
+    ap.add_argument("--threshold", type=int, default=78)
+    ap.add_argument("--limit", type=int, default=0)
+    ap.add_argument("--pegi-input-col", default="PEGI_Rating",
+                    help="If present and non-empty, treat as final PEGI rating and skip all API calls for that row.")
+    # Backfills
+    ap.add_argument("--enable-giantbomb-backfill", action="store_true")
+    ap.add_argument("--enable-rawg-backfill", action="store_true")
+    # Verbose
+    ap.add_argument("--verbose", action="store_true")
+    # Summaries
+    ap.add_argument("--summary-every", type=int, default=50)
+    ap.add_argument("--summary-json", default="ratings_summary.json")
+    ap.add_argument("--summary-platform-csv", default="ratings_summary_by_platform.csv")
+    # Rate limits
+    ap.add_argument("--rps-global", type=float, default=3.0)
+    ap.add_argument("--rps-igdb", type=float, default=3.8)
+    ap.add_argument("--rps-wikidata", type=float, default=1.0)
+    ap.add_argument("--rps-giantbomb", type=float, default=0.05)  # ≈ 200/hour
+    ap.add_argument("--rps-rawg", type=float, default=1.5)
+    ap.add_argument("--gb-hourly", type=int, default=190,
+                    help="Max GiantBomb requests per hour per resource")
+    ap.add_argument("--gb-min-spacing", type=float, default=20.0,
+                    help="Minimum seconds between GiantBomb calls (velocity)")
+    # Tiered boards
+    ap.add_argument("--board-priority", default="pegi,esrb,cero,usk,3do,sega_vrc")
+    # Concurrency
+    ap.add_argument("--workers", type=int, default=6, help="Number of threads to process rows")
+    # Resume / final-result cache
+    ap.add_argument("--resume-from-cache", dest="resume_from_cache", action="store_true", default=True,
+                    help="Reuse final ratings from SQLite for same (title, platform, year) before any API calls (default ON).")
+    ap.add_argument("--no-resume-from-cache", dest="resume_from_cache", action="store_false")
+    # Checkpointing
+    ap.add_argument("--checkpoint-every", type=int, default=0,
+                    help="If >0, write CSV to disk every N attempted rows to preserve progress mid-run.")
+
+    args = ap.parse_args()
+
+    # Locks
+    print_lock = threading.Lock()
+    stats_lock = threading.Lock()
+    df_lock = threading.Lock()
+
+    if args.verbose:
+        _print_kv({
+            "Workers": args.workers,
+            "GB hourly cap/resource": args.gb_hourly,
+            "GB min spacing (s)": args.gb_min_spacing,
+            "GB rps": args.rps_giantbomb,
+            "IGDB rps": args.rps_igdb,
+            "Resume from cache": args.resume_from_cache,
+            "Checkpoint every": args.checkpoint_every or "—"
+        }, True, title="Concurrency & Limits", lock=print_lock)
+
+    with open(args.config_path, "r", encoding="utf-8") as f:
+        cfg = json.load(f)
+
+    # Limiters
+    rl_global   = RPSLimiter(args.rps_global)
+    rl_igdb     = RPSLimiter(args.rps_igdb)
+    rl_wd       = RPSLimiter(args.rps_wikidata)
+    rl_gb_rps   = RPSLimiter(args.rps_giantbomb)
+    rl_rawg     = RPSLimiter(args.rps_rawg)
+    gb_hour_search  = HourlyQuotaLimiter(args.gb_hourly, 3600)
+    gb_hour_details = HourlyQuotaLimiter(args.gb_hourly, 3600)
+    gb_spacing      = MinSpacingLimiter(args.gb_min_spacing)
+
+    cache_conn = get_db()
+
+    # Clients
+    igdb = None
+    if cfg.get("igdb", {}).get("client_id") and cfg.get("igdb", {}).get("client_secret"):
+        igdb = IGDBClient(cfg["igdb"]["client_id"], cfg["igdb"]["client_secret"], cache_conn, rl_global, rl_igdb, print_lock=print_lock, verbose=args.verbose)
+
+    wd_user_agent = cfg.get("wikidata", {}).get("user_agent", "RatingsPipeline/1.0 (+contact)")
+
+    gb = None
+    if args.enable_giantbomb_backfill and cfg.get("giantbomb", {}).get("api_key"):
+        gb = GiantBombClient(
+            cfg["giantbomb"]["api_key"], cfg.get("giantbomb", {}).get("user_agent"), cache_conn,
+            rl_global, rl_gb_rps, gb_hour_search, gb_hour_details, gb_spacing,
+            print_lock=print_lock, verbose=args.verbose
+        )
+
+    rawg = None
+    if args.enable_rawg_backfill and cfg.get("rawg", {}).get("api_key"):
+        rawg = RAWGClient(cfg["rawg"]["api_key"], cache_conn, rl_global, rl_rawg)
+
+    # Load data & select work set
+    _print_section("LOAD & SELECT WORK", args.verbose, print_lock)
+    plats_df = pd.read_csv(args.platforms_csv, header=0)
+    plat_colname = plats_df.columns[0]
+    platform_order = [str(x).strip() for x in plats_df[plat_colname].dropna().tolist() if str(x).strip()]
+    allowed_platforms = set(x.lower() for x in platform_order)
+
+    df = pd.read_csv(args.in_path)
+
+    # Resolve column names (case-insensitive)
+    args.title_col    = _resolve_col_name(df, args.title_col)
+    args.platform_col = _resolve_col_name(df, args.platform_col)
+    if args.year_col:
+        args.year_col = _resolve_col_name(df, args.year_col)
+    args.pegi_input_col = _resolve_col_name(df, getattr(args, "pegi_input_col", "PEGI_Rating"))
+
+    _ = _global_prepass_fill(df, args, print_lock)
+
+    work_indices: List[int] = []
+    for p in platform_order:
+        mask = df[args.platform_col].astype(str).str.lower() == p.lower()
+        chunk = df[mask].copy()
+        if args.priority_col and args.priority_col in chunk.columns:
+            chunk = chunk.sort_values(by=args.priority_col, ascending=not args.descending)
+        k = args.per_platform_limit if args.per_platform_limit and args.per_platform_limit > 0 else len(chunk)
+        chosen = chunk.head(k)
+        work_indices.extend(chosen.index.tolist())
+        if args.verbose:
+            _print_kv({"platform": p, "selected": len(chosen), "in-platform-total": len(chunk)}, True, lock=print_lock)
+
+    if args.limit and args.limit > 0:
+        work_indices = work_indices[:args.limit]
+        if args.verbose:
+            _print_kv({"global_cap_rows": len(work_indices)}, True, lock=print_lock)
+
+    # Ensure output columns exist
+    for c in ["new_rating","new_rating_source"]:
+        if c not in df.columns: df[c] = ""
+
+    # Platform policy (optional, from rightmost column)
+    policy_map: Dict[str,str] = {}
+    policy_map_canon: Dict[str,str] = {}
+    try:
+        if plats_df.shape[1] >= 2:
+            _rightmost = plats_df.columns[-1]
+            _plat_col = args.platform_col if args.platform_col in plats_df.columns else plats_df.columns[0]
+            for _i, _r in plats_df.iterrows():
+                _p_raw = str(_r.get(_plat_col, "")).strip()
+                _v = str(_r.get(_rightmost, "")).strip()
+                if _p_raw and _v:
+                    policy_map[_p_raw] = _v
+                    policy_map_canon[(str(_p_raw).lower())] = _v
+    except Exception as _e:
+        _print_section(f"WARNING: failed to read platforms.csv policy: {type(_e).__name__}: {_e}", args.verbose, print_lock)
+
+    # Summaries
+    stats = {
+        "rows_selected": len(work_indices),
+        "rows_attempted": 0,
+        "rows_with_any_rating": 0,
+        "source_counts": {"InputCSV":0, "IGDB":0, "Wikidata":0, "GiantBomb":0, "RAWG":0},
+        "board_counts": {"PEGI":0,"ESRB":0,"CERO":0,"USK":0,"3DO":0,"SEGA_VRC":0},
+    }
+
+    per_platform = defaultdict(lambda: {"selected":0,"with_any_rating":0})
+    for idx in work_indices:
+        p = str(df.loc[idx, args.platform_col]).strip()
+        per_platform[p]["selected"] += 1
+
+    board_priority = [b.strip().lower() for b in args.board_priority.split(",") if b.strip() and b.strip().lower() in BOARD_COL]
+
+    # Worker
+    def process_row(idx: int, n: int, total: int):
+        row = df.loc[idx]
+        title = str(row.get(args.title_col, "")).strip()
+        plat  = str(row.get(args.platform_col, "")).strip()
+        if not title or not plat or plat.lower() not in allowed_platforms:
+            return None
+
+        if args.verbose:
+            _progress_line(plat, title, "ROW", f"start [{n}/{total}]", True, print_lock)
+
+        # If input CSV already has a PEGI rating, treat it as final and skip APIs
+        pegi_int = _pegi_any_number_or_none(row.get(args.pegi_input_col)) if args.pegi_input_col in df.columns else None
+        if pegi_int is not None:
+            with df_lock:
+                df.at[idx, "new_rating"] = int(pegi_int)
+                df.at[idx, "new_rating_source"] = "PEGI present"
+            with stats_lock:
+                stats["rows_attempted"] += 1
+                stats["rows_with_any_rating"] += 1
+                per_platform[plat]["with_any_rating"] += 1
+                stats["source_counts"]["InputCSV"] += 1
+                stats["board_counts"]["PEGI"] += 1
+                if args.checkpoint_every and (stats["rows_attempted"] % args.checkpoint_every == 0):
+                    with df_lock: df.to_csv(args.out_path, index=False)
+            _progress_line(plat, title, "InputCSV", f"SKIPPED APIS (PEGI present): PEGI {pegi_int}", args.verbose, print_lock)
+            return None
+
+        # Already has any rating in CSV? (skip APIs)
+        if not _is_empty_or_nan(row.get("new_rating", "")):
+            with stats_lock:
+                stats["rows_attempted"] += 1
+                if args.checkpoint_every and (stats["rows_attempted"] % args.checkpoint_every == 0):
+                    with df_lock: df.to_csv(args.out_path, index=False)
+            _progress_line(plat, title, "InputCSV", "SKIPPED APIS (rating columns already filled)", args.verbose, print_lock)
+            return None
+
+        # Parse year if available
+        year = None
+        if args.year_col and args.year_col in df.columns:
+            try:
+                year = int(float(str(row.get(args.year_col)).strip()))
+            except Exception:
+                year = _extract_year_from_row_any(df, row, args)
+        else:
+            year = _extract_year_from_row_any(df, row, args)
+
+        # Policy-based short-circuit (e.g., "3 if release_date<1994 else pegi>…")
+        policy = (policy_map.get(plat) or policy_map_canon.get(plat.lower()) or "").lower()
+        def _to_int_year(y):
+            try: return int(float(str(y).strip()))
+            except Exception: return None
+        y2 = _to_int_year(row.get(args.year_col, "")) if args.year_col else year
+        if ("3 if" in policy) and ("release_date<1994" in policy):
+            if (y2 is None) or (y2 <= 1994):
+                with df_lock:
+                    df.at[idx, "new_rating"] = 3
+                    df.at[idx, "new_rating_source"] = "pre-1994"
+                with stats_lock:
+                    stats["rows_attempted"] += 1
+                    stats["rows_with_any_rating"] += 1
+                    per_platform[plat]["with_any_rating"] += 1
+                    stats["board_counts"]["PEGI"] += 1
+                    if args.checkpoint_every and (stats["rows_attempted"] % args.checkpoint_every == 0):
+                        with df_lock: df.to_csv(args.out_path, index=False)
+                _progress_line(plat, title, "Policy", 'PRE-1994 RULE: new_rating=3', args.verbose, print_lock)
+                return None
+
+        # Resume-from-cache first
+        if args.resume_from_cache:
+            cached_final = final_cache_get(cache_conn, title, plat, year)
+            if cached_final:
+                def _pick_best_from_cached(d: Dict[str,Any]) -> Tuple[Optional[str], Optional[str]]:
+                    pri = ['pegi','esrb','cero','usk','3do','sega_vrc','vrc']
+                    for b in pri:
+                        rv = d.get(f'rating_{b}') or d.get(f'{b}_rating')
+                        if rv not in (None, '', 'None'):
+                            return str(rv), b.upper()
+                    return None, None
+                _nr, _src = _pick_best_from_cached(cached_final)
+                if _nr is not None:
+                    try:
+                        df.at[idx, 'new_rating'] = _nr
+                        df.at[idx, 'new_rating_source'] = (_src + ' (cache)') if _src else 'cache'
+                    except Exception:
+                        pass
+                with df_lock:
+                    for k, v in cached_final.items():
+                        if k in df.columns: df.at[idx, k] = v
+                        else:
+                            df[k] = ""; df.at[idx, k] = v
+                with stats_lock:
+                    stats["rows_attempted"] += 1
+                    stats["rows_with_any_rating"] += 1
+                    per_platform[plat]["with_any_rating"] += 1
+                    for s in ["InputCSV","IGDB","Wikidata","GiantBomb","RAWG"]:
+                        if any((k.endswith("_source") and cached_final.get(k) == s) for k in cached_final):
+                            stats["source_counts"][s] += 1; break
+                    for b in board_priority:
+                        c = BOARD_COL[b]
+                        if cached_final.get(c):
+                            stats["board_counts"][("SEGA_VRC" if b=="sega_vrc" else ("3DO" if b=="3do" else b.upper()))] += 1
+                            break
+                    if args.checkpoint_every and (stats["rows_attempted"] % args.checkpoint_every == 0):
+                        with df_lock: df.to_csv(args.out_path, index=False)
+                _progress_line(plat, title, "CACHE", "SUCCESS (final)", args.verbose, print_lock)
+                return None
+
+        # Board priority, but rate-aware: we will prefetch from IGDB/RAWG/Wikidata once, then pick the first matching board
+        # Filter boards by platform (3DO/VRC only when applicable)
+        is_3do = platform_name_matches(["3DO"], plat)
+        is_sega_vrc = platform_name_matches(["Master System","Sega Master System","Genesis","Mega Drive","Sega Genesis","Game Gear","Sega Game Gear","Sega CD","Mega-CD","Mega CD","32X","Sega 32X"], plat)
+        board_priority_local = [b for b in board_priority if not ((b=="3do" and not is_3do) or (b=="sega_vrc" and not is_sega_vrc))]
+
+        hit = collect_first_rating_tiered(
+            title=title, plat=plat, year=year, threshold=args.threshold,
+            igdb=igdb, wd_user_agent=wd_user_agent, wd_cache=cache_conn, rl_global=rl_global, rl_wd=rl_wd,
+            gb=gb, rawg=rawg, board_priority=board_priority_local, verbose=args.verbose, print_lock=print_lock
+        )
+
+        with stats_lock:
+            stats["rows_attempted"] += 1
+
+        if hit:
+            # Determine which board/value we used
+            used_board = None; used_value = None
+            for b in board_priority_local:
+                c = BOARD_COL[b]
+                if hit.get(c):
+                    used_board = b; used_value = hit.get(c); break
+            if used_board is None:
+                for b, c in BOARD_COL.items():
+                    if hit.get(c): used_board, used_value = b, hit.get(c); break
+
+            # Determine API source
+            api_src = None
+            for s in ["IGDB","Wikidata","GiantBomb","RAWG","InputCSV","Policy"]:
+                if any((k.endswith("_source") and hit.get(k) == s) for k in hit):
+                    api_src = s; break
+
+            age_int, board_label = _board_to_numeric(used_board or "", str(used_value or ""))
+            with df_lock:
+                if age_int is not None:
+                    df.at[idx, "new_rating"] = int(age_int)
+                if api_src and board_label:
+                    df.at[idx, "new_rating_source"] = f"{api_src} ({board_label})"
+                elif api_src:
+                    df.at[idx, "new_rating_source"] = api_src
+            try:
+                final_cache_put(cache_conn, title, plat, year, hit)
+            except Exception:
+                pass
+
+            with stats_lock:
+                stats["rows_with_any_rating"] += 1
+                per_platform[plat]["with_any_rating"] += 1
+                src = None
+                for s in ["InputCSV","IGDB","Wikidata","GiantBomb","RAWG"]:
+                    if any((k.endswith("_source") and hit.get(k) == s) for k in hit):
+                        src = s; break
+                if src: stats["source_counts"][src] += 1
+                for b in board_priority_local:
+                    c = BOARD_COL[b]
+                    if hit.get(c):
+                        stats["board_counts"][("SEGA_VRC" if b=="sega_vrc" else ("3DO" if b=="3do" else b.upper()))] += 1
+                        break
+        else:
+            _progress_line(plat, title, "APIs", "NO RATING FOUND", args.verbose, print_lock)
+            try:
+                final_cache_put_negative(cache_conn, title, plat, year)
+            except Exception:
+                pass
+
+        # periodic running summary + checkpoint
+        with stats_lock:
+            attempted = stats["rows_attempted"]
+            if attempted and ((n % args.summary_every == 0) or (n == total)):
+                pct = 100.0 * stats["rows_with_any_rating"] / max(1, attempted)
+                log.info(
+                    "Coverage so far: %d/%d attempted (%.1f%%) have ≥1 rating | InputCSV=%d, IGDB=%d, Wikidata=%d, GiantBomb=%d, RAWG=%d",
+                    stats["rows_with_any_rating"], attempted, pct,
+                    stats["source_counts"]["InputCSV"],
+                    stats["source_counts"]["IGDB"],
+                    stats["source_counts"]["Wikidata"],
+                    stats["source_counts"]["GiantBomb"],
+                    stats["source_counts"]["RAWG"]
+                )
+            if args.checkpoint_every and (attempted % args.checkpoint_every == 0):
+                with df_lock:
+                    df.to_csv(args.out_path, index=False)
+
+        return None
+
+    # Run threaded
+    _print_section("PROCESS (TIERED + MULTITHREADED)", args.verbose, print_lock)
+    total = len(work_indices)
+    with ThreadPoolExecutor(max_workers=max(1, args.workers)) as ex:
+        futures = [ex.submit(process_row, idx, i, total) for i, idx in enumerate(work_indices, 1)]
+        for _f in as_completed(futures):
+            try:
+                _f.result()
+            except Exception as __e:
+                _print_section(f"WORKER ERROR: {type(__e).__name__}: {__e}", True, print_lock)
+
+    # Finalize
+    _print_section("FINALIZE", args.verbose, print_lock)
+    df.to_csv(args.out_path, index=False)
+    log.info("Wrote %s", args.out_path)
+
+    attempted = max(1, stats["rows_attempted"])
+    coverage_pct = 100.0 * stats["rows_with_any_rating"] / attempted
+    summary_payload = {
+        "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "rows_selected": stats["rows_selected"],
+        "rows_attempted": stats["rows_attempted"],
+        "rows_with_any_rating": stats["rows_with_any_rating"],
+        "coverage_pct_attempted": round(coverage_pct, 2),
+        "source_counts": stats["source_counts"],
+        "board_counts": stats["board_counts"],
+    }
+    with open(args.summary_json, "w", encoding="utf-8") as f:
+        json.dump(summary_payload, f, indent=2)
+
+    plat_rows = []
+    for plat_label, nums in per_platform.items():
+        sel = nums["selected"]; got = nums["with_any_rating"]; pct = (100.0 * got / sel) if sel else 0.0
+        plat_rows.append({"Platform": plat_label, "Selected": sel, "WithAnyRating": got, "CoveragePct": round(pct, 2)})
+    pd.DataFrame(plat_rows).sort_values(by=["CoveragePct","Selected"], ascending=[False, False]).to_csv(args.summary_platform_csv, index=False)
+
+    log.info(
+        "FINAL: %d/%d attempted (%.1f%%) have ≥1 rating | IGDB=%d, Wikidata=%d, GiantBomb=%d, RAWG=%d. Wrote %s and %s",
+        stats["rows_with_any_rating"], stats["rows_attempted"], coverage_pct,
+        stats["source_counts"]["IGDB"], stats["source_counts"]["Wikidata"],
+        stats["source_counts"]["GiantBomb"], stats["source_counts"]["RAWG"],
+        args.summary_json, args.summary_platform_csv
+    )
+
+if __name__ == "__main__":
+    main()
