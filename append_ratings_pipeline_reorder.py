@@ -23,6 +23,79 @@ from functools import lru_cache
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("ratings")
 
+# ===== Shared helpers =====
+class APICallCounter:
+    """Thread-safe counter for tracking outbound API calls."""
+
+    def __init__(self) -> None:
+        self._counts: Dict[str, int] = defaultdict(int)
+        self._lock = threading.Lock()
+
+    def incr(self, name: str) -> None:
+        if not name:
+            return
+        with self._lock:
+            self._counts[name] += 1
+
+    def snapshot(self) -> Dict[str, int]:
+        with self._lock:
+            return dict(self._counts)
+
+
+class ProgressReporter:
+    """Emit richer progress updates with ETA and API call counts."""
+
+    def __init__(
+        self,
+        total: int,
+        row_interval: int = 0,
+        time_interval: float = 45.0,
+        lock: Optional[threading.Lock] = None,
+    ) -> None:
+        self._total = max(1, int(total))
+        self._row_interval = max(0, int(row_interval))
+        self._time_interval = max(5.0, float(time_interval))
+        self._lock = lock
+        self._start = time.time()
+        self._last_emit = 0.0
+
+    def maybe_emit(
+        self,
+        attempted: int,
+        successes: int,
+        source_counts: Dict[str, int],
+        api_counts: Dict[str, int],
+    ) -> None:
+        now = time.time()
+        if attempted <= 0:
+            return
+        if self._row_interval and (attempted % self._row_interval == 0):
+            should_emit = True
+        else:
+            should_emit = (now - self._last_emit) >= self._time_interval
+        if not should_emit:
+            return
+        self._last_emit = now
+        elapsed = max(1e-6, now - self._start)
+        rate = attempted / elapsed
+        remain = max(0, self._total - attempted)
+        eta_minutes = (remain / rate) / 60.0 if rate > 0 else None
+        coverage = (successes / attempted) * 100.0 if attempted else 0.0
+        api_bits = ", ".join(f"{k}={v}" for k, v in sorted(api_counts.items())) if api_counts else "none"
+        src_bits = ", ".join(f"{k}={v}" for k, v in sorted(source_counts.items())) if source_counts else "none"
+        msg = (
+            "Progress: %d/%d rows (%.1f%%) | coverage %.1f%% (%d with ≥1 rating) | rate %.2f rows/s"
+            % (attempted, self._total, (attempted / self._total) * 100.0, coverage, successes, rate)
+        )
+        if eta_minutes is not None:
+            msg += f" | ETA ≈ {eta_minutes:.1f} min"
+        msg += f" | Sources {src_bits} | API calls {api_bits}"
+        if self._lock:
+            with self._lock:
+                log.info(msg)
+        else:
+            log.info(msg)
+
 # ===== Pretty printing =====
 def _pretty_table(headers: List[str], rows: List[List[Any]]) -> str:
     cols = len(headers)
@@ -321,7 +394,8 @@ class InFlightDeduper:
 class IGDBClient:
     def __init__(self, client_id: str, client_secret: str, cache_conn,
                  rl_global: RPSLimiter, rl_api: RPSLimiter,
-                 print_lock: Optional[threading.Lock]=None, verbose: bool=False):
+                 print_lock: Optional[threading.Lock]=None, verbose: bool=False,
+                 api_counter: Optional[APICallCounter]=None):
         self.client_id = client_id
         self.client_secret = client_secret
         self.cache = cache_conn
@@ -329,12 +403,18 @@ class IGDBClient:
         self.print_lock = print_lock
         self.rl_global = rl_global
         self.rl_api = rl_api
+        self.api_counter = api_counter
         self._session = requests.Session()
         self._session_lock = threading.Lock()
 
         self._tok_lock = threading.Lock()
         self._token = None
         self._token_expiry = 0.0
+
+        self._search_cache: Dict[str, List[int]] = {}
+        self._search_cache_lock = threading.Lock()
+        self._game_cache: Dict[int, Dict[str, Any]] = {}
+        self._game_cache_lock = threading.Lock()
 
         try:
             payload = cache_get(self.cache, "igdb_token_payload")
@@ -352,6 +432,10 @@ class IGDBClient:
             else:
                 print(msg, flush=True)
 
+    def _count(self) -> None:
+        if self.api_counter:
+            self.api_counter.incr("IGDB")
+
     def _save_token(self, access_token: str, expires_in: int):
         expiry = time.time() + max(0, int(expires_in) - 60)
         self._token = access_token
@@ -362,6 +446,7 @@ class IGDBClient:
     def _fetch_token(self):
         self._log("[IGDB] Requesting OAuth token…")
         self.rl_global.wait(); self.rl_api.wait()
+        self._count()
         with self._session_lock:
             r = self._session.post(
                 "https://id.twitch.tv/oauth2/token",
@@ -387,6 +472,7 @@ class IGDBClient:
         url = f"https://api.igdb.com/v4/{endpoint}"
         self._log(f"[IGDB] POST /{endpoint} body={body[:120]}…")
         self.rl_global.wait(); self.rl_api.wait()
+        self._count()
         with self._session_lock:
             r = self._session.post(url, data=body, headers=headers, timeout=30)
         return r
@@ -464,17 +550,59 @@ class IGDBClient:
         return s
 
     def _fetch_games_by_ids(self, ids: List[int]) -> List[Dict[str, Any]]:
-        if not ids: return []
-        fields = "id,name,first_release_date,release_dates.y,platforms,age_ratings"
-        where = "id = ({})".format(",".join(map(str, ids)))
-        return self._post("games", f"fields {fields}; where {where}; limit 50;")
+        if not ids:
+            return []
+        unique_ids = list(dict.fromkeys(int(i) for i in ids if i))
+        results: Dict[int, Dict[str, Any]] = {}
+        missing: List[int] = []
+
+        for gid in unique_ids:
+            cached_game = None
+            with self._game_cache_lock:
+                cached_game = self._game_cache.get(gid)
+            if cached_game is None:
+                raw = cache_get(self.cache, f"igdb_game::{gid}")
+                if raw:
+                    try:
+                        cached_game = json.loads(raw)
+                    except Exception:
+                        cached_game = None
+                    else:
+                        with self._game_cache_lock:
+                            self._game_cache[gid] = cached_game
+            if cached_game is not None:
+                results[gid] = cached_game
+            else:
+                missing.append(gid)
+
+        if missing:
+            fields = "id,name,first_release_date,release_dates.y,platforms,age_ratings"
+            where = "id = ({})".format(",".join(map(str, missing)))
+            fetched = self._post("games", f"fields {fields}; where {where}; limit 50;")
+            for g in fetched or []:
+                try:
+                    gid = int(g.get("id"))
+                except Exception:
+                    continue
+                if gid:
+                    results[gid] = g
+                    cache_put(self.cache, f"igdb_game::{gid}", json.dumps(g))
+                    with self._game_cache_lock:
+                        self._game_cache[gid] = g
+
+        ordered: List[Dict[str, Any]] = []
+        for gid in unique_ids:
+            if gid in results:
+                ordered.append(results[gid])
+        return ordered
 
     def search_game_tiered(self, name: str, platform_name: Optional[str], year: Optional[int], threshold: int) -> Optional[Dict[str, Any]]:
         if not name: return None
         q = name.strip()
         plat_ids = self._platform_ids_for_base_with_aliases(platform_name) if platform_name else set()
 
-        cache_key = f"igdb_search::{norm(name)}::{norm(platform_name or '')}::{year or ''}::{threshold}"
+        norm_name = norm(name)
+        cache_key = f"igdb_search::{norm_name}::{norm(platform_name or '')}::{year or ''}::{threshold}"
         cached = cache_get(self.cache, cache_key)
         if cached is not None:
             try:
@@ -485,10 +613,31 @@ class IGDBClient:
             except Exception:
                 pass
 
-        # Search by title
-        self._log(f"[IGDB] Searching for '{name}' (plat={platform_name or '—'}, year={year or '—'})")
-        res = self._post("search", f'fields name,game; search "{q}"; limit 25;')
-        game_ids = [r.get("game") for r in res if r.get("game")]
+        # Search by title with cached search ID reuse
+        search_ids: Optional[List[int]] = None
+        with self._search_cache_lock:
+            if norm_name in self._search_cache:
+                search_ids = list(self._search_cache[norm_name])
+        if search_ids is None:
+            cached_ids = cache_get(self.cache, f"igdb_search_ids::{norm_name}")
+            if cached_ids:
+                try:
+                    parsed = json.loads(cached_ids)
+                    if isinstance(parsed, list):
+                        search_ids = [int(x) for x in parsed if x]
+                except Exception:
+                    search_ids = None
+        if search_ids is None:
+            self._log(f"[IGDB] Searching for '{name}' (plat={platform_name or '—'}, year={year or '—'})")
+            res = self._post("search", f'fields name,game; search "{q}"; limit 25;')
+            search_ids = [int(r.get("game")) for r in res if r.get("game")]
+            cache_put(self.cache, f"igdb_search_ids::{norm_name}", json.dumps(search_ids))
+            with self._search_cache_lock:
+                self._search_cache[norm_name] = list(search_ids)
+        else:
+            self._log(f"[IGDB] Using cached search results for '{name}'")
+
+        game_ids = list(dict.fromkeys(search_ids or []))
         if not game_ids:
             cache_put(self.cache, cache_key, json.dumps({}))
             return None
@@ -582,7 +731,7 @@ def ratings_from_igdb_full(game: Dict[str, Any], igdb: IGDBClient) -> Dict[str, 
 # ===== Wikidata =====
 def wikidata_ratings(title: str, platform_hint: Optional[str], year: Optional[int],
                      user_agent: str, cache_conn, rl_global: RPSLimiter, rl_api: RPSLimiter,
-                     verbose: bool=False) -> Dict[str,str]:
+                     verbose: bool=False, api_counter: Optional[APICallCounter]=None) -> Dict[str,str]:
     key = f"wd::{title}::{platform_hint}::{year}"
     cached = cache_get(cache_conn, key)
     if cached is not None:
@@ -608,6 +757,8 @@ def wikidata_ratings(title: str, platform_hint: Optional[str], year: Optional[in
     }} LIMIT 5
     """
     rl_global.wait(); rl_api.wait()
+    if api_counter:
+        api_counter.incr("Wikidata")
     r = requests.get("https://query.wikidata.org/sparql", params={"query": query, "format":"json"}, headers=headers, timeout=30)
     out: Dict[str,str] = {}
     if r.status_code == 200:
@@ -626,7 +777,8 @@ class GiantBombClient:
     def __init__(self, api_key: str, user_agent: Optional[str], cache_conn,
                  rl_global: RPSLimiter, rps_api: RPSLimiter,
                  hourly_search: HourlyQuotaLimiter, hourly_details: HourlyQuotaLimiter,
-                 spacing: MinSpacingLimiter, print_lock: Optional[threading.Lock]=None, verbose: bool=False):
+                 spacing: MinSpacingLimiter, print_lock: Optional[threading.Lock]=None, verbose: bool=False,
+                 api_counter: Optional[APICallCounter]=None):
         self.api_key = api_key
         self.user_agent = (user_agent or "RatingsPipeline/1.0")
         self.cache = cache_conn
@@ -638,6 +790,7 @@ class GiantBombClient:
         self.hourly_search = hourly_search
         self.hourly_details = hourly_details
         self.spacing = spacing
+        self.api_counter = api_counter
         self._session = requests.Session()
         self._session_lock = threading.Lock()
 
@@ -651,6 +804,8 @@ class GiantBombClient:
             self.rps_api.wait()
             self.spacing.wait()
             (self.hourly_search if which == "search" else self.hourly_details).wait()
+            if self.api_counter:
+                self.api_counter.incr("GiantBomb")
 
             with self._session_lock:
                 r = self._session.get(url, headers=headers, params=q, timeout=30, allow_redirects=True)
@@ -749,15 +904,19 @@ def parse_giantbomb_ratings(ratings_list: Optional[List[Dict[str, Any]]]) -> Dic
 
 # ===== RAWG (ESRB only) =====
 class RAWGClient:
-    def __init__(self, api_key: str, cache_conn, rl_global: RPSLimiter, rl_api: RPSLimiter):
+    def __init__(self, api_key: str, cache_conn, rl_global: RPSLimiter, rl_api: RPSLimiter,
+                 api_counter: Optional[APICallCounter]=None):
         self.api_key = api_key; self.cache = cache_conn
         self.base = "https://api.rawg.io/api"
         self.rl_global = rl_global; self.rl_api = rl_api
+        self.api_counter = api_counter
         self._session = requests.Session()
         self._session_lock = threading.Lock()
     def _get(self, path: str, params: Dict[str, Any]) -> Dict[str, Any]:
         params = dict(params); params["key"] = self.api_key
         self.rl_global.wait(); self.rl_api.wait()
+        if self.api_counter:
+            self.api_counter.incr("RAWG")
         with self._session_lock:
             r = self._session.get(f"{self.base}/{path.lstrip('/')}", params=params, timeout=30)
         if r.status_code >= 400:
@@ -969,7 +1128,8 @@ def collect_first_rating_tiered(title: str, plat: str, year: Optional[int], thre
                                 gb: Optional[GiantBombClient], rawg: Optional[RAWGClient],
                                 board_priority: List[str], verbose: bool=False,
                                 print_lock: Optional[threading.Lock]=None,
-                                api_executor: Optional[ThreadPoolExecutor]=None) -> Dict[str, Any]:
+                                api_executor: Optional[ThreadPoolExecutor]=None,
+                                api_counter: Optional[APICallCounter]=None) -> Dict[str, Any]:
     enriched: Dict[str, Any] = {}
 
     def _run_api(func):
@@ -1054,7 +1214,7 @@ def collect_first_rating_tiered(title: str, plat: str, year: Optional[int], thre
     if _needs_any_boards(["pegi", "esrb", "cero", "usk"]):
         def _wd_task():
             try:
-                wd_all = wikidata_ratings(title, plat, year, wd_user_agent, wd_cache, rl_global, rl_wd, verbose)
+                wd_all = wikidata_ratings(title, plat, year, wd_user_agent, wd_cache, rl_global, rl_wd, verbose, api_counter=api_counter)
                 if wd_all:
                     wd_map: Dict[str, Any] = {}
                     if wd_all.get("PEGI"):
@@ -1177,10 +1337,11 @@ def main():
 
     args = ap.parse_args()
 
-    # Locks
+    # Locks & trackers
     print_lock = threading.Lock()
     stats_lock = threading.Lock()
     df_lock = threading.Lock()
+    api_counter = APICallCounter()
 
     if args.verbose:
         _print_kv({
@@ -1211,7 +1372,10 @@ def main():
     # Clients
     igdb = None
     if cfg.get("igdb", {}).get("client_id") and cfg.get("igdb", {}).get("client_secret"):
-        igdb = IGDBClient(cfg["igdb"]["client_id"], cfg["igdb"]["client_secret"], cache_conn, rl_global, rl_igdb, print_lock=print_lock, verbose=args.verbose)
+        igdb = IGDBClient(
+            cfg["igdb"]["client_id"], cfg["igdb"]["client_secret"], cache_conn,
+            rl_global, rl_igdb, print_lock=print_lock, verbose=args.verbose, api_counter=api_counter
+        )
 
     wd_user_agent = cfg.get("wikidata", {}).get("user_agent", "RatingsPipeline/1.0 (+contact)")
 
@@ -1220,12 +1384,12 @@ def main():
         gb = GiantBombClient(
             cfg["giantbomb"]["api_key"], cfg.get("giantbomb", {}).get("user_agent"), cache_conn,
             rl_global, rl_gb_rps, gb_hour_search, gb_hour_details, gb_spacing,
-            print_lock=print_lock, verbose=args.verbose
+            print_lock=print_lock, verbose=args.verbose, api_counter=api_counter
         )
 
     rawg = None
     if args.enable_rawg_backfill and cfg.get("rawg", {}).get("api_key"):
-        rawg = RAWGClient(cfg["rawg"]["api_key"], cache_conn, rl_global, rl_rawg)
+        rawg = RAWGClient(cfg["rawg"]["api_key"], cache_conn, rl_global, rl_rawg, api_counter=api_counter)
 
     # Load data & select work set
     _print_section("LOAD & SELECT WORK", args.verbose, print_lock)
@@ -1289,8 +1453,14 @@ def main():
         "rows_with_any_rating": 0,
         "source_counts": {"InputCSV":0, "IGDB":0, "Wikidata":0, "GiantBomb":0, "RAWG":0},
         "board_counts": {"PEGI":0,"ESRB":0,"CERO":0,"USK":0,"3DO":0,"SEGA_VRC":0},
-        "next_progress_row": (args.progress_interval if args.progress_interval and args.progress_interval > 0 else None),
+        "start_time": time.time(),
     }
+
+    progress = ProgressReporter(
+        total=len(work_indices) or 1,
+        row_interval=args.progress_interval or 0,
+        lock=print_lock,
+    )
 
     per_platform = defaultdict(lambda: {"selected":0,"with_any_rating":0})
     for idx in work_indices:
@@ -1323,16 +1493,14 @@ def main():
 
         def _increment_attempted_locked():
             stats["rows_attempted"] += 1
-            if args.progress_interval and args.progress_interval > 0:
-                next_row = stats.get("next_progress_row")
-                if next_row is not None and stats["rows_attempted"] >= next_row:
-                    total_rows = stats.get("rows_selected") or total
-                    pct_done = 100.0 * stats["rows_attempted"] / max(1, total_rows)
-                    log.info(
-                        "Progress: %d/%d rows attempted (%.1f%%)",
-                        stats["rows_attempted"], total_rows, pct_done,
-                    )
-                    stats["next_progress_row"] = next_row + args.progress_interval
+
+        def _emit_progress_locked():
+            progress.maybe_emit(
+                stats["rows_attempted"],
+                stats["rows_with_any_rating"],
+                dict(stats["source_counts"]),
+                api_counter.snapshot(),
+            )
 
         try:
             row = df.loc[idx]
@@ -1383,6 +1551,7 @@ def main():
                     if args.checkpoint_every and (stats["rows_attempted"] % args.checkpoint_every == 0):
                         with df_lock:
                             df.to_csv(args.out_path, index=False)
+                    _emit_progress_locked()
                 _progress_line(plat, title, "Cache", "RESUMED", args.verbose, print_lock)
 
             # If input CSV already has a PEGI rating, treat it as final and skip APIs
@@ -1400,6 +1569,7 @@ def main():
                     if args.checkpoint_every and (stats["rows_attempted"] % args.checkpoint_every == 0):
                         with df_lock:
                             df.to_csv(args.out_path, index=False)
+                    _emit_progress_locked()
                 _progress_line(plat, title, "InputCSV", f"SKIPPED APIS (PEGI present): PEGI {pegi_int}", args.verbose, print_lock)
                 return None
 
@@ -1410,6 +1580,7 @@ def main():
                     if args.checkpoint_every and (stats["rows_attempted"] % args.checkpoint_every == 0):
                         with df_lock:
                             df.to_csv(args.out_path, index=False)
+                    _emit_progress_locked()
                 _progress_line(plat, title, "InputCSV", "SKIPPED APIS (rating columns already filled)", args.verbose, print_lock)
                 return None
 
@@ -1444,6 +1615,7 @@ def main():
                         if args.checkpoint_every and (stats["rows_attempted"] % args.checkpoint_every == 0):
                             with df_lock:
                                 df.to_csv(args.out_path, index=False)
+                        _emit_progress_locked()
                     _progress_line(plat, title, "Policy", 'PRE-1994 RULE: new_rating=3', args.verbose, print_lock)
                     return None
 
@@ -1468,7 +1640,8 @@ def main():
                             if args.checkpoint_every and (stats["rows_attempted"] % args.checkpoint_every == 0):
                                 with df_lock:
                                     df.to_csv(args.out_path, index=False)
-                        _progress_line(plat, title, "Cache", "WAIT COMPLETE (no cached result)", args.verbose, print_lock)
+                            _emit_progress_locked()
+                    _progress_line(plat, title, "Cache", "WAIT COMPLETE (no cached result)", args.verbose, print_lock)
                     return None
 
             # Board priority, but rate-aware: we will prefetch from IGDB/RAWG/Wikidata once, then pick the first matching board
@@ -1487,7 +1660,7 @@ def main():
                 title=title, plat=plat, year=year, threshold=args.threshold,
                 igdb=igdb, wd_user_agent=wd_user_agent, wd_cache=cache_conn, rl_global=rl_global, rl_wd=rl_wd,
                 gb=gb, rawg=rawg, board_priority=board_priority_local, verbose=args.verbose, print_lock=print_lock,
-                api_executor=api_executor
+                api_executor=api_executor, api_counter=api_counter
             )
 
             with stats_lock:
@@ -1542,6 +1715,7 @@ def main():
                         if hit.get(c):
                             stats["board_counts"][("SEGA_VRC" if b=="sega_vrc" else ("3DO" if b=="3do" else b.upper()))] += 1
                             break
+                    _emit_progress_locked()
             else:
                 _progress_line(plat, title, "APIs", "NO RATING FOUND", args.verbose, print_lock)
                 try:
@@ -1566,6 +1740,7 @@ def main():
                 if args.checkpoint_every and (attempted % args.checkpoint_every == 0):
                     with df_lock:
                         df.to_csv(args.out_path, index=False)
+                _emit_progress_locked()
 
             return None
         finally:
@@ -1618,6 +1793,9 @@ def main():
         stats["source_counts"]["GiantBomb"], stats["source_counts"]["RAWG"],
         args.summary_json, args.summary_platform_csv
     )
+    api_totals = api_counter.snapshot()
+    if api_totals:
+        log.info("API totals: %s", ", ".join(f"{k}={v}" for k, v in sorted(api_totals.items())))
 
 if __name__ == "__main__":
     main()
