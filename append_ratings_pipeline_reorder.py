@@ -356,6 +356,102 @@ def final_cache_put_negative(conn, title, platform, year):
         except Exception:
             pass
 
+
+def title_share_db_init(conn) -> None:
+    try:
+        with db_lock:
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS title_share (
+                    norm_title TEXT NOT NULL,
+                    platform TEXT,
+                    year_bucket INTEGER,
+                    payload TEXT NOT NULL,
+                    updated_at INTEGER NOT NULL,
+                    PRIMARY KEY (norm_title, platform, year_bucket)
+                )
+                """
+            )
+            conn.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_title_share_lookup
+                ON title_share(norm_title)
+                """
+            )
+            conn.commit()
+    except Exception:
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+
+
+def title_share_db_clear(conn) -> None:
+    try:
+        with db_lock:
+            conn.execute("DELETE FROM title_share")
+            conn.commit()
+    except Exception:
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+
+
+def title_share_db_upsert(
+    conn,
+    norm_title: str,
+    platform_key: Optional[str],
+    year_bucket: Optional[int],
+    payload: Dict[str, Any],
+) -> None:
+    if not norm_title or not payload:
+        return
+    try:
+        serialized = json.dumps(payload)
+    except Exception:
+        return
+    try:
+        with db_lock:
+            conn.execute(
+                """
+                INSERT INTO title_share(norm_title, platform, year_bucket, payload, updated_at)
+                VALUES(?, ?, ?, ?, strftime('%s','now'))
+                ON CONFLICT(norm_title, platform, year_bucket)
+                DO UPDATE SET
+                    payload=excluded.payload,
+                    updated_at=excluded.updated_at
+                """,
+                (
+                    norm_title,
+                    platform_key,
+                    int(year_bucket) if year_bucket not in (None, "") else None,
+                    serialized,
+                ),
+            )
+            conn.commit()
+    except Exception:
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+
+
+def title_share_db_fetch(conn, norm_title: str) -> list[tuple[Optional[str], Optional[int], str]]:
+    if not norm_title:
+        return []
+    try:
+        with db_lock:
+            cur = conn.cursor()
+            cur.execute(
+                "SELECT platform, year_bucket, payload FROM title_share WHERE norm_title=?",
+                (norm_title,),
+            )
+            rows = cur.fetchall()
+        return rows or []
+    except Exception:
+        return []
+
 # ===== Thread-safe rate limiting =====
 class RPSLimiter:
     def __init__(self, rps: float):
@@ -1664,6 +1760,8 @@ def main():
                     help="Reuse previously fetched ratings for the same normalized title before issuing new API calls.")
     ap.add_argument("--no-share-title-results", dest="share_title_results", action="store_false",
                     help="Disable cross-title reuse cache.")
+    ap.add_argument("--reset-share-cache", dest="reset_share_cache", action="store_true",
+                    help="Clear persisted cross-title share cache before processing for a clean run.")
     ap.set_defaults(share_title_results=True)
     # Checkpointing
     ap.add_argument("--checkpoint-every", type=int, default=0,
@@ -1704,6 +1802,9 @@ def main():
     gb_spacing      = MinSpacingLimiter(args.gb_min_spacing)
 
     cache_conn = get_db()
+    title_share_db_init(cache_conn)
+    if getattr(args, "reset_share_cache", False):
+        title_share_db_clear(cache_conn)
 
     # Clients
     igdb = None
@@ -1843,6 +1944,40 @@ def main():
             except Exception:
                 return None
 
+    def _load_share_entry_from_db(norm_title_key: str) -> Optional[Dict[str, Any]]:
+        rows = title_share_db_fetch(cache_conn, norm_title_key)
+        if not rows:
+            return None
+        payload: Dict[str, Any] = {}
+        years: Set[Optional[int]] = set()
+        platforms: Set[str] = set()
+        for plat_key, year_bucket, raw_payload in rows:
+            try:
+                parsed = json.loads(raw_payload) if raw_payload else {}
+            except Exception:
+                continue
+            if not isinstance(parsed, dict):
+                continue
+            for k, v in parsed.items():
+                if k not in payload or not payload.get(k):
+                    payload[k] = v
+            if year_bucket in (None, ""):
+                years.add(None)
+            else:
+                try:
+                    years.add(int(year_bucket))
+                except Exception:
+                    continue
+            if plat_key:
+                platforms.add(str(plat_key))
+        if not payload:
+            return None
+        return {
+            "payload": payload,
+            "years": years,
+            "platforms": platforms,
+        }
+
     def remember_title_result(norm_title_key: str, payload: Dict[str, Any], year: Optional[int], platform: Optional[str]) -> None:
         if not args.share_title_results or not norm_title_key or not payload:
             return
@@ -1875,20 +2010,21 @@ def main():
                 entry["years"].add(year_key)
             if platform_key:
                 entry["platforms"].add(platform_key)
+        try:
+            title_share_db_upsert(cache_conn, norm_title_key, platform_key, year_key, filtered)
+        except Exception:
+            pass
 
     def lookup_title_result(norm_title_key: str, year: Optional[int], platform: Optional[str], boards: List[str]) -> Optional[Dict[str, Any]]:
         if not args.share_title_results or not norm_title_key:
             return None
-        with title_share_lock:
-            entry = title_share_state.get(norm_title_key)
-            if not entry:
-                return None
+        def _entry_matches(entry: Dict[str, Any]) -> bool:
             payload = entry.get("payload") or {}
             if not payload:
-                return None
+                return False
             if boards:
                 if not any(payload.get(BOARD_COL[b]) for b in boards if b in BOARD_COL):
-                    return None
+                    return False
             years = entry.get("years", set())
             if year is not None and years:
                 year_int = _share_year_value(year)
@@ -1905,13 +2041,42 @@ def main():
                         except Exception:
                             continue
                     if not ok:
-                        return None
+                        return False
             platforms = entry.get("platforms", set())
             if platforms and "__ANY__" not in platforms:
                 plat_key = _share_platform_key(platform)
                 if not plat_key or plat_key not in platforms:
-                    return None
-            return dict(payload)
+                    return False
+            return True
+
+        with title_share_lock:
+            entry = title_share_state.get(norm_title_key)
+            if entry and _entry_matches(entry):
+                return dict(entry["payload"])
+
+        db_entry = _load_share_entry_from_db(norm_title_key)
+        if not db_entry:
+            return None
+
+        with title_share_lock:
+            entry = title_share_state.get(norm_title_key)
+            if entry is None:
+                entry = {
+                    "payload": dict(db_entry["payload"]),
+                    "years": set(db_entry.get("years", set())),
+                    "platforms": set(db_entry.get("platforms", set())),
+                }
+                title_share_state[norm_title_key] = entry
+            else:
+                existing_payload = entry.setdefault("payload", {})
+                for k, v in db_entry.get("payload", {}).items():
+                    if not existing_payload.get(k):
+                        existing_payload[k] = v
+                entry.setdefault("years", set()).update(db_entry.get("years", set()))
+                entry.setdefault("platforms", set()).update(db_entry.get("platforms", set()))
+            if _entry_matches(entry):
+                return dict(entry.get("payload", {}))
+        return None
 
     # Worker
     def process_row(idx: int, n: int, total: int):
