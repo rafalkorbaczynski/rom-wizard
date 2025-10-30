@@ -16,7 +16,7 @@ from urllib.parse import urlparse
 
 import requests
 import pandas as pd
-from concurrent.futures import ThreadPoolExecutor, as_completed, Future
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from functools import lru_cache
 
 # ===== Logging =====
@@ -291,6 +291,31 @@ class MinSpacingLimiter:
             if delta < self.min:
                 time.sleep(self.min - delta)
             self.last = time.time()
+
+# ===== In-flight deduplication =====
+class InFlightDeduper:
+    """Coordinate workers so each (title, platform, year) triggers APIs once."""
+
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self._inflight: Dict[str, threading.Event] = {}
+
+    def acquire(self, key: str) -> Tuple[bool, threading.Event]:
+        """Return (is_owner, event). Non-owners should wait on the event."""
+
+        with self._lock:
+            evt = self._inflight.get(key)
+            if evt is not None:
+                return False, evt
+            evt = threading.Event()
+            self._inflight[key] = evt
+            return True, evt
+
+    def release(self, key: str) -> None:
+        with self._lock:
+            evt = self._inflight.pop(key, None)
+        if evt is not None:
+            evt.set()
 
 # ===== IGDB client =====
 class IGDBClient:
@@ -947,57 +972,51 @@ def collect_first_rating_tiered(title: str, plat: str, year: Optional[int], thre
                                 api_executor: Optional[ThreadPoolExecutor]=None) -> Dict[str, Any]:
     enriched: Dict[str, Any] = {}
 
-    future_to_name: Dict[Future, str] = {}
-    futures: List[Future] = []
+    def _run_api(func):
+        if not api_executor:
+            return func()
+        return api_executor.submit(func).result()
 
-    def _schedule(name: str, func):
-        if api_executor:
-            fut = api_executor.submit(func)
-        else:
-            fut = Future()
-            try:
-                fut.set_result(func())
-            except Exception as exc:
-                fut.set_exception(exc)
-        futures.append(fut)
-        future_to_name[fut] = name
-        return fut
-
-    def _cancel_remaining(skip: Optional[Future]):
-        for f in futures:
-            if f is skip:
-                continue
-            if not f.done():
-                f.cancel()
-
-    def _maybe_finish(label: str, current_future: Optional[Future]) -> bool:
+    def _has_priority_hit() -> bool:
         for b in board_priority:
             col = BOARD_COL[b]
             if enriched.get(col):
                 _print_kv(
                     {col: enriched[col], f"{col}_source": enriched.get(f"{col}_source", "(unknown)")},
                     verbose,
-                    title=f"[HIT] {b.upper()} from {label} — stopping",
+                    title=f"[HIT] {b.upper()} — stopping",
                     lock=print_lock,
                 )
-                _cancel_remaining(current_future)
                 return True
         return False
 
+    def _needs_any_boards(candidates: List[str]) -> bool:
+        for b in candidates:
+            col = BOARD_COL.get(b)
+            if col and not enriched.get(col):
+                return True
+        return False
+
+    # 1) IGDB (primary)
     if igdb:
         def _igdb_task():
             try:
                 game = igdb.search_game_tiered(title, plat, year, threshold)
                 if game:
-                    data = ratings_from_igdb_full(game, igdb) or {}
-                    return data
+                    return ratings_from_igdb_full(game, igdb) or {}
             except Exception as e:
                 log.warning("IGDB fetch failed: %s", e)
             return {}
 
-        _schedule("IGDB", _igdb_task)
+        payload = _run_api(_igdb_task)
+        if isinstance(payload, dict) and payload:
+            enriched.update(payload)
+            _progress_line(plat, title, "IGDB", "HAVE AGE_RATINGS", verbose, print_lock)
+            if _has_priority_hit():
+                return enriched
 
-    if rawg and ("esrb" in board_priority):
+    # 2) RAWG (ESRB only)
+    if rawg and ("esrb" in board_priority) and _needs_any_boards(["esrb"]):
         def _rawg_task():
             try:
                 results = rawg.search(title, year)
@@ -1021,101 +1040,87 @@ def collect_first_rating_tiered(title: str, plat: str, year: Optional[int], thre
                 log.warning("RAWG fetch failed: %s", e)
             return {}
 
-        _schedule("RAWG", _rawg_task)
+        payload = _run_api(_rawg_task)
+        if isinstance(payload, dict) and payload:
+            enriched.update(payload)
+            status = "ESRB"
+            if payload.get("rating_esrb"):
+                status = f"ESRB={payload.get('rating_esrb')}"
+            _progress_line(plat, title, "RAWG", status, verbose, print_lock)
+            if _has_priority_hit():
+                return enriched
 
-    def _wd_task():
-        try:
-            wd_all = wikidata_ratings(title, plat, year, wd_user_agent, wd_cache, rl_global, rl_wd, verbose)
-            if wd_all:
-                wd_map: Dict[str, Any] = {}
-                if wd_all.get("PEGI"):
-                    wd_map["rating_pegi"] = wd_all["PEGI"]
-                    wd_map["rating_pegi_source"] = "Wikidata"
-                if wd_all.get("ESRB"):
-                    wd_map["rating_esrb"] = wd_all["ESRB"]
-                    wd_map["rating_esrb_source"] = "Wikidata"
-                if wd_all.get("CERO"):
-                    wd_map["rating_cero"] = wd_all["CERO"]
-                    wd_map["rating_cero_source"] = "Wikidata"
-                if wd_all.get("USK"):
-                    wd_map["rating_usk"] = wd_all["USK"]
-                    wd_map["rating_usk_source"] = "Wikidata"
-                return wd_map
-        except Exception as e:
-            log.warning("Wikidata fetch failed: %s", e)
-        return {}
-
-    _schedule("WIKIDATA", _wd_task)
-
-    if futures:
-        for fut in as_completed(list(futures)):
-            name = future_to_name.get(fut, "")
+    # 3) Wikidata (only PEGI/ESRB/CERO/USK)
+    if _needs_any_boards(["pegi", "esrb", "cero", "usk"]):
+        def _wd_task():
             try:
-                payload = fut.result()
+                wd_all = wikidata_ratings(title, plat, year, wd_user_agent, wd_cache, rl_global, rl_wd, verbose)
+                if wd_all:
+                    wd_map: Dict[str, Any] = {}
+                    if wd_all.get("PEGI"):
+                        wd_map.setdefault("rating_pegi", wd_all["PEGI"])
+                        wd_map.setdefault("rating_pegi_source", "Wikidata")
+                    if wd_all.get("ESRB"):
+                        wd_map.setdefault("rating_esrb", wd_all["ESRB"])
+                        wd_map.setdefault("rating_esrb_source", "Wikidata")
+                    if wd_all.get("CERO"):
+                        wd_map.setdefault("rating_cero", wd_all["CERO"])
+                        wd_map.setdefault("rating_cero_source", "Wikidata")
+                    if wd_all.get("USK"):
+                        wd_map.setdefault("rating_usk", wd_all["USK"])
+                        wd_map.setdefault("rating_usk_source", "Wikidata")
+                    return wd_map
             except Exception as e:
-                log.warning("%s fetch failed: %s", name or "API", e)
-                continue
+                log.warning("Wikidata fetch failed: %s", e)
+            return {}
 
-            if not isinstance(payload, dict):
-                payload = {}
+        payload = _run_api(_wd_task)
+        if isinstance(payload, dict) and payload:
+            for k, v in payload.items():
+                enriched.setdefault(k, v)
+            _progress_line(plat, title, "Wikidata", "CANDIDATES", verbose, print_lock)
+            if _has_priority_hit():
+                return enriched
 
-            if name == "IGDB":
-                if payload:
-                    enriched.update(payload)
-                    _progress_line(plat, title, "IGDB", "HAVE AGE_RATINGS", verbose, print_lock)
-                    if _maybe_finish("non-GB source", fut):
-                        return enriched
-            elif name == "RAWG":
-                if payload:
-                    enriched.update(payload)
-                    status = "ESRB"
-                    if payload.get("rating_esrb"):
-                        status = f"ESRB={payload.get('rating_esrb')}"
-                    _progress_line(plat, title, "RAWG", status, verbose, print_lock)
-                    if _maybe_finish("non-GB source", fut):
-                        return enriched
-            elif name == "WIKIDATA":
-                if payload:
-                    for k, v in payload.items():
-                        enriched.setdefault(k, v)
-                    _progress_line(plat, title, "Wikidata", "CANDIDATES", verbose, print_lock)
-                    if _maybe_finish("non-GB source", fut):
-                        return enriched
+    # 4) GiantBomb (last resort)
+    if gb and _needs_any_boards(board_priority):
+        def _gb_task():
+            try:
+                results = gb.search_game(title, year)
+                best = None; best_s = -1
+                for r0 in results:
+                    s = 0
+                    if (r0.get("name", "")) and (r0.get("name").strip().lower() == title.lower()):
+                        s += 2
+                    try:
+                        y0 = int((r0.get("original_release_date") or "")[:4])
+                        if year and abs(y0 - int(year)) <= 1:
+                            s += 1
+                    except Exception:
+                        pass
+                    if s > best_s:
+                        best, best_s = r0, s
+                if best and best.get("api_detail_url"):
+                    det = gb.game_details(best["api_detail_url"]) or {}
+                    return parse_giantbomb_ratings(det.get("original_game_rating"))
+            except Exception as e:
+                log.warning("GiantBomb fetch failed: %s", e)
+            return {}
 
-    for b in board_priority:
-        col = BOARD_COL[b]
-        if enriched.get(col):
-            return enriched
-
-    # 4) GiantBomb (very limited) — last resort
-    if gb:
-        try:
-            results = gb.search_game(title, year)
-            best = None; best_s = -1
-            for r0 in results:
-                s = 0
-                if (r0.get("name","")) and (r0.get("name").strip().lower() == title.lower()): s += 2
-                try:
-                    y0 = int((r0.get("original_release_date") or "")[:4])
-                    if year and abs(y0 - int(year)) <= 1: s += 1
-                except Exception:
-                    pass
-                if s > best_s: best, best_s = r0, s
-            if best and best.get("api_detail_url"):
-                det = gb.game_details(best["api_detail_url"]) or {}
-                gb_map = parse_giantbomb_ratings(det.get("original_game_rating"))
-                if gb_map:
-                    enriched.update(gb_map)
-                    # Only return after we can satisfy a priority board
-                    for b in board_priority:
-                        col = BOARD_COL[b]
-                        if enriched.get(col):
-                            _progress_line(plat, title, "GiantBomb", f"SUCCESS: {enriched[col]}", verbose, print_lock)
-                            _print_kv({col: enriched[col], f"{col}_source": enriched.get(f"{col}_source","GiantBomb")}, verbose,
-                                      title=f"[HIT] {b.upper()} from GiantBomb — stopping", lock=print_lock)
-                            return enriched
-        except Exception as e:
-            log.warning("GiantBomb fetch failed: %s", e)
+        payload = _run_api(_gb_task)
+        if isinstance(payload, dict) and payload:
+            enriched.update(payload)
+            for b in board_priority:
+                col = BOARD_COL[b]
+                if enriched.get(col):
+                    _progress_line(plat, title, "GiantBomb", f"SUCCESS: {enriched[col]}", verbose, print_lock)
+                    _print_kv(
+                        {col: enriched[col], f"{col}_source": enriched.get(f"{col}_source", "GiantBomb")},
+                        verbose,
+                        title=f"[HIT] {b.upper()} from GiantBomb — stopping",
+                        lock=print_lock,
+                    )
+                    break
 
     return enriched
 
@@ -1146,6 +1151,8 @@ def main():
     ap.add_argument("--summary-every", type=int, default=50)
     ap.add_argument("--summary-json", default="ratings_summary.json")
     ap.add_argument("--summary-platform-csv", default="ratings_summary_by_platform.csv")
+    ap.add_argument("--progress-interval", type=int, default=0,
+                    help="If >0, emit a progress log every N attempted rows.")
     # Rate limits
     ap.add_argument("--rps-global", type=float, default=3.0)
     ap.add_argument("--rps-igdb", type=float, default=3.8)
@@ -1282,6 +1289,7 @@ def main():
         "rows_with_any_rating": 0,
         "source_counts": {"InputCSV":0, "IGDB":0, "Wikidata":0, "GiantBomb":0, "RAWG":0},
         "board_counts": {"PEGI":0,"ESRB":0,"CERO":0,"USK":0,"3DO":0,"SEGA_VRC":0},
+        "next_progress_row": (args.progress_interval if args.progress_interval and args.progress_interval > 0 else None),
     }
 
     per_platform = defaultdict(lambda: {"selected":0,"with_any_rating":0})
@@ -1301,78 +1309,42 @@ def main():
         api_workers = min(16, max(4, args.workers * parallel_sources))
         api_executor = ThreadPoolExecutor(max_workers=api_workers)
 
+    inflight = InFlightDeduper()
+
     # Worker
     def process_row(idx: int, n: int, total: int):
-        row = df.loc[idx]
-        title = str(row.get(args.title_col, "")).strip()
-        plat  = str(row.get(args.platform_col, "")).strip()
-        if not title or not plat or plat.lower() not in allowed_platforms:
-            return None
+        dedupe_owner = False
+        dedupe_key: Optional[str] = None
+        dedupe_event: Optional[threading.Event] = None
 
-        if args.verbose:
-            _progress_line(plat, title, "ROW", f"start [{n}/{total}]", True, print_lock)
+        def _release_dedupe():
+            if dedupe_owner and dedupe_key:
+                inflight.release(dedupe_key)
 
-        # If input CSV already has a PEGI rating, treat it as final and skip APIs
-        pegi_int = _pegi_any_number_or_none(row.get(args.pegi_input_col)) if args.pegi_input_col in df.columns else None
-        if pegi_int is not None:
-            with df_lock:
-                df.at[idx, "new_rating"] = int(pegi_int)
-                df.at[idx, "new_rating_source"] = "PEGI present"
-            with stats_lock:
-                stats["rows_attempted"] += 1
-                stats["rows_with_any_rating"] += 1
-                per_platform[plat]["with_any_rating"] += 1
-                stats["source_counts"]["InputCSV"] += 1
-                stats["board_counts"]["PEGI"] += 1
-                if args.checkpoint_every and (stats["rows_attempted"] % args.checkpoint_every == 0):
-                    with df_lock: df.to_csv(args.out_path, index=False)
-            _progress_line(plat, title, "InputCSV", f"SKIPPED APIS (PEGI present): PEGI {pegi_int}", args.verbose, print_lock)
-            return None
+        def _increment_attempted_locked():
+            stats["rows_attempted"] += 1
+            if args.progress_interval and args.progress_interval > 0:
+                next_row = stats.get("next_progress_row")
+                if next_row is not None and stats["rows_attempted"] >= next_row:
+                    total_rows = stats.get("rows_selected") or total
+                    pct_done = 100.0 * stats["rows_attempted"] / max(1, total_rows)
+                    log.info(
+                        "Progress: %d/%d rows attempted (%.1f%%)",
+                        stats["rows_attempted"], total_rows, pct_done,
+                    )
+                    stats["next_progress_row"] = next_row + args.progress_interval
 
-        # Already has any rating in CSV? (skip APIs)
-        if not _is_empty_or_nan(row.get("new_rating", "")):
-            with stats_lock:
-                stats["rows_attempted"] += 1
-                if args.checkpoint_every and (stats["rows_attempted"] % args.checkpoint_every == 0):
-                    with df_lock: df.to_csv(args.out_path, index=False)
-            _progress_line(plat, title, "InputCSV", "SKIPPED APIS (rating columns already filled)", args.verbose, print_lock)
-            return None
-
-        # Parse year if available
-        year = None
-        if args.year_col and args.year_col in df.columns:
-            try:
-                year = int(float(str(row.get(args.year_col)).strip()))
-            except Exception:
-                year = _extract_year_from_row_any(df, row, args)
-        else:
-            year = _extract_year_from_row_any(df, row, args)
-
-        # Policy-based short-circuit (e.g., "3 if release_date<1994 else pegi>…")
-        policy = (policy_map.get(plat) or policy_map_canon.get(plat.lower()) or "").lower()
-        def _to_int_year(y):
-            try: return int(float(str(y).strip()))
-            except Exception: return None
-        y2 = _to_int_year(row.get(args.year_col, "")) if args.year_col else year
-        if ("3 if" in policy) and ("release_date<1994" in policy):
-            if (y2 is None) or (y2 <= 1994):
-                with df_lock:
-                    df.at[idx, "new_rating"] = 3
-                    df.at[idx, "new_rating_source"] = "pre-1994"
-                with stats_lock:
-                    stats["rows_attempted"] += 1
-                    stats["rows_with_any_rating"] += 1
-                    per_platform[plat]["with_any_rating"] += 1
-                    stats["board_counts"]["PEGI"] += 1
-                    if args.checkpoint_every and (stats["rows_attempted"] % args.checkpoint_every == 0):
-                        with df_lock: df.to_csv(args.out_path, index=False)
-                _progress_line(plat, title, "Policy", 'PRE-1994 RULE: new_rating=3', args.verbose, print_lock)
+        try:
+            row = df.loc[idx]
+            title = str(row.get(args.title_col, "")).strip()
+            plat  = str(row.get(args.platform_col, "")).strip()
+            if not title or not plat or plat.lower() not in allowed_platforms:
                 return None
 
-        # Resume-from-cache first
-        if args.resume_from_cache:
-            cached_final = final_cache_get(cache_conn, title, plat, year)
-            if cached_final:
+            if args.verbose:
+                _progress_line(plat, title, "ROW", f"start [{n}/{total}]", True, print_lock)
+
+            def _apply_cached_result(cached_final: Dict[str, Any]) -> None:
                 def _pick_best_from_cached(d: Dict[str,Any]) -> Tuple[Optional[str], Optional[str]]:
                     pri = ['pegi','esrb','cero','usk','3do','sega_vrc','vrc']
                     for b in pri:
@@ -1380,6 +1352,7 @@ def main():
                         if rv not in (None, '', 'None'):
                             return str(rv), b.upper()
                     return None, None
+
                 _nr, _src = _pick_best_from_cached(cached_final)
                 if _nr is not None:
                     try:
@@ -1389,111 +1362,214 @@ def main():
                         pass
                 with df_lock:
                     for k, v in cached_final.items():
-                        if k in df.columns: df.at[idx, k] = v
+                        if k in df.columns:
+                            df.at[idx, k] = v
                         else:
-                            df[k] = ""; df.at[idx, k] = v
+                            df[k] = ""
+                            df.at[idx, k] = v
                 with stats_lock:
-                    stats["rows_attempted"] += 1
+                    _increment_attempted_locked()
                     stats["rows_with_any_rating"] += 1
                     per_platform[plat]["with_any_rating"] += 1
                     for s in ["InputCSV","IGDB","Wikidata","GiantBomb","RAWG"]:
                         if any((k.endswith("_source") and cached_final.get(k) == s) for k in cached_final):
-                            stats["source_counts"][s] += 1; break
+                            stats["source_counts"][s] += 1
+                            break
                     for b in board_priority:
                         c = BOARD_COL[b]
                         if cached_final.get(c):
                             stats["board_counts"][("SEGA_VRC" if b=="sega_vrc" else ("3DO" if b=="3do" else b.upper()))] += 1
                             break
                     if args.checkpoint_every and (stats["rows_attempted"] % args.checkpoint_every == 0):
-                        with df_lock: df.to_csv(args.out_path, index=False)
-                _progress_line(plat, title, "CACHE", "SUCCESS (final)", args.verbose, print_lock)
+                        with df_lock:
+                            df.to_csv(args.out_path, index=False)
+                _progress_line(plat, title, "Cache", "RESUMED", args.verbose, print_lock)
+
+            # If input CSV already has a PEGI rating, treat it as final and skip APIs
+            pegi_int = _pegi_any_number_or_none(row.get(args.pegi_input_col)) if args.pegi_input_col in df.columns else None
+            if pegi_int is not None:
+                with df_lock:
+                    df.at[idx, "new_rating"] = int(pegi_int)
+                    df.at[idx, "new_rating_source"] = "PEGI present"
+                with stats_lock:
+                    _increment_attempted_locked()
+                    stats["rows_with_any_rating"] += 1
+                    per_platform[plat]["with_any_rating"] += 1
+                    stats["source_counts"]["InputCSV"] += 1
+                    stats["board_counts"]["PEGI"] += 1
+                    if args.checkpoint_every and (stats["rows_attempted"] % args.checkpoint_every == 0):
+                        with df_lock:
+                            df.to_csv(args.out_path, index=False)
+                _progress_line(plat, title, "InputCSV", f"SKIPPED APIS (PEGI present): PEGI {pegi_int}", args.verbose, print_lock)
                 return None
 
-        # Board priority, but rate-aware: we will prefetch from IGDB/RAWG/Wikidata once, then pick the first matching board
-        # Filter boards by platform (3DO/VRC only when applicable)
-        is_3do = platform_name_matches(["3DO"], plat)
-        is_sega_vrc = platform_name_matches(["Master System","Sega Master System","Genesis","Mega Drive","Sega Genesis","Game Gear","Sega Game Gear","Sega CD","Mega-CD","Mega CD","32X","Sega 32X"], plat)
-        board_priority_local = [b for b in board_priority if not ((b=="3do" and not is_3do) or (b=="sega_vrc" and not is_sega_vrc))]
+            # Already has any rating in CSV? (skip APIs)
+            if not _is_empty_or_nan(row.get("new_rating", "")):
+                with stats_lock:
+                    _increment_attempted_locked()
+                    if args.checkpoint_every and (stats["rows_attempted"] % args.checkpoint_every == 0):
+                        with df_lock:
+                            df.to_csv(args.out_path, index=False)
+                _progress_line(plat, title, "InputCSV", "SKIPPED APIS (rating columns already filled)", args.verbose, print_lock)
+                return None
 
-        hit = collect_first_rating_tiered(
-            title=title, plat=plat, year=year, threshold=args.threshold,
-            igdb=igdb, wd_user_agent=wd_user_agent, wd_cache=cache_conn, rl_global=rl_global, rl_wd=rl_wd,
-            gb=gb, rawg=rawg, board_priority=board_priority_local, verbose=args.verbose, print_lock=print_lock,
-            api_executor=api_executor
-        )
+            # Parse year if available
+            year = None
+            if args.year_col and args.year_col in df.columns:
+                try:
+                    year = int(float(str(row.get(args.year_col)).strip()))
+                except Exception:
+                    year = _extract_year_from_row_any(df, row, args)
+            else:
+                year = _extract_year_from_row_any(df, row, args)
 
-        with stats_lock:
-            stats["rows_attempted"] += 1
+            # Policy-based short-circuit (e.g., "3 if release_date<1994 else pegi>…")
+            policy = (policy_map.get(plat) or policy_map_canon.get(plat.lower()) or "").lower()
+            def _to_int_year(y):
+                try:
+                    return int(float(str(y).strip()))
+                except Exception:
+                    return None
+            y2 = _to_int_year(row.get(args.year_col, "")) if args.year_col else year
+            if ("3 if" in policy) and ("release_date<1994" in policy):
+                if (y2 is None) or (y2 <= 1994):
+                    with df_lock:
+                        df.at[idx, "new_rating"] = 3
+                        df.at[idx, "new_rating_source"] = "pre-1994"
+                    with stats_lock:
+                        _increment_attempted_locked()
+                        stats["rows_with_any_rating"] += 1
+                        per_platform[plat]["with_any_rating"] += 1
+                        stats["board_counts"]["PEGI"] += 1
+                        if args.checkpoint_every and (stats["rows_attempted"] % args.checkpoint_every == 0):
+                            with df_lock:
+                                df.to_csv(args.out_path, index=False)
+                    _progress_line(plat, title, "Policy", 'PRE-1994 RULE: new_rating=3', args.verbose, print_lock)
+                    return None
 
-        if hit:
-            # Determine which board/value we used
-            used_board = None; used_value = None
-            for b in board_priority_local:
-                c = BOARD_COL[b]
-                if hit.get(c):
-                    used_board = b; used_value = hit.get(c); break
-            if used_board is None:
-                for b, c in BOARD_COL.items():
-                    if hit.get(c): used_board, used_value = b, hit.get(c); break
+            # Resume-from-cache first
+            if args.resume_from_cache:
+                cached_final = final_cache_get(cache_conn, title, plat, year)
+                if cached_final:
+                    _apply_cached_result(cached_final)
+                    return None
 
-            # Determine API source
-            api_src = None
-            for s in ["IGDB","Wikidata","GiantBomb","RAWG","InputCSV","Policy"]:
-                if any((k.endswith("_source") and hit.get(k) == s) for k in hit):
-                    api_src = s; break
+                dedupe_key = _final_key(title, plat, year)
+                dedupe_owner, dedupe_event = inflight.acquire(dedupe_key)
+                if not dedupe_owner and dedupe_event is not None:
+                    _progress_line(plat, title, "Cache", "WAITING FOR IN-FLIGHT RESULT", args.verbose, print_lock)
+                    dedupe_event.wait()
+                    cached_final = final_cache_get(cache_conn, title, plat, year)
+                    if cached_final:
+                        _apply_cached_result(cached_final)
+                    else:
+                        with stats_lock:
+                            _increment_attempted_locked()
+                            if args.checkpoint_every and (stats["rows_attempted"] % args.checkpoint_every == 0):
+                                with df_lock:
+                                    df.to_csv(args.out_path, index=False)
+                        _progress_line(plat, title, "Cache", "WAIT COMPLETE (no cached result)", args.verbose, print_lock)
+                    return None
 
-            age_int, board_label = _board_to_numeric(used_board or "", str(used_value or ""))
-            with df_lock:
-                if age_int is not None:
-                    df.at[idx, "new_rating"] = int(age_int)
-                if api_src and board_label:
-                    df.at[idx, "new_rating_source"] = f"{api_src} ({board_label})"
-                elif api_src:
-                    df.at[idx, "new_rating_source"] = api_src
-            try:
-                final_cache_put(cache_conn, title, plat, year, hit)
-            except Exception:
-                pass
+            # Board priority, but rate-aware: we will prefetch from IGDB/RAWG/Wikidata once, then pick the first matching board
+            # Filter boards by platform (3DO/VRC only when applicable)
+            is_3do = platform_name_matches(["3DO"], plat)
+            is_sega_vrc = platform_name_matches([
+                "Master System","Sega Master System","Genesis","Mega Drive","Sega Genesis",
+                "Game Gear","Sega Game Gear","Sega CD","Mega-CD","Mega CD","32X","Sega 32X"
+            ], plat)
+            board_priority_local = [
+                b for b in board_priority
+                if not ((b == "3do" and not is_3do) or (b == "sega_vrc" and not is_sega_vrc))
+            ]
+
+            hit = collect_first_rating_tiered(
+                title=title, plat=plat, year=year, threshold=args.threshold,
+                igdb=igdb, wd_user_agent=wd_user_agent, wd_cache=cache_conn, rl_global=rl_global, rl_wd=rl_wd,
+                gb=gb, rawg=rawg, board_priority=board_priority_local, verbose=args.verbose, print_lock=print_lock,
+                api_executor=api_executor
+            )
 
             with stats_lock:
-                stats["rows_with_any_rating"] += 1
-                per_platform[plat]["with_any_rating"] += 1
-                src = None
-                for s in ["InputCSV","IGDB","Wikidata","GiantBomb","RAWG"]:
-                    if any((k.endswith("_source") and hit.get(k) == s) for k in hit):
-                        src = s; break
-                if src: stats["source_counts"][src] += 1
+                _increment_attempted_locked()
+
+            if hit:
+                # Determine which board/value we used
+                used_board = None; used_value = None
                 for b in board_priority_local:
                     c = BOARD_COL[b]
                     if hit.get(c):
-                        stats["board_counts"][("SEGA_VRC" if b=="sega_vrc" else ("3DO" if b=="3do" else b.upper()))] += 1
+                        used_board = b; used_value = hit.get(c)
                         break
-        else:
-            _progress_line(plat, title, "APIs", "NO RATING FOUND", args.verbose, print_lock)
-            try:
-                final_cache_put_negative(cache_conn, title, plat, year)
-            except Exception:
-                pass
+                if used_board is None:
+                    for b, c in BOARD_COL.items():
+                        if hit.get(c):
+                            used_board, used_value = b, hit.get(c)
+                            break
 
-        # periodic running summary + checkpoint
-        with stats_lock:
-            attempted = stats["rows_attempted"]
-            if attempted and ((n % args.summary_every == 0) or (n == total)):
-                pct = 100.0 * stats["rows_with_any_rating"] / max(1, attempted)
-                log.info(
-                    "Coverage so far: %d/%d attempted (%.1f%%) have ≥1 rating | InputCSV=%d, IGDB=%d, Wikidata=%d, GiantBomb=%d, RAWG=%d",
-                    stats["rows_with_any_rating"], attempted, pct,
-                    stats["source_counts"]["InputCSV"],
-                    stats["source_counts"]["IGDB"],
-                    stats["source_counts"]["Wikidata"],
-                    stats["source_counts"]["GiantBomb"],
-                    stats["source_counts"]["RAWG"]
-                )
-            if args.checkpoint_every and (attempted % args.checkpoint_every == 0):
+                # Determine API source
+                api_src = None
+                for s in ["IGDB","Wikidata","GiantBomb","RAWG","InputCSV","Policy"]:
+                    if any((k.endswith("_source") and hit.get(k) == s) for k in hit):
+                        api_src = s
+                        break
+
+                age_int, board_label = _board_to_numeric(used_board or "", str(used_value or ""))
                 with df_lock:
-                    df.to_csv(args.out_path, index=False)
+                    if age_int is not None:
+                        df.at[idx, "new_rating"] = int(age_int)
+                    if api_src and board_label:
+                        df.at[idx, "new_rating_source"] = f"{api_src} ({board_label})"
+                    elif api_src:
+                        df.at[idx, "new_rating_source"] = api_src
+                try:
+                    final_cache_put(cache_conn, title, plat, year, hit)
+                except Exception:
+                    pass
 
-        return None
+                with stats_lock:
+                    stats["rows_with_any_rating"] += 1
+                    per_platform[plat]["with_any_rating"] += 1
+                    src = None
+                    for s in ["InputCSV","IGDB","Wikidata","GiantBomb","RAWG"]:
+                        if any((k.endswith("_source") and hit.get(k) == s) for k in hit):
+                            src = s
+                            break
+                    if src:
+                        stats["source_counts"][src] += 1
+                    for b in board_priority_local:
+                        c = BOARD_COL[b]
+                        if hit.get(c):
+                            stats["board_counts"][("SEGA_VRC" if b=="sega_vrc" else ("3DO" if b=="3do" else b.upper()))] += 1
+                            break
+            else:
+                _progress_line(plat, title, "APIs", "NO RATING FOUND", args.verbose, print_lock)
+                try:
+                    final_cache_put_negative(cache_conn, title, plat, year)
+                except Exception:
+                    pass
+
+            # periodic running summary + checkpoint
+            with stats_lock:
+                attempted = stats["rows_attempted"]
+                if attempted and ((n % args.summary_every == 0) or (n == total)):
+                    pct = 100.0 * stats["rows_with_any_rating"] / max(1, attempted)
+                    log.info(
+                        "Coverage so far: %d/%d attempted (%.1f%%) have ≥1 rating | InputCSV=%d, IGDB=%d, Wikidata=%d, GiantBomb=%d, RAWG=%d",
+                        stats["rows_with_any_rating"], attempted, pct,
+                        stats["source_counts"]["InputCSV"],
+                        stats["source_counts"]["IGDB"],
+                        stats["source_counts"]["Wikidata"],
+                        stats["source_counts"]["GiantBomb"],
+                        stats["source_counts"]["RAWG"]
+                    )
+                if args.checkpoint_every and (attempted % args.checkpoint_every == 0):
+                    with df_lock:
+                        df.to_csv(args.out_path, index=False)
+
+            return None
+        finally:
+            _release_dedupe()
 
     # Run threaded
     _print_section("PROCESS (TIERED + MULTITHREADED)", args.verbose, print_lock)
