@@ -1,0 +1,54 @@
+Platform,Directory,URL,ignore,FullName,ReleaseYear,Generation,query_ratings
+2600,atari2600,https://myrient.erista.me/files/No-Intro/Atari%20-%20Atari%202600/,FALSE,Atari 2600,1977,2,FALSE
+3DO,3do,https://myrient.erista.me/files/Redump/Panasonic%20-%203DO%20Interactive%20Multiplayer/,FALSE,3DO,1993,5,FALSE
+3DS,3ds,https://myrient.erista.me/files/No-Intro/Nintendo%20-%20Nintendo%203DS%20%28Decrypted%29/,FALSE,Nintendo 3DS,2011,8,FALSE
+DC,dreamcast,https://myrient.erista.me/files/Redump/Sega%20-%20Dreamcast/,FALSE,Sega Dreamcast,1998,6,FALSE
+DS,nds,https://myrient.erista.me/files/No-Intro/Nintendo%20-%20Nintendo%20DS%20%28Decrypted%29/,FALSE,Nintendo DS,2004,7,FALSE
+GB,gb,https://myrient.erista.me/files/No-Intro/Nintendo%20-%20Game%20Boy/,FALSE,Nintendo Game Boy,1989,4,FALSE
+GBA,gba,https://myrient.erista.me/files/No-Intro/Nintendo%20-%20Game%20Boy%20Advance/,FALSE,Nintendo Game Boy Advance,2001,6,FALSE
+GBC,gbc,https://myrient.erista.me/files/No-Intro/Nintendo%20-%20Game%20Boy%20Color/,FALSE,Nintendo Game Boy Color,1998,5,FALSE
+GC,gamecube,https://myrient.erista.me/files/Redump/Nintendo%20-%20GameCube%20-%20NKit%20RVZ%20%5Bzstd-19-128k%5D/,FALSE,Nintendo GameCube,2001,6,FALSE
+GEN,megadrive,https://myrient.erista.me/files/No-Intro/Sega%20-%20Mega%20Drive%20-%20Genesis/,FALSE,Sega Mega Drive / Genesis,1988,4,FALSE
+GG,gamegear,https://myrient.erista.me/files/No-Intro/Sega%20-%20Game%20Gear/,FALSE,Sega Game Gear,1990,4,FALSE
+N64,n64,https://myrient.erista.me/files/No-Intro/Nintendo%20-%20Nintendo%2064%20%28BigEndian%29/,FALSE,Nintendo 64,1996,5,TRUE
+NES,nes,https://myrient.erista.me/files/No-Intro/Nintendo%20-%20Nintendo%20Entertainment%20System%20%28Headered%29/,FALSE,Nintendo Entertainment System,1983,3,FALSE
+NG,neogeo,,FALSE,SNK Neo Geo,1990,4,FALSE
+PC,pc,,TRUE,PC,1981,,FALSE
+PCFX,pcfx,,TRUE,NEC PC-FX,1994,5,FALSE
+ports,ports,,TRUE,Various Source Ports,,,FALSE
+PS,psx,https://myrient.erista.me/files/Redump/Sony%20-%20PlayStation/,FALSE,Sony PlayStation,1994,5,TRUE
+PS2,ps2,https://myrient.erista.me/files/Redump/Sony%20-%20PlayStation%202/,FALSE,Sony PlayStation 2,2000,6,FALSE
+PS3,ps3,https://myrient.erista.me/files/Redump/Sony%20-%20PlayStation%203/,FALSE,Sony PlayStation 3,2006,7,FALSE
+PS4,ps4,,TRUE,Sony PlayStation 4,2013,8,FALSE
+PSP,psp,https://myrient.erista.me/files/Redump/Sony%20-%20PlayStation%20Portable/,FALSE,Sony PlayStation Portable,2004,7,FALSE
+PSV,psvita,https://archive.org/download/sony-playstation-vita-usa-full-set-nonpdrm-format,FALSE,Sony PlayStation Vita,2011,8,FALSE
+SAT,saturn,https://myrient.erista.me/files/Redump/Sega%20-%20Saturn/,FALSE,Sega Saturn,1994,5,TRUE
+SCD,segacd,https://myrient.erista.me/files/Redump/Sega%20-%20Mega%20CD%20%26%20Sega%20CD/,FALSE,Sega CD,1991,4,FALSE
+SNES,snes,https://myrient.erista.me/files/No-Intro/Nintendo%20-%20Super%20Nintendo%20Entertainment%20System/,FALSE,Super Nintendo Entertainment System,1990,4,FALSE
+TG16,pcengine,https://myrient.erista.me/files/No-Intro/NEC%20-%20PC%20Engine%20-%20TurboGrafx-16/,FALSE,NEC PC Engine / TurboGrafx-16,1987,4,FALSE
+WS,wswan,,TRUE,Bandai WonderSwan,1999,5,FALSE
+Wii,wii,https://myrient.erista.me/files/Redump/Nintendo%20-%20Wii%20-%20NKit%20RVZ%20%5Bzstd-19-128k%5D/,FALSE,Nintendo Wii,2006,7,FALSE
+WiiU,wiiu,https://myrient.erista.me/files/No-Intro/Nintendo%20-%20Wii%20U%20%28Digital%29%20%28CDN%29/,FALSE,Nintendo Wii U,2012,8,FALSE
+X360,xbox360,,TRUE,Microsoft Xbox 360,2005,7,FALSE
+XB,xbox,https://archive.org/download/metal-gear-solid-2-substance-usa;https://archive.org/download/microsoft-xbox-xemu.xisoready-software-collection-part-2,FALSE,Microsoft Xbox,2001,6,FALSE
+XOne,xboxone,,TRUE,Microsoft Xbox One,2013,8,FALSE
+ATARIST,atarist,,FALSE,Atari ST,1985,,FALSE
+MAME,mame,,FALSE,Arcade (MAME),1997,,TRUE
+MASTERSYSTEM,mastersystem,,FALSE,Sega Master System,1985,3,FALSE
+amigacd32,amigacd32,,FALSE,Commodore Amiga CD32,1993,5,FALSE
+atari5200,atari5200,,FALSE,Atari 5200,1982,2,FALSE
+atari7800,atari7800,,FALSE,Atari 7800,1986,3,FALSE
+atomiswave,atomiswave,,FALSE,Sega Sammy Atomiswave,2003,,FALSE
+cdi,cdi,,FALSE,Philips CD-i,1991,4,FALSE
+colecovision,colecovision,,FALSE,ColecoVision,1982,2,FALSE
+intellivision,intellivision,,FALSE,Mattel Intellivision,1979,2,FALSE
+jaguar,jaguar,,FALSE,Atari Jaguar,1993,5,FALSE
+lynx,lynx,,FALSE,Atari Lynx,1989,4,FALSE
+megacd,megacd,,FALSE,Sega CD,1991,4,FALSE
+naomi,naomi,,FALSE,Sega NAOMI,1998,,FALSE
+ngp,ngp,,FALSE,SNK Neo Geo Pocket,1998,5,FALSE
+pcenginecd,pcenginecd,,FALSE,NEC PC Engine CD / TurboGrafx-CD,1988,4,FALSE
+sg1000,sg1000,,FALSE,Sega SG-1000,1983,3,FALSE
+virtualboy,virtualboy,,FALSE,Nintendo Virtual Boy,1995,5,FALSE
+xegs,xegs,,FALSE,Atari XE Game System,1987,3,FALSE
+switch,switch,,FALSE,Nintendo Switch,2017,9,FALSE
