@@ -1,54 +1,54 @@
 Platform,Directory,URL,ignore,FullName,ReleaseYear,Generation,query_ratings
-2600,atari2600,https://myrient.erista.me/files/No-Intro/Atari%20-%20Atari%202600/,FALSE,Atari 2600,1977,2,FALSE
-3DO,3do,https://myrient.erista.me/files/Redump/Panasonic%20-%203DO%20Interactive%20Multiplayer/,FALSE,3DO,1993,5,FALSE
-3DS,3ds,https://myrient.erista.me/files/No-Intro/Nintendo%20-%20Nintendo%203DS%20%28Decrypted%29/,FALSE,Nintendo 3DS,2011,8,FALSE
-DC,dreamcast,https://myrient.erista.me/files/Redump/Sega%20-%20Dreamcast/,FALSE,Sega Dreamcast,1998,6,FALSE
-DS,nds,https://myrient.erista.me/files/No-Intro/Nintendo%20-%20Nintendo%20DS%20%28Decrypted%29/,FALSE,Nintendo DS,2004,7,FALSE
-GB,gb,https://myrient.erista.me/files/No-Intro/Nintendo%20-%20Game%20Boy/,FALSE,Nintendo Game Boy,1989,4,FALSE
-GBA,gba,https://myrient.erista.me/files/No-Intro/Nintendo%20-%20Game%20Boy%20Advance/,FALSE,Nintendo Game Boy Advance,2001,6,FALSE
-GBC,gbc,https://myrient.erista.me/files/No-Intro/Nintendo%20-%20Game%20Boy%20Color/,FALSE,Nintendo Game Boy Color,1998,5,FALSE
-GC,gamecube,https://myrient.erista.me/files/Redump/Nintendo%20-%20GameCube%20-%20NKit%20RVZ%20%5Bzstd-19-128k%5D/,FALSE,Nintendo GameCube,2001,6,FALSE
-GEN,megadrive,https://myrient.erista.me/files/No-Intro/Sega%20-%20Mega%20Drive%20-%20Genesis/,FALSE,Sega Mega Drive / Genesis,1988,4,FALSE
-GG,gamegear,https://myrient.erista.me/files/No-Intro/Sega%20-%20Game%20Gear/,FALSE,Sega Game Gear,1990,4,FALSE
-N64,n64,https://myrient.erista.me/files/No-Intro/Nintendo%20-%20Nintendo%2064%20%28BigEndian%29/,FALSE,Nintendo 64,1996,5,TRUE
-NES,nes,https://myrient.erista.me/files/No-Intro/Nintendo%20-%20Nintendo%20Entertainment%20System%20%28Headered%29/,FALSE,Nintendo Entertainment System,1983,3,FALSE
-NG,neogeo,https://myrient.erista.me/files/Redump/SNK%20-%20Neo%20Geo%20CD/,FALSE,SNK Neo Geo,1990,4,FALSE
-PC,pc,,TRUE,PC,1981,,FALSE
-PCFX,pcfx,https://myrient.erista.me/files/Internet%20Archive/retro_game_champion/Game%20Sets/NEC%20PC-FX%20Champion%20Collection/,TRUE,NEC PC-FX,1994,5,FALSE
-ports,ports,,TRUE,Various Source Ports,,,FALSE
-PS,psx,https://myrient.erista.me/files/Redump/Sony%20-%20PlayStation/,FALSE,Sony PlayStation,1994,5,TRUE
-PS2,ps2,https://myrient.erista.me/files/Redump/Sony%20-%20PlayStation%202/,FALSE,Sony PlayStation 2,2000,6,FALSE
-PS3,ps3,https://myrient.erista.me/files/Redump/Sony%20-%20PlayStation%203/,FALSE,Sony PlayStation 3,2006,7,FALSE
-PS4,ps4,,TRUE,Sony PlayStation 4,2013,8,FALSE
-PSP,psp,https://myrient.erista.me/files/Redump/Sony%20-%20PlayStation%20Portable/,FALSE,Sony PlayStation Portable,2004,7,FALSE
-PSV,psvita,https://archive.org/download/sony-playstation-vita-usa-full-set-nonpdrm-format,FALSE,Sony PlayStation Vita,2011,8,FALSE
-SAT,saturn,https://myrient.erista.me/files/Redump/Sega%20-%20Saturn/,FALSE,Sega Saturn,1994,5,TRUE
-SCD,segacd,https://myrient.erista.me/files/Redump/Sega%20-%20Mega%20CD%20%26%20Sega%20CD/,FALSE,Sega CD,1991,4,FALSE
-SNES,snes,https://myrient.erista.me/files/No-Intro/Nintendo%20-%20Super%20Nintendo%20Entertainment%20System/,FALSE,Super Nintendo Entertainment System,1990,4,FALSE
-TG16,pcengine,https://myrient.erista.me/files/No-Intro/NEC%20-%20PC%20Engine%20-%20TurboGrafx-16/,FALSE,NEC PC Engine / TurboGrafx-16,1987,4,FALSE
-WS,wswan,https://myrient.erista.me/files/Internet%20Archive/retro_game_champion/Game%20Sets/Bandai%20WonderSwan%20Champion%20Collection/,TRUE,Bandai WonderSwan,1999,5,FALSE
-Wii,wii,https://myrient.erista.me/files/Redump/Nintendo%20-%20Wii%20-%20NKit%20RVZ%20%5Bzstd-19-128k%5D/,FALSE,Nintendo Wii,2006,7,FALSE
-WiiU,wiiu,https://myrient.erista.me/files/No-Intro/Nintendo%20-%20Wii%20U%20%28Digital%29%20%28CDN%29/,FALSE,Nintendo Wii U,2012,8,FALSE
-X360,xbox360,,TRUE,Microsoft Xbox 360,2005,7,FALSE
-XB,xbox,https://archive.org/download/metal-gear-solid-2-substance-usa;https://archive.org/download/microsoft-xbox-xemu.xisoready-software-collection-part-2,FALSE,Microsoft Xbox,2001,6,FALSE
-XOne,xboxone,,TRUE,Microsoft Xbox One,2013,8,FALSE
-ATARIST,atarist,,FALSE,Atari ST,1985,,FALSE
-MAME,mame,https://myrient.erista.me/files/Internet%20Archive/retro_game_champion/Game%20Sets/Arcade%20%28MAME%29%20Champion%20Collection/,FALSE,Arcade (MAME),1997,,TRUE
-MASTERSYSTEM,mastersystem,https://myrient.erista.me/files/Internet%20Archive/retro_game_champion/Game%20Sets/Sega%20Master%20System%20Champion%20Collection/,FALSE,Sega Master System,1985,3,FALSE
-amigacd32,amigacd32,,FALSE,Commodore Amiga CD32,1993,5,FALSE
-atari5200,atari5200,https://myrient.erista.me/files/Internet%20Archive/retro_game_champion/Game%20Sets/Atari%205200%20Champion%20Collection/,FALSE,Atari 5200,1982,2,FALSE
-atari7800,atari7800,https://myrient.erista.me/files/Internet%20Archive/retro_game_champion/Game%20Sets/Atari%207800%20Champion%20Collection/,FALSE,Atari 7800,1986,3,FALSE
-atomiswave,atomiswave,https://myrient.erista.me/files/Internet%20Archive/retro_game_champion/Game%20Sets/Sammy%20Atomiswave%20Conversions%20Champion%20Collection/,FALSE,Sega Sammy Atomiswave,2003,,FALSE
-cdi,cdi,,FALSE,Philips CD-i,1991,4,FALSE
-colecovision,colecovision,https://myrient.erista.me/files/Internet%20Archive/retro_game_champion/Game%20Sets/ColecoVision%20Champion%20Collection/,FALSE,ColecoVision,1982,2,FALSE
-intellivision,intellivision,https://myrient.erista.me/files/Internet%20Archive/retro_game_champion/Game%20Sets/Intellivision%20Champion%20Collection/,FALSE,Mattel Intellivision,1979,2,FALSE
-jaguar,jaguar,https://myrient.erista.me/files/Internet%20Archive/retro_game_champion/Game%20Sets/Atari%20Jaguar%20Champion%20Collection/,FALSE,Atari Jaguar,1993,5,FALSE
-lynx,lynx,https://myrient.erista.me/files/Internet%20Archive/retro_game_champion/Game%20Sets/Atari%20Lynx%20Champion%20Collection/,FALSE,Atari Lynx,1989,4,FALSE
-megacd,megacd,https://myrient.erista.me/files/Internet%20Archive/retro_game_champion/Game%20Sets/Sega%20CD%20Champion%20Collection/,FALSE,Sega CD,1991,4,FALSE
-naomi,naomi,,FALSE,Sega NAOMI,1998,,FALSE
-ngp,ngp,https://myrient.erista.me/files/Internet%20Archive/retro_game_champion/Game%20Sets/Neo%20Geo%20Pocket%20Champion%20Collection/,FALSE,SNK Neo Geo Pocket,1998,5,FALSE
-pcenginecd,pcenginecd,https://myrient.erista.me/files/Internet%20Archive/retro_game_champion/Game%20Sets/NEC%20TurboGrafx-CD%20Champion%20Collection/,FALSE,NEC PC Engine CD / TurboGrafx-CD,1988,4,FALSE
-sg1000,sg1000,https://myrient.erista.me/files/Internet%20Archive/retro_game_champion/Game%20Sets/Sega%20SG-1000%20Champion%20Collection/,FALSE,Sega SG-1000,1983,3,FALSE
-virtualboy,virtualboy,https://myrient.erista.me/files/Internet%20Archive/retro_game_champion/Game%20Sets/Nintendo%20Virtual%20Boy%20Champion%20Collection/,FALSE,Nintendo Virtual Boy,1995,5,FALSE
-xegs,xegs,,FALSE,Atari XE Game System,1987,3,FALSE
-switch,switch,,FALSE,Nintendo Switch,2017,9,FALSE
+2600,atari2600,https://myrient.erista.me/files/No-Intro/Atari%20-%20Atari%202600/,False,Atari 2600,1977.0,2.0,False
+3DO,3do,https://myrient.erista.me/files/Redump/Panasonic%20-%203DO%20Interactive%20Multiplayer/,False,3DO,1993.0,5.0,False
+3DS,3ds,https://myrient.erista.me/files/No-Intro/Nintendo%20-%20Nintendo%203DS%20%28Decrypted%29/,False,Nintendo 3DS,2011.0,8.0,False
+DC,dreamcast,https://myrient.erista.me/files/Redump/Sega%20-%20Dreamcast/,False,Sega Dreamcast,1998.0,6.0,False
+DS,nds,https://myrient.erista.me/files/No-Intro/Nintendo%20-%20Nintendo%20DS%20%28Decrypted%29/,False,Nintendo DS,2004.0,7.0,False
+GB,gb,https://myrient.erista.me/files/No-Intro/Nintendo%20-%20Game%20Boy/,False,Nintendo Game Boy,1989.0,4.0,False
+GBA,gba,https://myrient.erista.me/files/No-Intro/Nintendo%20-%20Game%20Boy%20Advance/,False,Nintendo Game Boy Advance,2001.0,6.0,False
+GBC,gbc,https://myrient.erista.me/files/No-Intro/Nintendo%20-%20Game%20Boy%20Color/,False,Nintendo Game Boy Color,1998.0,5.0,False
+GC,gamecube,https://myrient.erista.me/files/Redump/Nintendo%20-%20GameCube%20-%20NKit%20RVZ%20%5Bzstd-19-128k%5D/,False,Nintendo GameCube,2001.0,6.0,False
+GEN,megadrive,https://myrient.erista.me/files/No-Intro/Sega%20-%20Mega%20Drive%20-%20Genesis/,False,Sega Mega Drive / Genesis,1988.0,4.0,False
+GG,gamegear,https://myrient.erista.me/files/No-Intro/Sega%20-%20Game%20Gear/,False,Sega Game Gear,1990.0,4.0,False
+N64,n64,https://myrient.erista.me/files/No-Intro/Nintendo%20-%20Nintendo%2064%20%28BigEndian%29/,False,Nintendo 64,1996.0,5.0,True
+NES,nes,https://myrient.erista.me/files/No-Intro/Nintendo%20-%20Nintendo%20Entertainment%20System%20%28Headered%29/,False,Nintendo Entertainment System,1983.0,3.0,False
+NG,neogeo,https://myrient.erista.me/files/Redump/SNK%20-%20Neo%20Geo%20CD/,False,SNK Neo Geo,1990.0,4.0,False
+PC,pc,https://myrient.erista.me/files/Redump/IBM%20-%20PC%20compatible/,True,PC,1981.0,,False
+PCFX,pcfx,https://myrient.erista.me/files/Internet%20Archive/retro_game_champion/Game%20Sets/NEC%20PC-FX%20Champion%20Collection/,True,NEC PC-FX,1994.0,5.0,False
+ports,ports,,True,Various Source Ports,,,False
+PS,psx,https://myrient.erista.me/files/Redump/Sony%20-%20PlayStation/,False,Sony PlayStation,1994.0,5.0,True
+PS2,ps2,https://myrient.erista.me/files/Redump/Sony%20-%20PlayStation%202/,False,Sony PlayStation 2,2000.0,6.0,False
+PS3,ps3,https://myrient.erista.me/files/Redump/Sony%20-%20PlayStation%203/,False,Sony PlayStation 3,2006.0,7.0,False
+PS4,ps4,,True,Sony PlayStation 4,2013.0,8.0,False
+PSP,psp,https://myrient.erista.me/files/Redump/Sony%20-%20PlayStation%20Portable/,False,Sony PlayStation Portable,2004.0,7.0,False
+PSV,psvita,https://archive.org/download/sony-playstation-vita-usa-full-set-nonpdrm-format,False,Sony PlayStation Vita,2011.0,8.0,False
+SAT,saturn,https://myrient.erista.me/files/Redump/Sega%20-%20Saturn/,False,Sega Saturn,1994.0,5.0,True
+SCD,segacd,https://myrient.erista.me/files/Redump/Sega%20-%20Mega%20CD%20%26%20Sega%20CD/,False,Sega CD,1991.0,4.0,False
+SNES,snes,https://myrient.erista.me/files/No-Intro/Nintendo%20-%20Super%20Nintendo%20Entertainment%20System/,False,Super Nintendo Entertainment System,1990.0,4.0,False
+TG16,pcengine,https://myrient.erista.me/files/No-Intro/NEC%20-%20PC%20Engine%20-%20TurboGrafx-16/,False,NEC PC Engine / TurboGrafx-16,1987.0,4.0,False
+WS,wswan,https://myrient.erista.me/files/Internet%20Archive/retro_game_champion/Game%20Sets/Bandai%20WonderSwan%20Champion%20Collection/,True,Bandai WonderSwan,1999.0,5.0,False
+Wii,wii,https://myrient.erista.me/files/Redump/Nintendo%20-%20Wii%20-%20NKit%20RVZ%20%5Bzstd-19-128k%5D/,False,Nintendo Wii,2006.0,7.0,False
+WiiU,wiiu,https://myrient.erista.me/files/No-Intro/Nintendo%20-%20Wii%20U%20%28Digital%29%20%28CDN%29/,False,Nintendo Wii U,2012.0,8.0,False
+X360,xbox360,https://myrient.erista.me/files/No-Intro/Non-Redump%20-%20Microsoft%20-%20Xbox%20360/,True,Microsoft Xbox 360,2005.0,7.0,False
+XB,xbox,https://archive.org/download/metal-gear-solid-2-substance-usa;https://archive.org/download/microsoft-xbox-xemu.xisoready-software-collection-part-2,False,Microsoft Xbox,2001.0,6.0,False
+XOne,xboxone,,True,Microsoft Xbox One,2013.0,8.0,False
+ATARIST,atarist,https://myrient.erista.me/files/No-Intro/Atari%20-%20Atari%20ST/,False,Atari ST,1985.0,,False
+MAME,mame,https://myrient.erista.me/files/Internet%20Archive/retro_game_champion/Game%20Sets/Arcade%20%28MAME%29%20Champion%20Collection/,False,Arcade (MAME),1997.0,,True
+MASTERSYSTEM,mastersystem,https://myrient.erista.me/files/No-Intro/Sega%20-%20Master%20System%20-%20Mark%20III/,False,Sega Master System,1985.0,3.0,False
+amigacd32,amigacd32,https://myrient.erista.me/files/Redump/Commodore%20-%20Amiga%20CD32/,False,Commodore Amiga CD32,1993.0,5.0,False
+atari5200,atari5200,https://myrient.erista.me/files/Internet%20Archive/retro_game_champion/Game%20Sets/Atari%205200%20Champion%20Collection/,False,Atari 5200,1982.0,2.0,False
+atari7800,atari7800,https://myrient.erista.me/files/Internet%20Archive/retro_game_champion/Game%20Sets/Atari%207800%20Champion%20Collection/,False,Atari 7800,1986.0,3.0,False
+atomiswave,atomiswave,https://myrient.erista.me/files/Internet%20Archive/retro_game_champion/Game%20Sets/Sammy%20Atomiswave%20Conversions%20Champion%20Collection/,False,Sega Sammy Atomiswave,2003.0,,False
+cdi, cdi,https://myrient.erista.me/files/Redump/Philips%20-%20CD-i/,False,Philips CD-i,1991.0,4.0,False
+colecovision,colecovision,https://myrient.erista.me/files/Internet%20Archive/retro_game_champion/Game%20Sets/ColecoVision%20Champion%20Collection/,False,ColecoVision,1982.0,2.0,False
+intellivision,intellivision,https://myrient.erista.me/files/Internet%20Archive/retro_game_champion/Game%20Sets/Intellivision%20Champion%20Collection/,False,Mattel Intellivision,1979.0,2.0,False
+jaguar,jaguar,https://myrient.erista.me/files/Internet%20Archive/retro_game_champion/Game%20Sets/Atari%20Jaguar%20Champion%20Collection/,False,Atari Jaguar,1993.0,5.0,False
+lynx,lynx,https://myrient.erista.me/files/Internet%20Archive/retro_game_champion/Game%20Sets/Atari%20Lynx%20Champion%20Collection/,False,Atari Lynx,1989.0,4.0,False
+megacd,megacd,https://myrient.erista.me/files/Redump/Sega%20-%20Mega%20CD%20%26%20Sega%20CD/,False,Sega CD,1991.0,4.0,False
+naomi,naomi,https://myrient.erista.me/files/Redump/Arcade%20-%20Sega%20-%20Naomi/,False,Sega NAOMI,1998.0,,False
+ngp,ngp,https://myrient.erista.me/files/Internet%20Archive/retro_game_champion/Game%20Sets/Neo%20Geo%20Pocket%20Champion%20Collection/,False,SNK Neo Geo Pocket,1998.0,5.0,False
+pcenginecd,pcenginecd,https://myrient.erista.me/files/Redump/NEC%20-%20PC%20Engine%20CD%20%26%20TurboGrafx%20CD/,False,NEC PC Engine CD / TurboGrafx-CD,1988.0,4.0,False
+sg1000,sg1000,https://myrient.erista.me/files/No-Intro/Sega%20-%20SG-1000%20-%20SC-3000/,False,Sega SG-1000,1983.0,3.0,False
+virtualboy,virtualboy,https://myrient.erista.me/files/Internet%20Archive/retro_game_champion/Game%20Sets/Nintendo%20Virtual%20Boy%20Champion%20Collection/,False,Nintendo Virtual Boy,1995.0,5.0,False
+xegs,xegs,https://myrient.erista.me/files/MAME/Software%20List%20ROMs%20%28merged%29/xegs/,False,Atari XE Game System,1987.0,3.0,False
+switch,switch,,False,Nintendo Switch,2017.0,9.0,False
