@@ -1546,8 +1546,12 @@ def _global_prepass_fill(df: pd.DataFrame, args, print_lock: Optional[threading.
         in_col = _resolve_col_name(df, in_col)
         args.pegi_input_col = in_col
 
+    skip_platforms = set(getattr(args, "skip_platforms", set()) or set())
+
     for idx, row in df.iterrows():
         plat = str(row.get(args.platform_col, "")).strip()
+        if plat and plat.lower() in skip_platforms:
+            continue
         y = _extract_year_from_row_any(df, row, args)
         # Historical rule
         if (y is not None) and (y <= 1994) and (not _platform_is_sega_vrc(plat)) and (not _platform_is_3do(plat)):
@@ -1892,8 +1896,51 @@ def main():
     _print_section("LOAD & SELECT WORK", args.verbose, print_lock)
     plats_df = pd.read_csv(args.platforms_csv, header=0)
     plat_colname = plats_df.columns[0]
-    platform_order = [str(x).strip() for x in plats_df[plat_colname].dropna().tolist() if str(x).strip()]
+    platform_order_all = [str(x).strip() for x in plats_df[plat_colname].dropna().tolist() if str(x).strip()]
+
+    query_colname = None
+    for _col in plats_df.columns:
+        if str(_col).strip().lower() == "query_ratings":
+            query_colname = _col
+            break
+
+    falsy_values = {"false", "0", "no", "n"}
+    truthy_values = {"true", "1", "yes", "y"}
+    platform_query_flags: Dict[str, bool] = {}
+    skip_platforms: Set[str] = set()
+    skipped_verbose_rows: List[List[str]] = []
+    if query_colname:
+        for _i, _row in plats_df.iterrows():
+            _platform_raw = str(_row.get(plat_colname, "")).strip()
+            if not _platform_raw:
+                continue
+            _val = _row.get(query_colname, "")
+            if pd.isna(_val):
+                _val = ""
+            _val_norm = str(_val).strip().lower()
+            _enabled = True
+            if _val_norm:
+                if _val_norm in falsy_values:
+                    _enabled = False
+                elif _val_norm in truthy_values:
+                    _enabled = True
+            if not _enabled:
+                skip_platforms.add(_platform_raw.lower())
+                skipped_verbose_rows.append([_platform_raw, str(_val).strip() or "FALSE"])
+            platform_query_flags[_platform_raw.lower()] = _enabled
+    else:
+        for _p in platform_order_all:
+            platform_query_flags[_p.lower()] = True
+
+    platform_order = [p for p in platform_order_all if platform_query_flags.get(p.lower(), True)]
     allowed_platforms = set(x.lower() for x in platform_order)
+    args.skip_platforms = set(skip_platforms)
+
+    if args.verbose and skipped_verbose_rows:
+        _print_rows([
+            "Platform",
+            "query_ratings",
+        ], skipped_verbose_rows, True, title="Platforms skipped (query_ratings=FALSE)", lock=print_lock)
 
     df = pd.read_csv(args.in_path)
 
@@ -1931,9 +1978,12 @@ def main():
     policy_map: Dict[str,str] = {}
     policy_map_canon: Dict[str,str] = {}
     try:
-        if plats_df.shape[1] >= 2:
-            _rightmost = plats_df.columns[-1]
-            _plat_col = args.platform_col if args.platform_col in plats_df.columns else plats_df.columns[0]
+        policy_columns = list(plats_df.columns)
+        if query_colname and query_colname in policy_columns:
+            policy_columns = [c for c in policy_columns if c != query_colname]
+        if len(policy_columns) >= 2:
+            _rightmost = policy_columns[-1]
+            _plat_col = args.platform_col if args.platform_col in plats_df.columns else policy_columns[0]
             for _i, _r in plats_df.iterrows():
                 _p_raw = str(_r.get(_plat_col, "")).strip()
                 _v = str(_r.get(_rightmost, "")).strip()
