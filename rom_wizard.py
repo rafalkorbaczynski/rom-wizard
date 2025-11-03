@@ -911,6 +911,107 @@ def apply_sales(snapshot_dir):
     print_table(display_df)
 
 
+def count_new_rating_matches(snapshot_dir=None):
+    """Report how many ROMs have sales entries with a ``new_rating`` value."""
+
+    try:
+        sales = pd.read_csv(SALES_CSV, low_memory=False)
+    except FileNotFoundError:
+        print('sales_2019.csv not found. Ensure the dataset is present in the wizardry folder.')
+        return
+
+    if 'new_rating' not in sales.columns:
+        print("The sales dataset does not contain a 'new_rating' column.")
+        return
+
+    sales = sales[~sales['Platform'].isin(IGNORED_PLATFORMS)].copy()
+    sales['new_rating'] = pd.to_numeric(sales['new_rating'], errors='coerce')
+    rated_sales = sales.dropna(subset=['new_rating'])
+    if rated_sales.empty:
+        print("No rows in sales_2019.csv contain a numeric 'new_rating' value.")
+        return
+
+    rated_sales = rated_sales[(rated_sales['new_rating'] >= 3) & (rated_sales['new_rating'] <= 18)]
+    if rated_sales.empty:
+        print("No rows in sales_2019.csv have 'new_rating' values between 3 and 18.")
+        return
+
+    rated_sales['key'] = rated_sales['Name'].apply(norm)
+    rated_sales['plat_lower'] = rated_sales['Platform'].str.lower()
+    platform_groups = {
+        plat: grp.drop_duplicates(subset=['key'])
+        for plat, grp in rated_sales.groupby('plat_lower')
+    }
+
+    if not os.path.isdir(ROMS_ROOT):
+        print('ROM library not found. Expected directory:', shorten_path(ROMS_ROOT))
+        return
+
+    threshold = ask_threshold()
+
+    summary_rows = []
+    total_roms = 0
+    total_matches = 0
+
+    for console_name in iter_progress(os.listdir(ROMS_ROOT), "Scanning ROMs"):
+        console_dir = os.path.join(ROMS_ROOT, console_name)
+        gl_path = os.path.join(console_dir, 'gamelist.xml')
+        if not os.path.isfile(gl_path):
+            continue
+        ds_plat = PLAT_MAP.get(console_name.lower())
+        if not ds_plat:
+            continue
+        if ds_plat.upper() in IGNORED_PLATFORMS:
+            continue
+        plat_key = ds_plat.lower()
+        rated_subset = platform_groups.get(plat_key)
+        if rated_subset is None or rated_subset.empty:
+            continue
+
+        tree = ET.parse(gl_path)
+        games = [
+            g for g in tree.getroot().findall('game')
+            if has_rom_extension(g.findtext('path') or '')
+        ]
+        if not games:
+            continue
+
+        match_keys = rated_subset['key'].tolist()
+
+        matched = 0
+        for g in games:
+            title = g.findtext('name') or ''
+            key = norm(title)
+            res = process.extractOne(key, match_keys, scorer=fuzz.token_sort_ratio)
+            if not res or res[1] < threshold:
+                continue
+            if token_set(key) != token_set(res[0]):
+                continue
+            matched += 1
+
+        rom_total = len(games)
+        total_roms += rom_total
+        total_matches += matched
+
+        coverage = matched / rom_total * 100 if rom_total else 0
+        summary_rows.append({
+            'Platform': ds_plat,
+            'ROMs': rom_total,
+            'With new rating': matched,
+            'Coverage %': round(coverage, 1)
+        })
+
+    if not summary_rows:
+        print('No downloaded ROMs with a matching new_rating value were found.')
+        return
+
+    df = pd.DataFrame(summary_rows)
+    df = df.sort_values('With new rating', ascending=False)
+    print_table(df)
+    print(f"Total ROMs scanned: {total_roms}")
+    print(f"ROMs with new rating: {total_matches}")
+
+
 def scrape_file_list(code):
     df = pd.read_csv(PLATFORMS_CSV)
     df['ignore'] = df.get('ignore', False).astype(str).str.upper().isin(['TRUE', '1', 'YES'])
@@ -1539,7 +1640,8 @@ def wizard_menu(snapshot_dir):
         console.print('5) Add unmatched games to download list (automatic filtering)')
         console.print('6) Download unmatched games in list')
         console.print('7) Convert downloaded disc images to CHD')
-        console.print('8) Quit')
+        console.print('8) Show new-rating coverage report')
+        console.print('9) Quit')
         choice = input('Select option: ').strip()
         if choice == '0':
             show_snapshot_summary(snapshot_dir)
@@ -1558,6 +1660,8 @@ def wizard_menu(snapshot_dir):
         elif choice == '7':
             convert_to_chd()
         elif choice == '8':
+            count_new_rating_matches(snapshot_dir)
+        elif choice == '9':
             return prompt_yes_no('Restart wizard?')
 
 
