@@ -27,6 +27,7 @@ CHDMAN = os.path.join(DATA_DIR, 'chdman.exe')
 # from the scripts_github folder.
 ROMS_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'roms'))
 UNMATCHED_ROM_ROOT = os.path.normpath(r'D:\unmatched_roms')
+UNPOPULAR_ROM_ROOT = os.path.normpath(r'D:\unpopular_roms')
 
 _ROMAN = {'ix':9,'viii':8,'vii':7,'vi':6,'iv':4,'iii':3,'ii':2,'i':1}
 import re
@@ -102,6 +103,23 @@ def directory_size_bytes(path: str, extensions: Optional[set[str]] = None) -> in
                 total += os.path.getsize(os.path.join(root, fname))
             except OSError:
                 continue
+    return total
+
+
+def count_rom_entries(path: str) -> int:
+    """Return the number of ROM entries beneath ``path``."""
+
+    if not os.path.isdir(path):
+        return 0
+
+    total = 0
+    for root, dirnames, files in os.walk(path):
+        rom_dirs = [d for d in dirnames if is_rom_directory_name(d)]
+        total += len(rom_dirs)
+        dirnames[:] = [d for d in dirnames if d not in rom_dirs]
+        for fname in files:
+            if has_rom_extension(fname):
+                total += 1
     return total
 
 
@@ -646,6 +664,10 @@ def create_snapshot():
                              **{r: 0 for r in REGIONS}})
 
     summary_df = pd.DataFrame(summary_rows)
+    if 'Unpopular ROMs' not in summary_df.columns:
+        summary_df['Unpopular ROMs'] = 0
+    if 'Extra Downloads' not in summary_df.columns:
+        summary_df['Extra Downloads'] = 0
     if not summary_df.empty:
         summary_df['ROMs%'] = (
             summary_df['Matched ROMs'] / summary_df['ROMs'].replace(0, 1) * 100
@@ -657,11 +679,14 @@ def create_snapshot():
             PLATFORMS_CSV, usecols=['Platform', 'FullName', 'ReleaseYear', 'Generation']
         )
         summary_df = summary_df.merge(plat_info, on='Platform', how='left')
-        cols = ['Platform', 'FullName', 'ReleaseYear', 'Generation'] + [
+        base_cols = ['Platform', 'FullName', 'ReleaseYear', 'Generation']
+        metric_cols = ['ROMs', 'Dataset', 'Matched ROMs', 'Unpopular ROMs', 'Extra Downloads']
+        ordered_metrics = [c for c in metric_cols if c in summary_df.columns]
+        remaining = [
             c for c in summary_df.columns
-            if c not in {'Platform', 'FullName', 'ReleaseYear', 'Generation'}
+            if c not in set(base_cols + ordered_metrics)
         ]
-        summary_df = summary_df[cols]
+        summary_df = summary_df[base_cols + ordered_metrics + remaining]
 
     summary_csv = os.path.join(snap_dir, 'summary.csv')
     summary_df.to_csv(summary_csv, index=False)
@@ -908,6 +933,10 @@ def apply_sales(snapshot_dir):
                              **{r: 0 for r in REGIONS}})
 
     summary_df = pd.DataFrame(summary_rows)
+    if 'Unpopular ROMs' not in summary_df.columns:
+        summary_df['Unpopular ROMs'] = 0
+    if 'Extra Downloads' not in summary_df.columns:
+        summary_df['Extra Downloads'] = 0
     if not summary_df.empty:
         summary_df['ROMs%'] = (
             summary_df['Matched ROMs'] / summary_df['ROMs'].replace(0, 1) * 100
@@ -919,11 +948,14 @@ def apply_sales(snapshot_dir):
             PLATFORMS_CSV, usecols=['Platform', 'FullName', 'ReleaseYear', 'Generation']
         )
         summary_df = summary_df.merge(plat_info, on='Platform', how='left')
-        cols = ['Platform', 'FullName', 'ReleaseYear', 'Generation'] + [
+        base_cols = ['Platform', 'FullName', 'ReleaseYear', 'Generation']
+        metric_cols = ['ROMs', 'Dataset', 'Matched ROMs', 'Unpopular ROMs', 'Extra Downloads']
+        ordered_metrics = [c for c in metric_cols if c in summary_df.columns]
+        remaining = [
             c for c in summary_df.columns
-            if c not in {'Platform', 'FullName', 'ReleaseYear', 'Generation'}
+            if c not in set(base_cols + ordered_metrics)
         ]
-        summary_df = summary_df[cols]
+        summary_df = summary_df[base_cols + ordered_metrics + remaining]
 
     summary_df.to_csv(os.path.join(snapshot_dir, 'summary.csv'), index=False)
     pd.DataFrame(match_rows).to_csv(os.path.join(snapshot_dir, 'match_summary.csv'), index=False)
@@ -1532,6 +1564,340 @@ def auto_add_games(snapshot_dir):
         download_games(snapshot_dir)
 
 
+def enforce_download_targets(snapshot_dir):
+    """Ensure each platform meets its configured download target."""
+
+    summary_path = os.path.join(snapshot_dir, 'summary.csv')
+    match_path = os.path.join(snapshot_dir, 'match_summary.csv')
+    if not os.path.isfile(summary_path):
+        print('summary.csv not found. Run snapshot first.')
+        return
+    if not os.path.isfile(match_path):
+        print('match_summary.csv not found. Run snapshot first.')
+        return
+
+    try:
+        plat_df = pd.read_csv(PLATFORMS_CSV)
+    except FileNotFoundError:
+        print('platforms.csv not found.')
+        return
+
+    if 'download_count' not in plat_df.columns:
+        print("The platforms.csv file does not contain a 'download_count' column.")
+        return
+
+    try:
+        sales_df = pd.read_csv(SALES_CSV, low_memory=False)
+    except FileNotFoundError:
+        print('sales_2019.csv not found.')
+        return
+
+    summary_df = pd.read_csv(summary_path)
+    match_df = pd.read_csv(match_path)
+    download_list_path = os.path.join(snapshot_dir, 'download_list.csv')
+    existing_dl_df = pd.read_csv(download_list_path) if os.path.isfile(download_list_path) else pd.DataFrame()
+
+    if os.path.exists(BLACKLIST_CSV):
+        blacklist_df = pd.read_csv(BLACKLIST_CSV)
+        blacklist_df = blacklist_df[['Search_Term', 'Platform']]
+    else:
+        blacklist_df = pd.DataFrame(columns=['Search_Term', 'Platform'])
+
+    def canonical(code: str) -> str:
+        if not isinstance(code, str):
+            return ''
+        mapped = PLAT_MAP.get(code.lower())
+        return (mapped or code).upper()
+
+    plat_df['Platform'] = plat_df['Platform'].apply(canonical)
+    summary_df['Platform'] = summary_df['Platform'].apply(canonical)
+    if not match_df.empty:
+        match_df['Platform'] = match_df['Platform'].apply(canonical)
+    if not existing_dl_df.empty and 'Platform' in existing_dl_df.columns:
+        existing_dl_df['Platform'] = existing_dl_df['Platform'].apply(canonical)
+
+    blacklisted_pairs = set(
+        (row['Search_Term'], canonical(row['Platform']))
+        for _, row in blacklist_df.dropna(subset=['Search_Term', 'Platform']).iterrows()
+        if isinstance(row.get('Search_Term'), str)
+    )
+
+    plat_df['ignore'] = plat_df.get('ignore', False).astype(str).str.upper().isin(['TRUE', '1', 'YES'])
+    if 'ignore_ratings' in plat_df.columns:
+        plat_df['ignore_ratings'] = (
+            plat_df['ignore_ratings'].astype(str).str.upper().isin(['TRUE', '1', 'YES'])
+        )
+    else:
+        plat_df['ignore_ratings'] = False
+    plat_df['download_count'] = pd.to_numeric(plat_df['download_count'], errors='coerce').fillna(0).astype(int)
+
+    if 'new_rating' not in sales_df.columns:
+        sales_df['new_rating'] = ''
+    sales_df['Global_Sales'] = pd.to_numeric(sales_df.get('Global_Sales', 0), errors='coerce').fillna(0)
+    sales_df['Platform'] = sales_df['Platform'].astype(str)
+
+    platform_matches = {}
+    if not match_df.empty:
+        for platform, group in match_df.groupby('Platform'):
+            rom_map: dict[str, str | None] = {}
+            dataset_names = set()
+            for _, mrow in group.iterrows():
+                rom_name = mrow.get('ROM')
+                dataset_name = mrow.get('Dataset Name')
+                if isinstance(rom_name, str):
+                    rom_map[rom_name] = dataset_name if isinstance(dataset_name, str) else None
+                if isinstance(dataset_name, str):
+                    dataset_names.add(dataset_name)
+            platform_matches[platform] = {
+                'rom_to_dataset': rom_map,
+                'dataset_names': dataset_names,
+            }
+
+    def load_rom_entries(console_dir: str) -> list[dict[str, str]]:
+        entries: list[dict[str, str]] = []
+        gl_path = os.path.join(console_dir, 'gamelist.xml')
+        if not os.path.isfile(gl_path):
+            return entries
+        try:
+            tree = ET.parse(gl_path)
+        except ET.ParseError:
+            return entries
+        root = tree.getroot()
+        for game in root.findall('game'):
+            path_text = game.findtext('path') or ''
+            base_name = os.path.basename(os.path.normpath(path_text))
+            if not (has_rom_extension(path_text) or is_rom_directory_name(base_name)):
+                continue
+            full_path, rel_path = normalize_rom_entry_path(console_dir, path_text)
+            if not full_path or not rel_path:
+                continue
+            if not os.path.exists(full_path):
+                continue
+            entries.append({
+                'name': game.findtext('name') or '',
+                'full_path': full_path,
+                'rel_path': rel_path,
+            })
+        return entries
+
+    def move_to_unpopular(full_path: str, rel_path: str) -> str | None:
+        if not os.path.exists(full_path):
+            return None
+        dest_path = os.path.join(UNPOPULAR_ROM_ROOT, rel_path)
+        dest_dir = os.path.dirname(dest_path)
+        os.makedirs(dest_dir, exist_ok=True)
+        if os.path.isdir(full_path):
+            candidate = dest_path
+            counter = 1
+            while os.path.exists(candidate):
+                candidate = f"{dest_path}_{counter}"
+                counter += 1
+        else:
+            base, ext = os.path.splitext(dest_path)
+            candidate = dest_path
+            counter = 1
+            while os.path.exists(candidate):
+                candidate = f"{base}_{counter}{ext}"
+                counter += 1
+        shutil.move(full_path, candidate)
+        return candidate
+
+    existing_pairs: set[tuple[str, str]] = set()
+    if not existing_dl_df.empty and {'Search_Term', 'Platform'}.issubset(existing_dl_df.columns):
+        for _, drow in existing_dl_df.dropna(subset=['Search_Term', 'Platform']).iterrows():
+            search_term = drow.get('Search_Term')
+            platform = drow.get('Platform')
+            if isinstance(search_term, str) and isinstance(platform, str):
+                existing_pairs.add((search_term, platform))
+
+    new_download_rows: list[dict[str, str | int]] = []
+    results_rows: list[dict[str, int | str]] = []
+
+    for _, row in plat_df.iterrows():
+        code = row['Platform']
+        if not code or row.get('ignore') or code in IGNORED_PLATFORMS:
+            continue
+        target_count = int(row.get('download_count', 0))
+        if target_count <= 0:
+            continue
+
+        directory_val = row.get('Directory') if isinstance(row.get('Directory'), str) else None
+        directory = directory_val or DATASET_TO_CONSOLE.get(code.lower(), code.lower())
+        ignore_ratings = bool(row.get('ignore_ratings'))
+
+        sales_subset = sales_df[sales_df['Platform'].str.lower() == code.lower()].copy()
+        if sales_subset.empty:
+            print(f'No sales data available for {code}.')
+            results_rows.append({'Platform': code, 'Moved': 0, 'Added': 0, 'Beyond Target': 0})
+            continue
+        sales_subset['Name'] = sales_subset['Name'].astype(str)
+        if not ignore_ratings:
+            rating_mask = ~sales_subset['new_rating'].astype(str).str.strip().eq('')
+            sales_subset = sales_subset[rating_mask]
+        sales_subset = sales_subset.sort_values('Global_Sales', ascending=False)
+        if sales_subset.empty:
+            print(f'No eligible sales entries for {code}.')
+            results_rows.append({'Platform': code, 'Moved': 0, 'Added': 0, 'Beyond Target': 0})
+            continue
+
+        top_sequence = [name for name in sales_subset['Name'] if name]
+        rank_map = {name: idx for idx, name in enumerate(top_sequence, start=1)}
+        base_top = top_sequence[:target_count]
+        base_top_set = set(base_top)
+
+        match_info = platform_matches.get(code, {'rom_to_dataset': {}, 'dataset_names': set()})
+        rom_map = match_info.get('rom_to_dataset', {})
+        dataset_names = match_info.get('dataset_names', set())
+        existing_top_names = {name for name in dataset_names if name in base_top_set}
+
+        console_dir = os.path.join(ROMS_ROOT, directory)
+        rom_entries = load_rom_entries(console_dir)
+        moved = 0
+        matched_removed = 0
+        for entry in rom_entries:
+            dataset_name = rom_map.get(entry['name'])
+            if isinstance(dataset_name, str) and dataset_name in base_top_set:
+                continue
+            dest = move_to_unpopular(entry['full_path'], entry['rel_path'])
+            if dest:
+                moved += 1
+                if isinstance(dataset_name, str):
+                    matched_removed += 1
+
+        unpopular_dir = os.path.join(UNPOPULAR_ROM_ROOT, directory)
+        unpopular_total = count_rom_entries(unpopular_dir)
+
+        if not summary_df.empty and 'Platform' in summary_df.columns:
+            mask = summary_df['Platform'] == code
+            if mask.any():
+                idx = summary_df.index[mask][0]
+                if 'ROMs' in summary_df.columns:
+                    summary_df.at[idx, 'ROMs'] = max(0, summary_df.at[idx, 'ROMs'] - moved)
+                if 'Matched ROMs' in summary_df.columns:
+                    summary_df.at[idx, 'Matched ROMs'] = max(0, summary_df.at[idx, 'Matched ROMs'] - matched_removed)
+                summary_df.at[idx, 'Unpopular ROMs'] = unpopular_total
+
+        platform_dl_names: set[str] = set()
+        if not existing_dl_df.empty and {'Search_Term', 'Platform'}.issubset(existing_dl_df.columns):
+            dl_subset = existing_dl_df[existing_dl_df['Platform'] == code]
+            platform_dl_names = {
+                term
+                for term in dl_subset.get('Search_Term', [])
+                if isinstance(term, str) and term
+            }
+
+        covered_names = {name for name in base_top if name in existing_top_names or name in platform_dl_names}
+        needed = max(target_count - len(covered_names), 0)
+
+        url_field = row.get('URL', '')
+        new_dataset_names: set[str] = set()
+
+        if needed > 0:
+            try:
+                urls, file_map, file_names, group_map = fetch_platform_file_index(url_field)
+            except requests.RequestException as exc:
+                print(f'Failed to fetch {code}: {exc}')
+                urls, file_map, file_names, group_map = [], {}, {}, {}
+            if not url_field or not urls:
+                print(f'Skipping download lookup for {code}: no URL configured.')
+            elif not file_map:
+                print(f'No downloadable entries found for {code}.')
+            else:
+                threshold = 75
+                for rank, name in enumerate(top_sequence, start=1):
+                    if len(new_dataset_names) >= needed:
+                        break
+                    if not isinstance(name, str) or not name:
+                        continue
+                    if name in existing_top_names:
+                        continue
+                    if name in platform_dl_names:
+                        continue
+                    if (name, code) in blacklisted_pairs:
+                        continue
+                    if (name, code) in existing_pairs:
+                        continue
+                    normed = norm(name)
+                    ts_results = process.extract(
+                        normed, list(file_map.keys()), scorer=fuzz.token_sort_ratio, limit=None
+                    )
+                    if not ts_results:
+                        continue
+                    max_ts = max(score for _, score, _ in ts_results)
+                    keys_at_max = [key for key, score, _ in ts_results if score == max_ts]
+                    best_key = max(keys_at_max, key=lambda k: region_priority(file_names[k]))
+                    pr_score = fuzz.partial_ratio(normed, best_key)
+                    score = int(round(min(max_ts, pr_score)))
+                    if score < threshold:
+                        continue
+                    group_key = norm(remove_disc(file_names[best_key]))
+                    selected_keys = group_map.get(group_key, [best_key])
+
+                    uniq_keys = []
+                    seen = set()
+                    for key in selected_keys:
+                        if key not in seen:
+                            uniq_keys.append(key)
+                            seen.add(key)
+                    if not uniq_keys:
+                        continue
+
+                    for key in uniq_keys:
+                        filehref = file_map[key]
+                        title = filename_from_url(filehref)
+                        new_download_rows.append({
+                            'Search_Term': name,
+                            'Platform': code,
+                            'Directory': directory,
+                            'Matched_Title': title,
+                            'Score': score,
+                            'URL': filehref,
+                        })
+                        existing_pairs.add((name, code))
+                    new_dataset_names.add(name)
+                    platform_dl_names.add(name)
+
+        beyond_total = sum(1 for name in platform_dl_names if rank_map.get(name, target_count + 1) > target_count)
+
+        if not summary_df.empty and 'Platform' in summary_df.columns:
+            mask = summary_df['Platform'] == code
+            if mask.any():
+                idx = summary_df.index[mask][0]
+                summary_df.at[idx, 'Extra Downloads'] = beyond_total
+
+        results_rows.append({
+            'Platform': code,
+            'Moved': moved,
+            'Added': len(new_dataset_names),
+            'Beyond Target': beyond_total,
+        })
+
+    if not summary_df.empty and 'ROMs' in summary_df.columns and 'Matched ROMs' in summary_df.columns:
+        with pd.option_context('mode.use_inf_as_na', True):
+            summary_df['ROMs%'] = (
+                summary_df['Matched ROMs'] / summary_df['ROMs'].replace(0, 1) * 100
+            )
+        if 'ROMs%' in summary_df.columns:
+            summary_df['ROMs%'] = summary_df['ROMs%'].round(1)
+
+    summary_df.to_csv(summary_path, index=False)
+
+    if new_download_rows:
+        new_df = pd.DataFrame(new_download_rows)
+        if not existing_dl_df.empty:
+            combined = pd.concat([existing_dl_df, new_df], ignore_index=True)
+        else:
+            combined = new_df
+        combined.to_csv(download_list_path, index=False)
+        console.print('[bold green]Download list updated.[/]')
+    else:
+        print('No new download entries added.')
+
+    if results_rows:
+        results_df = pd.DataFrame(results_rows, columns=['Platform', 'Moved', 'Added', 'Beyond Target'])
+        print_table(results_df)
+
+
 def download_games(snapshot_dir):
     csv_path = os.path.join(snapshot_dir, 'download_list.csv')
     if not os.path.isfile(csv_path):
@@ -1746,7 +2112,8 @@ def wizard_menu(snapshot_dir):
         console.print('6) Download unmatched games in list')
         console.print('7) Convert downloaded disc images to CHD')
         console.print('8) Show new-rating coverage report')
-        console.print('9) Quit')
+        console.print('9) Enforce download targets')
+        console.print('10) Quit')
         choice = input('Select option: ').strip()
         if choice == '0':
             show_snapshot_summary(snapshot_dir)
@@ -1767,6 +2134,8 @@ def wizard_menu(snapshot_dir):
         elif choice == '8':
             count_new_rating_matches(snapshot_dir)
         elif choice == '9':
+            enforce_download_targets(snapshot_dir)
+        elif choice == '10':
             return prompt_yes_no('Restart wizard?')
 
 
