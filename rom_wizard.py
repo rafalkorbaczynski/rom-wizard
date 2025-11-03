@@ -26,6 +26,7 @@ CHDMAN = os.path.join(DATA_DIR, 'chdman.exe')
 # Make ROMS_ROOT point there so the wizard can locate existing ROMs when run
 # from the scripts_github folder.
 ROMS_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'roms'))
+UNMATCHED_ROM_ROOT = os.path.normpath(r'D:\unmatched_roms')
 
 _ROMAN = {'ix':9,'viii':8,'vii':7,'vi':6,'iv':4,'iii':3,'ii':2,'i':1}
 import re
@@ -398,6 +399,34 @@ def prompt_yes_no(prompt: str, default: bool = False) -> bool:
     if not ans:
         return default
     return ans in {'y', 'yes'}
+
+
+def normalize_rom_entry_path(console_dir: str, path_text: str) -> tuple[str | None, str | None]:
+    """Return absolute and ROMS_ROOT-relative paths for a gamelist entry."""
+
+    raw = (path_text or '').strip()
+    if not raw:
+        return None, None
+
+    candidate = raw.replace('\\', os.sep)
+    if os.path.isabs(candidate):
+        full_path = os.path.normpath(candidate)
+    else:
+        while candidate.startswith('./'):
+            candidate = candidate[2:]
+        while candidate.startswith(f'.{os.sep}'):
+            candidate = candidate[2:]
+        full_path = os.path.normpath(os.path.join(console_dir, candidate))
+
+    try:
+        rel_path = os.path.relpath(full_path, ROMS_ROOT)
+    except ValueError:
+        return None, None
+
+    if rel_path.startswith('..'):
+        return None, None
+
+    return full_path, rel_path
 
 def norm(text):
     s = unicodedata.normalize('NFKD', str(text))
@@ -926,21 +955,26 @@ def count_new_rating_matches(snapshot_dir=None):
 
     sales = sales[~sales['Platform'].isin(IGNORED_PLATFORMS)].copy()
     sales['new_rating'] = pd.to_numeric(sales['new_rating'], errors='coerce')
+    sales['key'] = sales['Name'].apply(norm)
+    sales['plat_lower'] = sales['Platform'].str.lower()
+
     rated_sales = sales.dropna(subset=['new_rating'])
     if rated_sales.empty:
         print("No rows in sales_2019.csv contain a numeric 'new_rating' value.")
-        return
+        rated_sales = pd.DataFrame(columns=sales.columns)
 
     rated_sales = rated_sales[(rated_sales['new_rating'] >= 3) & (rated_sales['new_rating'] <= 18)]
     if rated_sales.empty:
         print("No rows in sales_2019.csv have 'new_rating' values between 3 and 18.")
-        return
 
-    rated_sales['key'] = rated_sales['Name'].apply(norm)
-    rated_sales['plat_lower'] = rated_sales['Platform'].str.lower()
     platform_groups = {
         plat: grp.drop_duplicates(subset=['key'])
         for plat, grp in rated_sales.groupby('plat_lower')
+    }
+
+    all_platform_groups = {
+        plat: grp.drop_duplicates(subset=['key'])
+        for plat, grp in sales.groupby('plat_lower')
     }
 
     if not os.path.isdir(ROMS_ROOT):
@@ -950,8 +984,8 @@ def count_new_rating_matches(snapshot_dir=None):
     threshold = ask_threshold()
 
     summary_rows = []
-    total_roms = 0
-    total_matches = 0
+    unmatched_entries: list[dict[str, str]] = []
+    seen_unmatched_paths: set[str] = set()
 
     for console_name in iter_progress(os.listdir(ROMS_ROOT), "Scanning ROMs"):
         console_dir = os.path.join(ROMS_ROOT, console_name)
@@ -965,8 +999,7 @@ def count_new_rating_matches(snapshot_dir=None):
             continue
         plat_key = ds_plat.lower()
         rated_subset = platform_groups.get(plat_key)
-        if rated_subset is None or rated_subset.empty:
-            continue
+        all_subset = all_platform_groups.get(plat_key)
 
         tree = ET.parse(gl_path)
         games = [
@@ -976,40 +1009,112 @@ def count_new_rating_matches(snapshot_dir=None):
         if not games:
             continue
 
-        match_keys = rated_subset['key'].tolist()
+        match_keys = rated_subset['key'].tolist() if rated_subset is not None else []
+        all_match_keys = all_subset['key'].tolist() if all_subset is not None else []
+        key_to_rating = dict(zip(all_subset['key'], all_subset['new_rating'])) if all_subset is not None else {}
 
         matched = 0
         for g in games:
             title = g.findtext('name') or ''
             key = norm(title)
-            res = process.extractOne(key, match_keys, scorer=fuzz.token_sort_ratio)
-            if not res or res[1] < threshold:
+            matched_entry = False
+            if match_keys:
+                res = process.extractOne(key, match_keys, scorer=fuzz.token_sort_ratio)
+                if res and res[1] >= threshold and token_set(key) == token_set(res[0]):
+                    matched += 1
+                    matched_entry = True
+
+            if matched_entry:
                 continue
-            if token_set(key) != token_set(res[0]):
+
+            match_reason = 'no_dataset_entry'
+            if all_match_keys:
+                res_all = process.extractOne(key, all_match_keys, scorer=fuzz.token_sort_ratio)
+                if res_all and res_all[1] >= threshold and token_set(key) == token_set(res_all[0]):
+                    rating_val = key_to_rating.get(res_all[0])
+                    if rating_val is None or not (3 <= rating_val <= 18) or pd.isna(rating_val):
+                        match_reason = 'missing_new_rating'
+
+            full_path, rel_path = normalize_rom_entry_path(console_dir, g.findtext('path') or '')
+            if not full_path or not rel_path:
                 continue
-            matched += 1
+            if not os.path.exists(full_path):
+                continue
+            if full_path in seen_unmatched_paths:
+                continue
 
-        rom_total = len(games)
-        total_roms += rom_total
-        total_matches += matched
+            unmatched_entries.append({
+                'platform': console_name,
+                'full_path': full_path,
+                'rel_path': rel_path,
+                'reason': match_reason,
+            })
+            seen_unmatched_paths.add(full_path)
 
-        coverage = matched / rom_total * 100 if rom_total else 0
-        summary_rows.append({
-            'Platform': ds_plat,
-            'ROMs': rom_total,
-            'With new rating': matched,
-            'Coverage %': round(coverage, 1)
-        })
+        if match_keys:
+            rom_total = len(games)
+            coverage = matched / rom_total * 100 if rom_total else 0
+            summary_rows.append({
+                'Platform': ds_plat,
+                'ROMs': rom_total,
+                'With new rating': matched,
+                'Coverage %': round(coverage, 1)
+            })
 
-    if not summary_rows:
+    if summary_rows:
+        df = pd.DataFrame(summary_rows)
+        df = df.sort_values('With new rating', ascending=False)
+        print_table(df)
+        print(f"Total ROMs scanned: {int(df['ROMs'].sum())}")
+        print(f"ROMs with new rating: {int(df['With new rating'].sum())}")
+    else:
         print('No downloaded ROMs with a matching new_rating value were found.')
+
+    if unmatched_entries:
+        missing_rating = sum(1 for e in unmatched_entries if e['reason'] == 'missing_new_rating')
+        missing_entry = len(unmatched_entries) - missing_rating
+        print(f"{len(unmatched_entries)} ROM(s) do not have a matching new_rating entry.")
+        if missing_entry:
+            print(f" - {missing_entry} ROM(s) have no corresponding sales entry.")
+        if missing_rating:
+            print(f" - {missing_rating} ROM(s) lack a new_rating value in sales data.")
+        if prompt_yes_no(f"Move these ROMs to {UNMATCHED_ROM_ROOT}?", default=False):
+            move_unmatched_roms(unmatched_entries)
+    else:
+        print('All ROMs have associated new_rating entries.')
+
+
+def move_unmatched_roms(entries: list[dict[str, str]]) -> None:
+    """Move unmatched ROMs to the unmatched ROM directory."""
+
+    if not entries:
+        print('No unmatched ROMs to move.')
         return
 
-    df = pd.DataFrame(summary_rows)
-    df = df.sort_values('With new rating', ascending=False)
-    print_table(df)
-    print(f"Total ROMs scanned: {total_roms}")
-    print(f"ROMs with new rating: {total_matches}")
+    target_root = UNMATCHED_ROM_ROOT.replace('\\', os.sep) if os.name != 'nt' else UNMATCHED_ROM_ROOT
+    target_root = os.path.abspath(target_root)
+    os.makedirs(target_root, exist_ok=True)
+
+    moved = 0
+    for entry in entries:
+        src = entry['full_path']
+        rel_path = entry['rel_path']
+        dest_path = os.path.abspath(os.path.join(target_root, rel_path))
+        dest_dir = os.path.dirname(dest_path)
+        if dest_dir:
+            os.makedirs(dest_dir, exist_ok=True)
+
+        if not os.path.exists(src):
+            print('Source missing, skipping:', shorten_path(src))
+            continue
+        if os.path.exists(dest_path):
+            print('Destination exists, skipping:', shorten_path(dest_path))
+            continue
+
+        shutil.move(src, dest_path)
+        moved += 1
+
+    print(f"Moved {moved} unmatched ROM(s) to {shorten_path(target_root)}.")
 
 
 def scrape_file_list(code):
