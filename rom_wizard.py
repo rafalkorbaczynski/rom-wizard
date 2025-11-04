@@ -1791,6 +1791,10 @@ def enforce_download_targets(snapshot_dir):
             continue
 
         top_sequence = [name for name in sales_subset['Name'] if name]
+        if target_count > 0:
+            top_target_set = set(top_sequence[:target_count])
+        else:
+            top_target_set = set()
         match_info = platform_matches.get(code, {'rom_to_dataset': {}, 'dataset_names': set()})
         dataset_names = {
             name for name in match_info.get('dataset_names', set())
@@ -1807,11 +1811,15 @@ def enforce_download_targets(snapshot_dir):
             }
 
         covered_names = set(dataset_names) | platform_dl_names
-        if len(covered_names) >= target_count:
+        if top_target_set:
+            covered_top_names = covered_names & top_target_set
+        else:
+            covered_top_names = set(covered_names)
+        if len(covered_top_names) >= target_count:
             results_rows.append({'Platform': code, 'Added': 0, 'Still Needed': 0})
             continue
 
-        needed = max(target_count - len(covered_names), 0)
+        needed = max(target_count - len(covered_top_names), 0)
 
         url_field = row.get('URL', '')
         new_dataset_names: list[str] = []
@@ -1880,8 +1888,10 @@ def enforce_download_targets(snapshot_dir):
                     new_dataset_names.append(name)
                     platform_dl_names.add(name)
                     covered_names.add(name)
+                    if not top_target_set or name in top_target_set:
+                        covered_top_names.add(name)
 
-        still_needed = max(target_count - len(covered_names), 0)
+        still_needed = max(target_count - len(covered_top_names), 0)
         if new_dataset_names:
             total_added += len(new_dataset_names)
             platforms_updated += 1
