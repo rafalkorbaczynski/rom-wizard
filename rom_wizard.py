@@ -26,7 +26,7 @@ CHDMAN = os.path.join(DATA_DIR, 'chdman.exe')
 # Make ROMS_ROOT point there so the wizard can locate existing ROMs when run
 # from the scripts_github folder.
 ROMS_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'roms'))
-UNMATCHED_ROM_ROOT = os.path.normpath(r'D:\unmatched_roms')
+UNMATCHED_ROM_ROOT = os.path.normpath(r'D:\unrated_roms')
 UNPOPULAR_ROM_ROOT = os.path.normpath(r'D:\unpopular_roms')
 
 _ROMAN = {'ix':9,'viii':8,'vii':7,'vi':6,'iv':4,'iii':3,'ii':2,'i':1}
@@ -1156,33 +1156,41 @@ def count_new_rating_matches(snapshot_dir=None):
 
     if unmatched_entries:
         missing_rating = len(unrated_entries)
-        missing_entry = sum(1 for e in unmatched_entries if e['reason'] == 'no_dataset_entry')
+        sales_only_entries = [
+            entry for entry in unpopular_entries if entry['reason'] == 'no_dataset_entry'
+        ]
+        missing_entry = len(sales_only_entries)
         skipped_missing_rating = sum(
             1
             for e in unmatched_entries
             if e['reason'] == 'missing_new_rating' and e.get('ignore_ratings')
         )
-        print(f"{len(unmatched_entries)} ROM(s) do not have a matching new_rating entry.")
+        print(f"{len(unmatched_entries)} ROM(s) are missing sales or age rating data.")
         if missing_entry:
-            print(f" - {missing_entry} ROM(s) have no corresponding sales entry.")
+            print(f" - {missing_entry} ROM(s) are missing sales data.")
         if missing_rating:
-            print(f" - {missing_rating} ROM(s) lack a new_rating value in sales data.")
+            print(
+                " - "
+                f"{missing_rating} ROM(s) are missing age ratings (platforms that ignore ratings are excluded)."
+            )
         if skipped_missing_rating:
             print(
-                f" - {skipped_missing_rating} ROM(s) missing new_rating were skipped because their platform ignores ratings."
+                f" - {skipped_missing_rating} ROM(s) missing age ratings were skipped because their platform ignores ratings."
             )
         if missing_entry and prompt_yes_no(
             f"Move {missing_entry} un-popular ROM(s) without sales data to {UNPOPULAR_ROM_ROOT}?",
             default=False,
         ):
-            move_unpopular_roms(unpopular_entries)
+            move_unpopular_roms(sales_only_entries)
         if missing_rating and prompt_yes_no(
-            f"Move {missing_rating} un-rated ROM(s) without new_rating data to {UNMATCHED_ROM_ROOT}?",
+            "Move "
+            f"{missing_rating} un-rated ROM(s) without age ratings (excluding ignore_ratings platforms) "
+            f"to {UNMATCHED_ROM_ROOT}?",
             default=False,
         ):
             move_unmatched_roms(unrated_entries)
     else:
-        print('All ROMs have associated new_rating entries.')
+        print('All ROMs have the necessary sales and age rating data.')
 
     console.print(
         "[bold green]Option 8 complete:[/] scanned "
@@ -1226,7 +1234,7 @@ def move_entries_to(entries: list[dict[str, str]], target_root: str, label: str)
 
 
 def move_unmatched_roms(entries: list[dict[str, str]]) -> int:
-    """Move un-rated ROMs to the unmatched ROM directory."""
+    """Move un-rated ROMs to the unrated ROM directory."""
 
     return move_entries_to(entries, UNMATCHED_ROM_ROOT, 'un-rated')
 
