@@ -1889,15 +1889,69 @@ def download_games(snapshot_dir):
         print('download_list.csv not found.')
         return
     links_file = os.path.join(snapshot_dir, 'aria2_links.txt')
-    entries = []
     with open(csv_path, newline='', encoding='utf-8') as f:
         reader = csv.DictReader(f)
-        for row in reader:
-            url = row['URL']
-            title = requests.utils.unquote(os.path.basename(row['Matched_Title']))
-            out_dir = os.path.join(snapshot_dir, 'roms', row['Directory'])
+        rows = list(reader)
+
+    if not rows:
+        print('No download entries found in download_list.csv.')
+        return
+
+    snapshot_name = os.path.basename(os.path.normpath(snapshot_dir)) or 'snapshot'
+    default_base_dir = os.path.join(snapshot_dir, 'roms')
+    alt_base_dir = os.path.normpath(os.path.join('D:\\', f'{snapshot_name}_new_roms'))
+
+    print('Select download destination:')
+    print(f"1) {shorten_path(default_base_dir)} (default)")
+    print(f"2) {shorten_path(alt_base_dir)}")
+
+    while True:
+        choice = input('Enter choice [1/2]: ').strip()
+        if choice in {'', '1'}:
+            download_base_dir = default_base_dir
+            break
+        if choice == '2':
+            download_base_dir = alt_base_dir
+            break
+        print('Invalid selection. Please enter 1 or 2.')
+
+    skip_archive = prompt_yes_no('Skip downloads from archive.org?')
+
+    entries = []
+    skipped = 0
+    dir_failures = 0
+    for row in rows:
+        url = row['URL']
+        if skip_archive:
+            parsed = urlparse(url)
+            if parsed.netloc.lower().endswith('archive.org'):
+                skipped += 1
+                continue
+        title = requests.utils.unquote(os.path.basename(row['Matched_Title']))
+        out_dir = os.path.join(download_base_dir, row['Directory'])
+        try:
             os.makedirs(out_dir, exist_ok=True)
-            entries.append(f"{url}\n  out={title}\n  dir={out_dir}")
+        except OSError as exc:
+            dir_failures += 1
+            print(f'Failed to create download directory {out_dir}: {exc}')
+            continue
+        entries.append(f"{url}\n  out={title}\n  dir={out_dir}")
+
+    if skip_archive and skipped:
+        print(f'Skipped {skipped} archive.org download(s).')
+
+    if dir_failures:
+        print(f'Skipped {dir_failures} download(s) due to directory creation errors.')
+
+    if not entries:
+        print('No downloads to process.')
+        return
+
+    try:
+        os.makedirs(download_base_dir, exist_ok=True)
+    except OSError as exc:
+        print(f'Unable to prepare download directory {download_base_dir}: {exc}')
+        return
     with open(links_file, 'w', encoding='utf-8') as f:
         f.write('\n'.join(entries))
     cmd = [ARIA2, '-i', links_file, '-j', '5']
