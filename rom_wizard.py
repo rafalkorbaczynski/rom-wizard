@@ -149,6 +149,12 @@ DIR_ALIASES = {
 def load_platform_mappings():
     df = pd.read_csv(PLATFORMS_CSV)
     df['ignore'] = df.get('ignore', False).astype(str).str.upper().isin(['TRUE', '1', 'YES'])
+    if 'ignore_ratings' in df.columns:
+        df['ignore_ratings'] = (
+            df['ignore_ratings'].astype(str).str.upper().isin(['TRUE', '1', 'YES'])
+        )
+    else:
+        df['ignore_ratings'] = False
 
     # Ensure every directory under ROMS_ROOT with a gamelist.xml exists in platforms.csv
     if os.path.isdir(ROMS_ROOT):
@@ -175,16 +181,26 @@ def load_platform_mappings():
             df.to_csv(PLATFORMS_CSV, index=False)
 
     ignore_set = {row['Platform'] for _, row in df[df['ignore']].iterrows()}
+    ignore_ratings_set = {
+        row['Platform']
+        for _, row in df.iterrows()
+        if bool(row.get('ignore_ratings'))
+    }
     active = df[~df['ignore']]
     plat_map = {row['Directory'].lower(): row['Platform'] for _, row in active.iterrows()}
     dataset_to_console = {row['Platform'].lower(): row['Directory'] for _, row in active.iterrows()}
     for alias, code in DIR_ALIASES.items():
         if code.lower() in dataset_to_console:
             plat_map.setdefault(alias, code)
-    return plat_map, dataset_to_console, {p.upper() for p in ignore_set}
+    return (
+        plat_map,
+        dataset_to_console,
+        {p.upper() for p in ignore_set},
+        {p.upper() for p in ignore_ratings_set},
+    )
 
 
-PLAT_MAP, DATASET_TO_CONSOLE, IGNORED_PLATFORMS = load_platform_mappings()
+PLAT_MAP, DATASET_TO_CONSOLE, IGNORED_PLATFORMS, IGNORE_RATINGS_PLATFORMS = load_platform_mappings()
 
 # Rich console for nicer output
 console = Console()
@@ -1038,6 +1054,7 @@ def count_new_rating_matches(snapshot_dir=None):
             continue
         if ds_plat.upper() in IGNORED_PLATFORMS:
             continue
+        ignore_ratings_platform = ds_plat.upper() in IGNORE_RATINGS_PLATFORMS
         plat_key = ds_plat.lower()
         rated_subset = platform_groups.get(plat_key)
         all_subset = all_platform_groups.get(plat_key)
@@ -1072,14 +1089,12 @@ def count_new_rating_matches(snapshot_dir=None):
                 continue
 
             match_reason = 'no_dataset_entry'
-            entry_bucket = unpopular_entries
             if all_match_keys:
                 res_all = process.extractOne(key, all_match_keys, scorer=fuzz.token_sort_ratio)
                 if res_all and res_all[1] >= threshold and token_set(key) == token_set(res_all[0]):
                     rating_val = key_to_rating.get(res_all[0])
                     if rating_val is None or not (3 <= rating_val <= 18) or pd.isna(rating_val):
                         match_reason = 'missing_new_rating'
-                        entry_bucket = unrated_entries
 
             full_path, rel_path = normalize_rom_entry_path(console_dir, g.findtext('path') or '')
             if not full_path or not rel_path:
@@ -1089,48 +1104,73 @@ def count_new_rating_matches(snapshot_dir=None):
             if full_path in seen_unmatched_paths:
                 continue
 
-            unmatched_entries.append({
+            entry = {
                 'platform': console_name,
                 'full_path': full_path,
                 'rel_path': rel_path,
                 'reason': match_reason,
-            })
+                'ignore_ratings': ignore_ratings_platform,
+            }
+            unmatched_entries.append(entry)
             seen_unmatched_paths.add(full_path)
-            entry_bucket.append({
-                'platform': console_name,
-                'full_path': full_path,
-                'rel_path': rel_path,
-                'reason': match_reason,
-            })
+            if match_reason == 'missing_new_rating':
+                if not ignore_ratings_platform:
+                    unrated_entries.append(entry)
+            else:
+                unpopular_entries.append(entry)
 
-        if match_keys:
-            rom_total = len(games)
-            coverage = matched / rom_total * 100 if rom_total else 0
-            summary_rows.append({
-                'Platform': ds_plat,
-                'ROMs': rom_total,
-                'With new rating': matched,
-                'Coverage %': round(coverage, 1)
-            })
-            total_with_rating += matched
+        rom_total = len(games)
+        coverage = matched / rom_total * 100 if rom_total else 0
+        summary_rows.append({
+            'Platform': ds_plat,
+            'ROMs': rom_total,
+            'With new rating': matched,
+            'Coverage %': round(coverage, 1),
+            'Ignore ratings': 'Yes' if ignore_ratings_platform else 'No',
+        })
+        total_with_rating += matched
 
     if summary_rows:
         df = pd.DataFrame(summary_rows)
         df = df.sort_values('With new rating', ascending=False)
+        columns = ['Platform', 'ROMs', 'With new rating', 'Coverage %', 'Ignore ratings']
+        df = df[[c for c in columns if c in df.columns]]
         print_table(df)
         print(f"Total ROMs scanned: {int(df['ROMs'].sum())}")
         print(f"ROMs with new rating: {int(df['With new rating'].sum())}")
+        included_df = df[df['Ignore ratings'] != 'Yes'] if 'Ignore ratings' in df.columns else df
+        included_roms = int(included_df['ROMs'].sum()) if not included_df.empty else 0
+        included_with_rating = int(included_df['With new rating'].sum()) if not included_df.empty else 0
+        if included_roms:
+            coverage_excl = included_with_rating / included_roms * 100
+            print(
+                'Coverage excluding ignore_ratings platforms: '
+                f"{coverage_excl:.1f}% ({included_with_rating}/{included_roms})"
+            )
+        else:
+            print('Coverage excluding ignore_ratings platforms: no eligible platforms.')
+        if 'Ignore ratings' in df.columns and (df['Ignore ratings'] == 'Yes').any():
+            print("Platforms marked 'Ignore ratings' = Yes are skipped when moving un-rated ROMs.")
     else:
         print('No downloaded ROMs with a matching new_rating value were found.')
 
     if unmatched_entries:
-        missing_rating = sum(1 for e in unmatched_entries if e['reason'] == 'missing_new_rating')
-        missing_entry = len(unmatched_entries) - missing_rating
+        missing_rating = len(unrated_entries)
+        missing_entry = sum(1 for e in unmatched_entries if e['reason'] == 'no_dataset_entry')
+        skipped_missing_rating = sum(
+            1
+            for e in unmatched_entries
+            if e['reason'] == 'missing_new_rating' and e.get('ignore_ratings')
+        )
         print(f"{len(unmatched_entries)} ROM(s) do not have a matching new_rating entry.")
         if missing_entry:
             print(f" - {missing_entry} ROM(s) have no corresponding sales entry.")
         if missing_rating:
             print(f" - {missing_rating} ROM(s) lack a new_rating value in sales data.")
+        if skipped_missing_rating:
+            print(
+                f" - {skipped_missing_rating} ROM(s) missing new_rating were skipped because their platform ignores ratings."
+            )
         if missing_entry and prompt_yes_no(
             f"Move {missing_entry} un-popular ROM(s) without sales data to {UNPOPULAR_ROM_ROOT}?",
             default=False,
