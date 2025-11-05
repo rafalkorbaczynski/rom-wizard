@@ -3,7 +3,7 @@ import sys
 import csv
 import shutil
 import datetime
-from typing import Optional
+from typing import Optional, Iterable
 
 import pandas as pd
 import xml.etree.ElementTree as ET
@@ -33,6 +33,9 @@ _ROMAN = {'ix':9,'viii':8,'vii':7,'vi':6,'iv':4,'iii':3,'ii':2,'i':1}
 import re
 import unicodedata
 _ROMAN_RE = re.compile(r'\b(' + '|'.join(sorted(_ROMAN, key=len, reverse=True)) + r')\b')
+
+BETA_DEMO_TAG_RE = re.compile(r'\((beta|demo)\)', re.IGNORECASE)
+BETA_DEMO_WORD_RE = re.compile(r'\b(beta|demo)\b', re.IGNORECASE)
 
 # Region mapping for summary statistics
 REGION_SYNONYMS = {
@@ -294,7 +297,7 @@ def fetch_platform_file_index(url_field: str):
             if not name:
                 continue
             low = name.lower()
-            if '(demo)' in low or '(virtual console)' in low:
+            if '(virtual console)' in low:
                 continue
             key = norm(name)
             file_map[key] = full_url
@@ -545,6 +548,39 @@ def disc_number(text: str) -> int:
         except ValueError:
             return 0
     return 0
+
+
+def entry_allows_beta_demo(entry_name: object) -> bool:
+    """Return ``True`` if ``entry_name`` explicitly references beta/demo builds."""
+
+    if not isinstance(entry_name, str):
+        return False
+    return bool(BETA_DEMO_WORD_RE.search(entry_name))
+
+
+def candidate_allowed_for_entry(file_title: str, entry_name: object) -> bool:
+    """Return ``True`` when ``file_title`` is eligible for ``entry_name``."""
+
+    if not isinstance(file_title, str):
+        return False
+    if not BETA_DEMO_TAG_RE.search(file_title):
+        return True
+    return entry_allows_beta_demo(entry_name)
+
+
+def filter_candidate_keys_for_entry(
+    keys: Iterable[str], file_names: dict[str, str], entry_name: object
+) -> list[str]:
+    """Return keys whose titles are valid matches for ``entry_name``."""
+
+    allowed: list[str] = []
+    for key in keys:
+        name = file_names.get(key)
+        if not name:
+            continue
+        if candidate_allowed_for_entry(name, entry_name):
+            allowed.append(key)
+    return allowed
 
 
 def ask_threshold(default=90):
@@ -1399,7 +1435,12 @@ def manual_add_games(snapshot_dir):
                 clear_screen()
                 print(f"Platform {code}: {progress_bar(platform_done, platform_total)} | Total: {progress_bar(total_done, total_targets)}")
                 print(f"   {search_term}")
-                ts_results = process.extract(norm_search, list(file_map.keys()), scorer=fuzz.token_sort_ratio, limit=None)
+                candidate_keys = filter_candidate_keys_for_entry(
+                    file_map.keys(), file_names, row['Dataset Name']
+                )
+                ts_results = process.extract(
+                    norm_search, candidate_keys, scorer=fuzz.token_sort_ratio, limit=None
+                )
                 options = []
                 if ts_results:
                     groups = {}
@@ -1449,8 +1490,12 @@ def manual_add_games(snapshot_dir):
             selected_names = [file_names[k] for k in selected_keys]
             if any(DISC_RE.search(n) for n in selected_names):
                 base = norm(remove_disc(selected_names[0]))
-                all_keys = [k for k in group_map.get(base, selected_keys)
-                            if region_priority(file_names[k]) == region_priority(selected_names[0])]
+                all_keys = filter_candidate_keys_for_entry(
+                    [k for k in group_map.get(base, selected_keys)
+                     if region_priority(file_names[k]) == region_priority(selected_names[0])],
+                    file_names,
+                    row['Dataset Name'],
+                )
                 if len(all_keys) > len(selected_keys):
                     selected_keys = sorted(all_keys, key=lambda k: disc_number(file_names[k]))
 
@@ -1602,7 +1647,10 @@ def auto_add_games(snapshot_dir):
         for _, row in subset.iterrows():
             game = row['Dataset Name']
             normed = norm(game)
-            ts_results = process.extract(normed, list(file_map.keys()), scorer=fuzz.token_sort_ratio, limit=None)
+            candidate_keys = filter_candidate_keys_for_entry(file_map.keys(), file_names, game)
+            ts_results = process.extract(
+                normed, candidate_keys, scorer=fuzz.token_sort_ratio, limit=None
+            )
             if not ts_results:
                 print(f"  [SKIP] {game} (no candidates)")
                 continue
@@ -1614,7 +1662,13 @@ def auto_add_games(snapshot_dir):
             if score < threshold:
                 print(f"  [SKIP] {game} (score below threshold: {score})")
                 continue
-            selected_keys = group_map.get(norm(remove_disc(file_names[best_key])), [best_key])
+            group_key = norm(remove_disc(file_names[best_key]))
+            group_candidates = group_map.get(group_key, [best_key])
+            selected_keys = filter_candidate_keys_for_entry(
+                group_candidates, file_names, game
+            )
+            if not selected_keys:
+                continue
 
             uniq_keys = []
             seen = set()
@@ -1857,8 +1911,11 @@ def enforce_download_targets(snapshot_dir):
                     if (name, code) in existing_pairs:
                         continue
                     normed = norm(name)
+                    candidate_keys = filter_candidate_keys_for_entry(
+                        file_map.keys(), file_names, name
+                    )
                     ts_results = process.extract(
-                        normed, list(file_map.keys()), scorer=fuzz.token_sort_ratio, limit=None
+                        normed, candidate_keys, scorer=fuzz.token_sort_ratio, limit=None
                     )
                     if not ts_results:
                         continue
@@ -1870,7 +1927,12 @@ def enforce_download_targets(snapshot_dir):
                     if score < threshold:
                         continue
                     group_key = norm(remove_disc(file_names[best_key]))
-                    selected_keys = group_map.get(group_key, [best_key])
+                    group_candidates = group_map.get(group_key, [best_key])
+                    selected_keys = filter_candidate_keys_for_entry(
+                        group_candidates, file_names, name
+                    )
+                    if not selected_keys:
+                        continue
 
                     uniq_keys = []
                     seen = set()
