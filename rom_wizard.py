@@ -550,6 +550,19 @@ def disc_number(text: str) -> int:
     return 0
 
 
+def unique_preserve_order(keys: Iterable[str]) -> list[str]:
+    """Return ``keys`` without duplicates while preserving order."""
+
+    seen: set[str] = set()
+    ordered: list[str] = []
+    for key in keys:
+        if key in seen:
+            continue
+        seen.add(key)
+        ordered.append(key)
+    return ordered
+
+
 def entry_allows_beta_demo(entry_name: object) -> bool:
     """Return ``True`` if ``entry_name`` explicitly references beta/demo builds."""
 
@@ -581,6 +594,68 @@ def filter_candidate_keys_for_entry(
         if candidate_allowed_for_entry(name, entry_name):
             allowed.append(key)
     return allowed
+
+
+def expand_multidisc_keys(
+    selected_keys: Iterable[str],
+    group_map: dict[str, list[str]],
+    file_names: dict[str, str],
+    entry_name: object,
+) -> list[str]:
+    """Return ``selected_keys`` expanded to include all matching disc entries."""
+
+    ordered = unique_preserve_order(selected_keys)
+    if not ordered:
+        return []
+
+    names = [file_names.get(key, '') for key in ordered if file_names.get(key)]
+    if not names:
+        return ordered
+
+    has_disc = any(DISC_RE.search(name) for name in names)
+    if not has_disc:
+        # Still filter against beta/demo restrictions while preserving order.
+        filtered = unique_preserve_order(
+            filter_candidate_keys_for_entry(ordered, file_names, entry_name)
+        )
+        return filtered or ordered
+
+    base_key = norm(remove_disc(names[0]))
+    region_score = region_priority(names[0])
+    group_candidates = group_map.get(base_key, ordered)
+    same_region = [
+        key
+        for key in group_candidates
+        if region_priority(file_names.get(key, '')) == region_score
+    ]
+    candidate_pool = same_region or group_candidates
+    expanded = unique_preserve_order(
+        filter_candidate_keys_for_entry(candidate_pool, file_names, entry_name)
+    )
+    if not expanded:
+        expanded = ordered
+
+    return sorted(expanded, key=lambda k: disc_number(file_names.get(k, '')))
+
+
+def extract_known_urls(df: pd.DataFrame) -> set[str]:
+    """Return a set of URL strings already present in ``df``."""
+
+    if df.empty or 'URL' not in df.columns:
+        return set()
+
+    urls: set[str] = set()
+    for value in df['URL']:
+        if pd.isna(value):
+            continue
+        if isinstance(value, str):
+            if value:
+                urls.add(value)
+        else:
+            text = str(value)
+            if text and text.lower() != 'nan':
+                urls.add(text)
+    return urls
 
 
 def ask_threshold(default=90):
@@ -1307,6 +1382,13 @@ def manual_add_games(snapshot_dir):
     unmatched_df = pd.read_csv(unmatched_path)
     summary_df = pd.read_csv(summary_path) if os.path.isfile(summary_path) else pd.DataFrame()
 
+    download_list_path = os.path.join(snapshot_dir, 'download_list.csv')
+    existing_dl_df = (
+        pd.read_csv(download_list_path) if os.path.exists(download_list_path) else pd.DataFrame()
+    )
+    known_urls = extract_known_urls(existing_dl_df)
+    duplicate_skips = 0
+
     if os.path.exists(BLACKLIST_CSV):
         blacklist_df = pd.read_csv(BLACKLIST_CSV)
         blacklist_df = blacklist_df[['Search_Term', 'Platform']]
@@ -1487,25 +1569,21 @@ def manual_add_games(snapshot_dir):
             if not selected_keys:
                 clear_screen()
                 continue
-            selected_names = [file_names[k] for k in selected_keys]
-            if any(DISC_RE.search(n) for n in selected_names):
-                base = norm(remove_disc(selected_names[0]))
-                all_keys = filter_candidate_keys_for_entry(
-                    [k for k in group_map.get(base, selected_keys)
-                     if region_priority(file_names[k]) == region_priority(selected_names[0])],
-                    file_names,
-                    row['Dataset Name'],
-                )
-                if len(all_keys) > len(selected_keys):
-                    selected_keys = sorted(all_keys, key=lambda k: disc_number(file_names[k]))
-
-            uniq_keys = []
-            seen = set()
+            selected_keys = expand_multidisc_keys(
+                selected_keys, group_map, file_names, row['Dataset Name']
+            )
+            fresh_keys: list[str] = []
             for k in selected_keys:
-                if k not in seen:
-                    uniq_keys.append(k)
-                    seen.add(k)
-            for k in uniq_keys:
+                filehref = file_map[k]
+                if filehref in known_urls:
+                    duplicate_skips += 1
+                    continue
+                known_urls.add(filehref)
+                fresh_keys.append(k)
+            if not fresh_keys:
+                clear_screen()
+                continue
+            for k in fresh_keys:
                 filehref = file_map[k]
                 title = filename_from_url(filehref)
                 download_rows.append({'Search_Term': row['Dataset Name'], 'Platform': code,
@@ -1514,15 +1592,22 @@ def manual_add_games(snapshot_dir):
             clear_screen()
 
     if not download_rows:
+        if duplicate_skips:
+            console.print(f"[bold yellow]Skipped {duplicate_skips} duplicate download(s).[/]")
         print('No entries added.')
         return
 
-    csv_path = os.path.join(snapshot_dir, 'download_list.csv')
-    df_existing = pd.read_csv(csv_path) if os.path.exists(csv_path) else pd.DataFrame()
     new_df = pd.DataFrame(download_rows)
-    df = pd.concat([df_existing, new_df], ignore_index=True)
-    df.to_csv(csv_path, index=False)
+    if not existing_dl_df.empty:
+        df = pd.concat([existing_dl_df, new_df], ignore_index=True)
+    else:
+        df = new_df
+    if 'URL' in df.columns:
+        df = df.drop_duplicates(subset=['URL'], keep='first')
+    df.to_csv(download_list_path, index=False)
     console.print('[bold green]Download list updated.[/]')
+    if duplicate_skips:
+        console.print(f"[bold yellow]Skipped {duplicate_skips} duplicate download(s).[/]")
     if not blacklist_df.empty:
         blacklist_df.drop_duplicates().to_csv(BLACKLIST_CSV, index=False)
     if prompt_yes_no('Download now?'):
@@ -1539,6 +1624,13 @@ def auto_add_games(snapshot_dir):
 
     unmatched_df = pd.read_csv(unmatched_path)
     summary_df = pd.read_csv(summary_path) if os.path.isfile(summary_path) else pd.DataFrame()
+
+    download_list_path = os.path.join(snapshot_dir, 'download_list.csv')
+    existing_dl_df = (
+        pd.read_csv(download_list_path) if os.path.exists(download_list_path) else pd.DataFrame()
+    )
+    known_urls = extract_known_urls(existing_dl_df)
+    duplicate_skips = 0
 
     if os.path.exists(BLACKLIST_CSV):
         blacklist_df = pd.read_csv(BLACKLIST_CSV)
@@ -1670,13 +1762,18 @@ def auto_add_games(snapshot_dir):
             if not selected_keys:
                 continue
 
-            uniq_keys = []
-            seen = set()
+            selected_keys = expand_multidisc_keys(selected_keys, group_map, file_names, game)
+            fresh_keys: list[str] = []
             for k in selected_keys:
-                if k not in seen:
-                    uniq_keys.append(k)
-                    seen.add(k)
-            for k in uniq_keys:
+                filehref = file_map[k]
+                if filehref in known_urls:
+                    duplicate_skips += 1
+                    continue
+                known_urls.add(filehref)
+                fresh_keys.append(k)
+            if not fresh_keys:
+                continue
+            for k in fresh_keys:
                 filehref = file_map[k]
                 title = filename_from_url(filehref)
                 download_rows.append({'Search_Term': game, 'Platform': code,
@@ -1695,15 +1792,22 @@ def auto_add_games(snapshot_dir):
         })
 
     if not download_rows:
+        if duplicate_skips:
+            console.print(f"[bold yellow]Skipped {duplicate_skips} duplicate download(s).[/]")
         print('No entries added.')
         return
 
-    csv_path = os.path.join(snapshot_dir, 'download_list.csv')
-    df_existing = pd.read_csv(csv_path) if os.path.exists(csv_path) else pd.DataFrame()
     new_df = pd.DataFrame(download_rows)
-    df = pd.concat([df_existing, new_df], ignore_index=True)
-    df.to_csv(csv_path, index=False)
+    if not existing_dl_df.empty:
+        df = pd.concat([existing_dl_df, new_df], ignore_index=True)
+    else:
+        df = new_df
+    if 'URL' in df.columns:
+        df = df.drop_duplicates(subset=['URL'], keep='first')
+    df.to_csv(download_list_path, index=False)
     console.print('[bold green]Download list updated.[/]')
+    if duplicate_skips:
+        console.print(f"[bold yellow]Skipped {duplicate_skips} duplicate download(s).[/]")
     if summary_rows:
         summary_df = pd.DataFrame(summary_rows,
                                  columns=['Platform','Added','Match %','Lowest Score','Average Score'])
@@ -1750,6 +1854,8 @@ def enforce_download_targets(snapshot_dir):
     match_df = pd.read_csv(match_path)
     download_list_path = os.path.join(snapshot_dir, 'download_list.csv')
     existing_dl_df = pd.read_csv(download_list_path) if os.path.isfile(download_list_path) else pd.DataFrame()
+    known_urls = extract_known_urls(existing_dl_df)
+    duplicate_skips = 0
 
     if os.path.exists(BLACKLIST_CSV):
         blacklist_df = pd.read_csv(BLACKLIST_CSV)
@@ -1934,16 +2040,19 @@ def enforce_download_targets(snapshot_dir):
                     if not selected_keys:
                         continue
 
-                    uniq_keys = []
-                    seen = set()
+                    selected_keys = expand_multidisc_keys(selected_keys, group_map, file_names, name)
+                    fresh_keys: list[str] = []
                     for key in selected_keys:
-                        if key not in seen:
-                            uniq_keys.append(key)
-                            seen.add(key)
-                    if not uniq_keys:
+                        filehref = file_map[key]
+                        if filehref in known_urls:
+                            duplicate_skips += 1
+                            continue
+                        known_urls.add(filehref)
+                        fresh_keys.append(key)
+                    if not fresh_keys:
                         continue
 
-                    for key in uniq_keys:
+                    for key in fresh_keys:
                         filehref = file_map[key]
                         title = filename_from_url(filehref)
                         new_download_rows.append({
@@ -1988,10 +2097,16 @@ def enforce_download_targets(snapshot_dir):
             combined = pd.concat([existing_dl_df, new_df], ignore_index=True)
         else:
             combined = new_df
+        if 'URL' in combined.columns:
+            combined = combined.drop_duplicates(subset=['URL'], keep='first')
         combined.to_csv(download_list_path, index=False)
         console.print('[bold green]Download list updated.[/]')
+        if duplicate_skips:
+            console.print(f"[bold yellow]Skipped {duplicate_skips} duplicate download(s).[/]")
     else:
         print('No new download entries added.')
+        if duplicate_skips:
+            console.print(f"[bold yellow]Skipped {duplicate_skips} duplicate download(s).[/]")
 
     if results_rows:
         results_df = pd.DataFrame(results_rows, columns=['Platform', 'Added', 'Still Needed'])
