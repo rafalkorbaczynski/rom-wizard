@@ -126,6 +126,26 @@ def count_rom_entries(path: str) -> int:
     return total
 
 
+def iter_rom_library_entries(path: str):
+    """Yield (relative_path, entry_name) pairs for ROM entries under ``path``."""
+
+    if not os.path.isdir(path):
+        return
+
+    for root, dirnames, files in os.walk(path):
+        rom_dirs = [d for d in dirnames if is_rom_directory_name(d)]
+        rel_root = os.path.relpath(root, path)
+        rel_root = '' if rel_root == '.' else rel_root
+        for d in rom_dirs:
+            rel = os.path.join(rel_root, d) if rel_root else d
+            yield os.path.normpath(rel), d
+        dirnames[:] = [d for d in dirnames if d not in rom_dirs]
+        for fname in files:
+            if has_rom_extension(fname):
+                rel = os.path.join(rel_root, fname) if rel_root else fname
+                yield os.path.normpath(rel), fname
+
+
 # Terminal colors for highlighting differences
 RESET = "\033[0m"
 BOLD = "\033[1m"
@@ -412,15 +432,11 @@ def iter_progress(seq, description: str):
     return track(seq, description=description) if sys.stdout.isatty() else seq
 
 
-def get_region_key(game) -> str:
-    """Return normalized region key for a gamelist entry."""
-    region_text = (game.findtext('region') or '').lower().strip()
-    if region_text:
-        for reg, toks in REGION_SYNONYMS.items():
-            if region_text in toks:
-                return reg
-    text = os.path.basename(game.findtext('path') or game.findtext('name') or '').lower()
-    tags = re.findall(r'\(([^()]+)\)', text)
+def infer_region_from_filename(text: str) -> str:
+    """Infer region identifier from a ROM filename or path."""
+
+    lowered = os.path.basename(text or '').lower()
+    tags = re.findall(r'[\(\[]([^()\[\]]+)[\)\]]', lowered)
     for tag in tags:
         for token in re.split('[,;/]', tag):
             tok = token.strip().lower()
@@ -428,6 +444,17 @@ def get_region_key(game) -> str:
                 if tok in toks:
                     return reg
     return 'Other'
+
+
+def get_region_key(game) -> str:
+    """Return normalized region key for a gamelist entry."""
+    region_text = (game.findtext('region') or '').lower().strip()
+    if region_text:
+        for reg, toks in REGION_SYNONYMS.items():
+            if region_text in toks:
+                return reg
+    text = game.findtext('path') or game.findtext('name') or ''
+    return infer_region_from_filename(text)
 
 
 def prompt_yes_no(prompt: str, default: bool = False) -> bool:
@@ -731,12 +758,19 @@ def create_snapshot():
             continue
         found_consoles.add(console_name.lower())
         games: list[ET.Element] = []
+        gamelist_entry_paths: set[str] = set()
         if os.path.isfile(gl_path):
             tree = ET.parse(gl_path)
             games = [
                 g for g in tree.getroot().findall('game')
                 if has_rom_extension(g.findtext('path') or '')
             ]
+            for g in games:
+                full_path, _ = normalize_rom_entry_path(console_dir, g.findtext('path') or '')
+                if full_path:
+                    rel = os.path.relpath(full_path, console_dir)
+                    norm_rel = os.path.normcase(os.path.normpath(rel))
+                    gamelist_entry_paths.add(norm_rel)
         sales_subset = sales[sales['Platform'].str.lower() == ds_plat.lower()]
         match_keys = list(sales_subset['key'])
         sales_map = dict(zip(sales_subset['key'], sales_subset['Global_Sales']))
@@ -776,9 +810,38 @@ def create_snapshot():
                 })
                 unmatched_keys.discard((ds_plat, key))
 
-        extra_roms = rom_total - len(games)
-        if extra_roms > 0:
-            region_counts['Other'] += extra_roms
+        for rel_path, entry_name in iter_rom_library_entries(console_dir):
+            norm_rel = os.path.normcase(os.path.normpath(rel_path))
+            if norm_rel in gamelist_entry_paths:
+                continue
+            region_key = infer_region_from_filename(entry_name)
+            region_counts[region_key] += 1
+
+            if not match_keys:
+                continue
+
+            candidate_name = os.path.splitext(entry_name)[0]
+            candidate_key = norm(candidate_name)
+            if not candidate_key:
+                continue
+
+            res = process.extractOne(candidate_key, match_keys, scorer=fuzz.token_sort_ratio)
+            if (
+                res
+                and res[1] >= threshold
+                and token_set(candidate_key) == token_set(res[0])
+                and (ds_plat, res[0]) in unmatched_keys
+            ):
+                matched += 1
+                key = res[0]
+                matched_records.append({
+                    'Dataset Name': name_map[key],
+                    'Platform': ds_plat,
+                    'ROM': candidate_name,
+                    'Sales': sales_map[key],
+                    'Match Score': res[1]
+                })
+                unmatched_keys.discard((ds_plat, key))
 
         summary_rows.append({
             'Platform': ds_plat,
