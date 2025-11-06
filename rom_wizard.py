@@ -720,23 +720,23 @@ def create_snapshot():
     matched_records = []
     unmatched_keys = set(zip(sales['Platform'], sales['key']))
     found_consoles = set()
+    gamelist_roms_total = 0
+    filesystem_only_total = 0
 
     for console_name in iter_progress(os.listdir(ROMS_ROOT), "Scanning ROMs"):
         console_dir = os.path.join(ROMS_ROOT, console_name)
         gl_path = os.path.join(console_dir, 'gamelist.xml')
-        if not os.path.isfile(gl_path):
-            continue
         ds_plat = PLAT_MAP.get(console_name.lower())
         if not ds_plat or ds_plat in IGNORED_PLATFORMS:
             continue
         found_consoles.add(console_name.lower())
-        tree = ET.parse(gl_path)
-        games = [
-            g for g in tree.getroot().findall('game')
-            if has_rom_extension(g.findtext('path') or '')
-        ]
-        if not games:
-            continue
+        games: list[ET.Element] = []
+        if os.path.isfile(gl_path):
+            tree = ET.parse(gl_path)
+            games = [
+                g for g in tree.getroot().findall('game')
+                if has_rom_extension(g.findtext('path') or '')
+            ]
         sales_subset = sales[sales['Platform'].str.lower() == ds_plat.lower()]
         match_keys = list(sales_subset['key'])
         sales_map = dict(zip(sales_subset['key'], sales_subset['Global_Sales']))
@@ -744,7 +744,13 @@ def create_snapshot():
         dataset_size = sales_subset['key'].nunique()
 
         folder_bytes = directory_size_bytes(console_dir, ROM_EXTS)
-        rom_total = len(games)
+        fs_rom_total = count_rom_entries(console_dir)
+        rom_total = max(len(games), fs_rom_total)
+        if rom_total == 0:
+            continue
+        gamelist_roms_total += len(games)
+        fs_only = max(rom_total - len(games), 0)
+        filesystem_only_total += fs_only
         avg_size_mb = (folder_bytes / rom_total) / (1024 ** 2) if rom_total else 0
 
         region_counts = {r: 0 for r in REGIONS}
@@ -769,6 +775,10 @@ def create_snapshot():
                     'Match Score': res[1]
                 })
                 unmatched_keys.discard((ds_plat, key))
+
+        extra_roms = rom_total - len(games)
+        if extra_roms > 0:
+            region_counts['Other'] += extra_roms
 
         summary_rows.append({
             'Platform': ds_plat,
@@ -835,6 +845,19 @@ def create_snapshot():
     console.print(f"[bold green]Snapshot created at {shorten_path(snap_dir)}[/]")
     display_df = summary_df.drop(columns=['Platform']).rename(columns={'FullName': 'Platform'})
     print_table(display_df)
+
+    total_tracked_roms = gamelist_roms_total + filesystem_only_total
+    if total_tracked_roms:
+        gamelist_pct = gamelist_roms_total / total_tracked_roms * 100
+        console.print(
+            "[bold cyan]ROM counting sources:[/] "
+            f"{gamelist_roms_total} from gamelist.xml ({gamelist_pct:.1f}%), "
+            f"{filesystem_only_total} from filesystem scan"
+        )
+    else:
+        console.print(
+            "[bold cyan]ROM counting sources:[/] no ROM entries were detected to tally"
+        )
     return snap_dir
 
 
