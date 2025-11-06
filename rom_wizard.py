@@ -26,8 +26,14 @@ CHDMAN = os.path.join(DATA_DIR, 'chdman.exe')
 # Make ROMS_ROOT point there so the wizard can locate existing ROMs when run
 # from the scripts_github folder.
 ROMS_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'roms'))
-UNMATCHED_ROM_ROOT = os.path.normpath(r'D:\unrated_roms')
-UNPOPULAR_ROM_ROOT = os.path.normpath(r'D:\unpopular_roms')
+SNAPSHOT_BASE_DIR = os.path.normpath('D:/')
+ROM_STATE_DIRS = {
+    'main': 'roms_main',
+    'duplicates': 'roms_duplicates',
+    'unrated': 'roms_unrated',
+    'unpopular': 'roms_unpopular',
+    'new': 'roms_new',
+}
 
 _ROMAN = {'ix':9,'viii':8,'vii':7,'vi':6,'iv':4,'iii':3,'ii':2,'i':1}
 import re
@@ -144,6 +150,24 @@ def iter_rom_library_entries(path: str):
             if has_rom_extension(fname):
                 rel = os.path.join(rel_root, fname) if rel_root else fname
                 yield os.path.normpath(rel), fname
+
+
+def get_rom_state_dir(snapshot_dir: str, state: str) -> str:
+    """Return the path for the ``state`` ROM directory within ``snapshot_dir``."""
+
+    try:
+        subdir = ROM_STATE_DIRS[state]
+    except KeyError as exc:
+        raise KeyError(f"Unknown ROM state: {state}") from exc
+    return os.path.join(snapshot_dir, subdir)
+
+
+def ensure_rom_state_dir(snapshot_dir: str, state: str) -> str:
+    """Ensure the ROM directory for ``state`` exists within ``snapshot_dir``."""
+
+    path = get_rom_state_dir(snapshot_dir, state)
+    os.makedirs(path, exist_ok=True)
+    return path
 
 
 # Terminal colors for highlighting differences
@@ -733,9 +757,14 @@ def write_rom_filenames(root_dir: str, output_path: str) -> None:
 
 def create_snapshot():
     ts = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
-    snap_dir = os.path.join(os.path.dirname(__file__), f'snapshot_{ts}')
-    os.makedirs(os.path.join(snap_dir, 'roms'), exist_ok=True)
-    os.makedirs(os.path.join(snap_dir, 'duplicate_roms'), exist_ok=True)
+    try:
+        os.makedirs(SNAPSHOT_BASE_DIR, exist_ok=True)
+    except OSError:
+        pass
+    snap_dir = os.path.join(SNAPSHOT_BASE_DIR, f'snapshot_{ts}')
+    os.makedirs(snap_dir, exist_ok=True)
+    for state in ROM_STATE_DIRS:
+        ensure_rom_state_dir(snap_dir, state)
 
     threshold = ask_threshold()
     sales = pd.read_csv(SALES_CSV, low_memory=False)
@@ -927,8 +956,7 @@ def create_snapshot():
 def detect_duplicates(snapshot_dir):
     from rapidfuzz import fuzz
     threshold = ask_threshold()
-    dup_root = os.path.join(snapshot_dir, 'duplicate_roms')
-    os.makedirs(dup_root, exist_ok=True)
+    dup_root = ensure_rom_state_dir(snapshot_dir, 'duplicates')
     report_rows = []
     summary_rows = []
     moved_any = False
@@ -1026,6 +1054,7 @@ def detect_duplicates(snapshot_dir):
 def generate_playlists(snapshot_dir):
     """Create m3u playlists in the snapshot's roms folder."""
     pattern = re.compile(r'(?i)^(.+?)\s*\(disc\s*(\d+)\)')
+    base_rom_dir = ensure_rom_state_dir(snapshot_dir, 'main')
     for console_name in iter_progress(os.listdir(ROMS_ROOT), "Generating playlists"):
         folder = os.path.join(ROMS_ROOT, console_name)
         if not os.path.isdir(folder):
@@ -1050,7 +1079,7 @@ def generate_playlists(snapshot_dir):
             if len(discs) < 2:
                 continue
             discs.sort()
-            out_folder = os.path.join(snapshot_dir, 'roms', console_name)
+            out_folder = os.path.join(base_rom_dir, console_name)
             os.makedirs(out_folder, exist_ok=True)
             path = os.path.join(out_folder, base + '.m3u')
             with open(path, 'w', encoding='utf-8') as f:
@@ -1066,8 +1095,7 @@ def apply_sales(snapshot_dir):
     sales['key'] = sales['Name'].apply(norm)
     max_sales = sales['Global_Sales'].max()
     unmatched_keys = set(zip(sales['Platform'], sales['key']))
-    output_root = os.path.join(snapshot_dir, 'roms')
-    os.makedirs(output_root, exist_ok=True)
+    output_root = ensure_rom_state_dir(snapshot_dir, 'main')
     match_rows = []
     summary_rows = []
     found_consoles = set()
@@ -1369,6 +1397,8 @@ def count_new_rating_matches(snapshot_dir=None):
             for e in unmatched_entries
             if e['reason'] == 'missing_new_rating' and e.get('ignore_ratings')
         )
+        unpopular_root = get_rom_state_dir(snapshot_dir, 'unpopular')
+        unrated_root = get_rom_state_dir(snapshot_dir, 'unrated')
         print(f"{len(unmatched_entries)} ROM(s) are missing sales or age rating data.")
         if missing_entry:
             print(f" - {missing_entry} ROM(s) are missing sales data.")
@@ -1382,17 +1412,17 @@ def count_new_rating_matches(snapshot_dir=None):
                 f" - {skipped_missing_rating} ROM(s) missing age ratings were skipped because their platform ignores ratings."
             )
         if missing_entry and prompt_yes_no(
-            f"Move {missing_entry} un-popular ROM(s) without sales data to {UNPOPULAR_ROM_ROOT}?",
+            f"Move {missing_entry} un-popular ROM(s) without sales data to {shorten_path(unpopular_root)}?",
             default=False,
         ):
-            move_unpopular_roms(sales_only_entries)
+            move_unpopular_roms(snapshot_dir, sales_only_entries)
         if missing_rating and prompt_yes_no(
             "Move "
             f"{missing_rating} un-rated ROM(s) without age ratings (excluding ignore_ratings platforms) "
-            f"to {UNMATCHED_ROM_ROOT}?",
+            f"to {shorten_path(unrated_root)}?",
             default=False,
         ):
-            move_unmatched_roms(unrated_entries)
+            move_unmatched_roms(snapshot_dir, unrated_entries)
     else:
         print('All ROMs have the necessary sales and age rating data.')
 
@@ -1442,16 +1472,18 @@ def move_entries_to(entries: list[dict[str, str]], target_root: str, label: str)
     return moved
 
 
-def move_unmatched_roms(entries: list[dict[str, str]]) -> int:
-    """Move un-rated ROMs to the unrated ROM directory."""
+def move_unmatched_roms(snapshot_dir: str, entries: list[dict[str, str]]) -> int:
+    """Move un-rated ROMs to the snapshot's unrated ROM directory."""
 
-    return move_entries_to(entries, UNMATCHED_ROM_ROOT, 'un-rated')
+    target = ensure_rom_state_dir(snapshot_dir, 'unrated')
+    return move_entries_to(entries, target, 'un-rated')
 
 
-def move_unpopular_roms(entries: list[dict[str, str]]) -> int:
-    """Move ROMs without sales data to the unpopular ROM directory."""
+def move_unpopular_roms(snapshot_dir: str, entries: list[dict[str, str]]) -> int:
+    """Move ROMs without sales data to the snapshot's unpopular ROM directory."""
 
-    return move_entries_to(entries, UNPOPULAR_ROM_ROOT, 'un-popular')
+    target = ensure_rom_state_dir(snapshot_dir, 'unpopular')
+    return move_entries_to(entries, target, 'un-popular')
 
 
 def scrape_file_list(code):
@@ -2231,8 +2263,8 @@ def download_games(snapshot_dir):
         return
 
     snapshot_name = os.path.basename(os.path.normpath(snapshot_dir)) or 'snapshot'
-    default_base_dir = os.path.join(snapshot_dir, 'roms')
-    alt_base_dir = os.path.normpath(os.path.join('D:\\', f'{snapshot_name}_new_roms'))
+    default_base_dir = ensure_rom_state_dir(snapshot_dir, 'main')
+    alt_base_dir = ensure_rom_state_dir(snapshot_dir, 'new')
 
     print('Select download destination:')
     print(f"1) {shorten_path(default_base_dir)} (default)")
@@ -2435,8 +2467,14 @@ def convert_to_chd():
 
 
 def get_latest_snapshot():
-    base = os.path.dirname(__file__)
-    snaps = [d for d in os.listdir(base) if d.startswith('snapshot_') and os.path.isdir(os.path.join(base, d))]
+    base = SNAPSHOT_BASE_DIR
+    if not os.path.isdir(base):
+        return None
+    snaps = [
+        d
+        for d in os.listdir(base)
+        if d.startswith('snapshot_') and os.path.isdir(os.path.join(base, d))
+    ]
     if not snaps:
         return None
     snaps.sort(reverse=True)
@@ -2509,16 +2547,17 @@ def wizard_menu(snapshot_dir):
         if SUMMARY_COLS:
             sort_col = SUMMARY_COLS[SUMMARY_CYCLE_IDX]
 
-        dup_exists = os.path.isdir(os.path.join(snapshot_dir, 'duplicate_roms'))
+        dup_exists = os.path.isdir(get_rom_state_dir(snapshot_dir, 'duplicates'))
         m3u_exists = False
         gl_exists = False
-        roms_root = os.path.join(snapshot_dir, 'roms')
-        for root, _, files in os.walk(roms_root):
-            for f in files:
-                if f.lower().endswith('.m3u'):
-                    m3u_exists = True
-                if f == 'gamelist.xml':
-                    gl_exists = True
+        roms_root = get_rom_state_dir(snapshot_dir, 'main')
+        if os.path.isdir(roms_root):
+            for root, _, files in os.walk(roms_root):
+                for f in files:
+                    if f.lower().endswith('.m3u'):
+                        m3u_exists = True
+                    if f == 'gamelist.xml':
+                        gl_exists = True
             if m3u_exists and gl_exists:
                 break
 
