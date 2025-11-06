@@ -2152,7 +2152,8 @@ def download_games(snapshot_dir):
 
     skip_archive = prompt_yes_no('Skip downloads from archive.org?')
 
-    entries = []
+    download_jobs = []
+    aria_entries = []
     skipped = 0
     dir_failures = 0
     for row in rows:
@@ -2170,7 +2171,12 @@ def download_games(snapshot_dir):
             dir_failures += 1
             print(f'Failed to create download directory {out_dir}: {exc}')
             continue
-        entries.append(f"{url}\n  out={title}\n  dir={out_dir}")
+        aria_entries.append(f"{url}\n  out={title}\n  dir={out_dir}")
+        download_jobs.append({
+            'url': url,
+            'title': title,
+            'directory': out_dir,
+        })
 
     if skip_archive and skipped:
         print(f'Skipped {skipped} archive.org download(s).')
@@ -2178,7 +2184,7 @@ def download_games(snapshot_dir):
     if dir_failures:
         print(f'Skipped {dir_failures} download(s) due to directory creation errors.')
 
-    if not entries:
+    if not download_jobs:
         print('No downloads to process.')
         return
 
@@ -2188,15 +2194,49 @@ def download_games(snapshot_dir):
         print(f'Unable to prepare download directory {download_base_dir}: {exc}')
         return
     with open(links_file, 'w', encoding='utf-8') as f:
-        f.write('\n'.join(entries))
-    cmd = [ARIA2, '-i', links_file, '-j', '5']
-    print('Running:', ' '.join(shorten_path(c) for c in cmd))
-    try:
-        subprocess.run(cmd, check=True)
-    except FileNotFoundError:
-        print('Error: aria2c not found. Ensure aria2c.exe is present in the wizardry folder or added to PATH.')
-    except subprocess.CalledProcessError as e:
-        print(f'aria2c exited with code {e.returncode}')
+        f.write('\n'.join(aria_entries))
+
+    total_jobs = len(download_jobs)
+    console.print(f"[bold cyan]Prepared {total_jobs} download(s). Starting sequential aria2c downloads...[/]")
+    successes = 0
+    failures = 0
+
+    for idx, job in enumerate(download_jobs, start=1):
+        remaining_queue = total_jobs - idx
+        console.print(
+            f"[bold blue]Downloading ({idx}/{total_jobs}):[/] {job['title']}"
+        )
+        cmd = [
+            ARIA2,
+            job['url'],
+            '-d',
+            job['directory'],
+            '-o',
+            job['title'],
+            '--auto-file-renaming=false',
+            '--allow-overwrite=true',
+        ]
+        try:
+            subprocess.run(cmd, check=True)
+        except FileNotFoundError:
+            print('Error: aria2c not found. Ensure aria2c.exe is present in the wizardry folder or added to PATH.')
+            return
+        except subprocess.CalledProcessError as e:
+            failures += 1
+            console.print(
+                f"[bold red]aria2c exited with code {e.returncode} while downloading {job['title']}.[/]"
+            )
+        else:
+            successes += 1
+        console.print(
+            f"[bold cyan]Progress:[/] {successes} downloaded, {remaining_queue} remaining (of {total_jobs}); failures so far: {failures}."
+        )
+
+    if failures:
+        console.print(f"[bold yellow]{failures} download(s) failed. See messages above for details.[/]")
+    console.print(
+        f"[bold green]Finished downloads: {successes}/{total_jobs} completed successfully.[/]"
+    )
 
 
 def convert_to_chd():
