@@ -931,6 +931,7 @@ def detect_duplicates(snapshot_dir):
     os.makedirs(dup_root, exist_ok=True)
     report_rows = []
     summary_rows = []
+    moved_any = False
 
     for console_name in iter_progress(os.listdir(ROMS_ROOT), "Scanning ROMs"):
         console_dir = os.path.join(ROMS_ROOT, console_name)
@@ -996,6 +997,7 @@ def detect_duplicates(snapshot_dir):
                         dst_dir = os.path.join(dup_root, rel_dir)
                         os.makedirs(dst_dir, exist_ok=True)
                         shutil.move(src, os.path.join(dst_dir, g))
+                        moved_any = True
                         keep_rel = os.path.relpath(os.path.join(root, f), ROMS_ROOT)
                         move_rel = os.path.relpath(src, ROMS_ROOT)
                         report_rows.append([console_name, score, norm_map[f], norm_map[g], keep_rel, move_rel])
@@ -1011,6 +1013,11 @@ def detect_duplicates(snapshot_dir):
         writer.writerow(['Platform','Match Score','Kept Key','Moved Key','Kept File','Moved File'])
         writer.writerows(report_rows)
     console.print('[bold green]Duplicate scan complete.[/]')
+    if moved_any:
+        console.print(
+            "[bold yellow]Reminder:[/] clean gamelists & remove unused media in RetroBat "
+            "frontend developer options so non-existent ROMs don't count toward the snapshot summary."
+        )
     if summary_rows:
         df = pd.DataFrame(summary_rows)
         print_table(df)
@@ -1427,6 +1434,11 @@ def move_entries_to(entries: list[dict[str, str]], target_root: str, label: str)
         moved += 1
 
     print(f"Moved {moved} {label} ROM(s) to {shorten_path(resolved_root)}.")
+    if moved:
+        console.print(
+            "[bold yellow]Reminder:[/] clean gamelists & remove unused media in RetroBat "
+            "frontend developer options so non-existent ROMs don't count toward the snapshot summary."
+        )
     return moved
 
 
@@ -2323,6 +2335,14 @@ def download_games(snapshot_dir):
     console.print(
         f"[bold green]Finished downloads: {successes}/{total_jobs} completed successfully.[/]"
     )
+    if successes and (
+        os.path.normcase(os.path.abspath(download_base_dir))
+        == os.path.normcase(os.path.abspath(alt_base_dir))
+    ):
+        console.print(
+            "[bold yellow]Reminder:[/] update gamelists and scrape through new games so "
+            "they appear in the snapshot summary."
+        )
 
 
 def convert_to_chd():
