@@ -19,7 +19,7 @@ GG,gamegear,https://myrient.erista.me/files/No-Intro/Sega%20-%20Game%20Gear/,FAL
 NG,neogeo,https://myrient.erista.me/files/Redump/SNK%20-%20Neo%20Geo%20CD/,FALSE,SNK Neo Geo,1990,4,FALSE,90,TRUE
 SNES,snes,https://myrient.erista.me/files/No-Intro/Nintendo%20-%20Super%20Nintendo%20Entertainment%20System/,FALSE,Super Nintendo Entertainment System,1990,4,FALSE,225,TRUE
 SCD,segacd,https://myrient.erista.me/files/Redump/Sega%20-%20Mega%20CD%20%26%20Sega%20CD/,FALSE,Sega CD,1991,4,FALSE,100,FALSE
-cdi, cdi,https://myrient.erista.me/files/Redump/Philips%20-%20CD-i/,FALSE,Philips CD-i,1991,4,FALSE,25,FALSE
+cdi,cdi,https://myrient.erista.me/files/Redump/Philips%20-%20CD-i/,FALSE,Philips CD-i,1991,4,FALSE,25,FALSE
 megacd,megacd,https://myrient.erista.me/files/Redump/Sega%20-%20Mega%20CD%20%26%20Sega%20CD/,TRUE,Sega CD,1991,4,FALSE,0,FALSE
 3DO,3do,https://myrient.erista.me/files/Redump/Panasonic%20-%203DO%20Interactive%20Multiplayer/,FALSE,3DO,1993,5,FALSE,75,FALSE
 amigacd32,amigacd32,https://myrient.erista.me/files/Redump/Commodore%20-%20Amiga%20CD32/,FALSE,Commodore Amiga CD32,1993,5,FALSE,75,FALSE
@@ -52,3 +52,4 @@ PS4,ps4,,TRUE,Sony PlayStation 4,2013,8,FALSE,0,FALSE
 XOne,xboxone,,TRUE,Microsoft Xbox One,2013,8,FALSE,0,FALSE
 switch,switch,,FALSE,Nintendo Switch,2017,9,FALSE,0,FALSE
 ports,ports,,TRUE,Various Source Ports,,,FALSE,0,FALSE
+
