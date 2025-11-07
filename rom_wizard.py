@@ -451,6 +451,26 @@ def print_table(df: pd.DataFrame, sorted_col: str | None = None) -> None:
     console.print(table)
 
 
+def prepare_summary_display(df: pd.DataFrame) -> pd.DataFrame:
+    """Return ``df`` formatted for on-screen summary display."""
+
+    display_df = df.copy()
+    if 'FullName' in display_df.columns:
+        platform_codes = (
+            display_df['Platform']
+            if 'Platform' in display_df.columns
+            else pd.Series(index=display_df.index, dtype='object')
+        )
+        names = display_df['FullName']
+        names = names.astype('object').replace('', pd.NA)
+        platform_codes = platform_codes.astype('object').replace('', pd.NA)
+        display_df['Platform'] = (
+            names.combine_first(platform_codes).fillna('Unknown Platform')
+        )
+        display_df = display_df.drop(columns=['FullName'])
+    return display_df
+
+
 def iter_progress(seq, description: str):
     """Iterate with a progress bar if output is a TTY."""
     return track(seq, description=description) if sys.stdout.isatty() else seq
@@ -935,7 +955,7 @@ def create_snapshot():
     write_rom_filenames(ROMS_ROOT, os.path.join(snap_dir, 'rom_filenames.txt'))
 
     console.print(f"[bold green]Snapshot created at {shorten_path(snap_dir)}[/]")
-    display_df = summary_df.drop(columns=['Platform']).rename(columns={'FullName': 'Platform'})
+    display_df = prepare_summary_display(summary_df)
     print_table(display_df)
 
     total_tracked_roms = gamelist_roms_total + filesystem_only_total
@@ -1216,7 +1236,7 @@ def apply_sales(snapshot_dir):
     unmatched_df.to_csv(os.path.join(snapshot_dir, 'unmatched_summary.csv'), index=False)
 
     console.print('[bold green]Sales data applied.[/]')
-    display_df = summary_df.drop(columns=['Platform']).rename(columns={'FullName': 'Platform'})
+    display_df = prepare_summary_display(summary_df)
     print_table(display_df)
 
 
@@ -2502,12 +2522,7 @@ def show_snapshot_summary(snapshot_dir):
         print('summary.csv not found.')
         return
     df = pd.read_csv(summary_file)
-    if 'FullName' in df.columns:
-        display_df = df.drop(columns=['Platform'], errors='ignore').rename(
-            columns={'FullName': 'Platform'}
-        )
-    else:
-        display_df = df
+    display_df = prepare_summary_display(df)
     if not SUMMARY_COLS:
         SUMMARY_COLS = list(display_df.columns)
         if 'ROMs' in SUMMARY_COLS:
@@ -2535,12 +2550,7 @@ def wizard_menu(snapshot_dir):
         summary_file = os.path.join(snapshot_dir, 'summary.csv')
         if not SUMMARY_COLS and os.path.isfile(summary_file):
             cols_df = pd.read_csv(summary_file, nrows=0)
-            if 'FullName' in cols_df.columns:
-                display_cols = cols_df.drop(columns=['Platform'], errors='ignore').rename(
-                    columns={'FullName': 'Platform'}
-                ).columns
-            else:
-                display_cols = cols_df.columns
+            display_cols = prepare_summary_display(cols_df).columns
             SUMMARY_COLS = list(display_cols)
             if 'ROMs' in SUMMARY_COLS:
                 SUMMARY_CYCLE_IDX = SUMMARY_COLS.index('ROMs')
