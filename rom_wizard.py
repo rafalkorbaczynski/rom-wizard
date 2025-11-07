@@ -44,6 +44,8 @@ _ROMAN_RE = re.compile(r'\b(' + '|'.join(sorted(_ROMAN, key=len, reverse=True)) 
 
 BETA_DEMO_TAG_RE = re.compile(r'\((beta|demo)\)', re.IGNORECASE)
 BETA_DEMO_WORD_RE = re.compile(r'\b(beta|demo)\b', re.IGNORECASE)
+BETA_DEMO_PROTO_TAG_RE = re.compile(r'\((beta|prototype|demo)\)', re.IGNORECASE)
+NUMBERED_DUPLICATE_RE = re.compile(r'^(?P<stem>.+?)\.(?P<index>\d+)(?P<ext>\.[^.]+)$', re.IGNORECASE)
 
 # Region mapping for summary statistics
 REGION_SYNONYMS = {
@@ -1309,6 +1311,106 @@ def create_snapshot():
             "[bold cyan]ROM counting sources:[/] no ROM entries were detected to tally"
         )
     return snap_dir
+
+
+def remove_duplicates_and_special_roms(snapshot_dir):
+    """Move simple duplicate ROMs and optional beta/prototype/demo builds."""
+
+    dup_root = ensure_rom_state_dir(snapshot_dir, 'duplicates')
+    numbered_candidates: list[dict[str, str]] = []
+    special_candidates: list[dict[str, str]] = []
+
+    for console_name in iter_progress(os.listdir(ROMS_ROOT), "Scanning for simple duplicates"):
+        console_dir = os.path.join(ROMS_ROOT, console_name)
+        if not os.path.isdir(console_dir):
+            continue
+        code = PLAT_MAP.get(console_name.lower())
+        if code in IGNORED_PLATFORMS:
+            continue
+        for root, dirnames, files in os.walk(console_dir):
+            rom_dirs = [d for d in dirnames if is_rom_directory_name(d)]
+            dirnames[:] = [d for d in dirnames if d not in rom_dirs]
+            entries = [(d, True) for d in rom_dirs]
+            entries.extend((f, False) for f in files)
+            if not entries:
+                continue
+            lookup = {name.lower(): name for name, _ in entries}
+            for name, is_dir in entries:
+                full_path = os.path.join(root, name)
+                rel_path = os.path.relpath(full_path, ROMS_ROOT)
+                if rel_path.startswith('..'):
+                    continue
+                if is_dir:
+                    if not is_rom_directory_name(name):
+                        continue
+                else:
+                    if not has_rom_extension(name):
+                        continue
+                match = NUMBERED_DUPLICATE_RE.match(name)
+                if match:
+                    index_val = int(match.group('index'))
+                    if index_val >= 1:
+                        base_candidate = f"{match.group('stem')}{match.group('ext')}"
+                        base_name = lookup.get(base_candidate.lower())
+                        if base_name and base_name != name:
+                            base_rel = os.path.relpath(os.path.join(root, base_name), ROMS_ROOT)
+                            numbered_candidates.append({'path': full_path, 'rel': rel_path, 'base_rel': base_rel})
+                            continue
+                if BETA_DEMO_PROTO_TAG_RE.search(name):
+                    special_candidates.append({'path': full_path, 'rel': rel_path})
+
+    if not numbered_candidates and not special_candidates:
+        console.print('[bold cyan]No numbered duplicates or beta/demo/prototype ROMs were found.[/]')
+        return
+
+    def preview(entries: list[dict[str, str]], heading: str) -> None:
+        console.print(heading)
+        sample = entries[:5]
+        for item in sample:
+            base_rel = item.get('base_rel')
+            if base_rel:
+                console.print(f"  - {item['rel']} (keeping {base_rel})")
+            else:
+                console.print(f"  - {item['rel']}")
+        if len(entries) > len(sample):
+            console.print(f"  ... and {len(entries) - len(sample)} more")
+
+    moved_any = False
+    moved_paths: set[str] = set()
+
+    if numbered_candidates:
+        preview(numbered_candidates, f"Found {len(numbered_candidates)} numbered duplicate ROM(s) (e.g. name.1.ext).")
+        if prompt_yes_no('Move these numbered duplicates to the duplicates folder?', True):
+            for entry in numbered_candidates:
+                path = entry['path']
+                if path in moved_paths or not os.path.exists(path):
+                    continue
+                rel = entry['rel']
+                dst_dir = os.path.join(dup_root, os.path.dirname(rel))
+                os.makedirs(dst_dir, exist_ok=True)
+                shutil.move(path, os.path.join(dst_dir, os.path.basename(path)))
+                moved_paths.add(path)
+                moved_any = True
+            console.print('[bold green]Numbered duplicates moved.[/]')
+
+    remaining_special = [entry for entry in special_candidates if entry['path'] not in moved_paths]
+    if remaining_special:
+        preview(remaining_special, f"Found {len(remaining_special)} ROM(s) tagged as beta/prototype/demo.")
+        if prompt_yes_no('Move these ROMs to the duplicates folder?', False):
+            for entry in remaining_special:
+                path = entry['path']
+                if path in moved_paths or not os.path.exists(path):
+                    continue
+                rel = entry['rel']
+                dst_dir = os.path.join(dup_root, os.path.dirname(rel))
+                os.makedirs(dst_dir, exist_ok=True)
+                shutil.move(path, os.path.join(dst_dir, os.path.basename(path)))
+                moved_paths.add(path)
+                moved_any = True
+            console.print('[bold green]Selected beta/prototype/demo ROMs moved.[/]')
+
+    if not moved_any:
+        console.print('[bold yellow]No files were moved.[/]')
 
 
 def detect_duplicates(snapshot_dir):
@@ -2883,37 +2985,40 @@ def wizard_menu(snapshot_dir):
         console.print('\n[bold cyan]ROM Wizard Menu[/]')
         console.print(f"0) Show snapshot summary (sorted by: {sort_col or 'N/A'})")
         console.print(f"1) {'[green]Re-detect duplicates[/]' if dup_exists else 'Detect duplicates'}")
-        console.print(f"2) {'[green]Re-generate .m3u playlists[/]' if m3u_exists else 'Generate .m3u playlists'}")
-        console.print(f"3) {'[green]Re-match gamelist.xml with sales data[/]' if gl_exists else 'Match gamelist.xml with sales data'}")
-        console.print('4) Add unmatched games to download list (manual filtering)')
-        console.print('5) Add unmatched games to download list (automatic filtering)')
-        console.print('6) Download unmatched games in list')
-        console.print('7) Convert downloaded disc images to CHD')
-        console.print('8) Move ROMs missing sales or ratings')
-        console.print('9) Enforce download targets')
-        console.print('10) Quit')
+        console.print('2) Remove duplicates, demos, prototypes and betas')
+        console.print(f"3) {'[green]Re-generate .m3u playlists[/]' if m3u_exists else 'Generate .m3u playlists'}")
+        console.print(f"4) {'[green]Re-match gamelist.xml with sales data[/]' if gl_exists else 'Match gamelist.xml with sales data'}")
+        console.print('5) Add unmatched games to download list (manual filtering)')
+        console.print('6) Add unmatched games to download list (automatic filtering)')
+        console.print('7) Download unmatched games in list')
+        console.print('8) Convert downloaded disc images to CHD')
+        console.print('9) Move ROMs missing sales or ratings')
+        console.print('10) Enforce download targets')
+        console.print('11) Quit')
         choice = input('Select option: ').strip()
         if choice == '0':
             show_snapshot_summary(snapshot_dir)
         elif choice == '1':
             detect_duplicates(snapshot_dir)
         elif choice == '2':
-            generate_playlists(snapshot_dir)
+            remove_duplicates_and_special_roms(snapshot_dir)
         elif choice == '3':
-            apply_sales(snapshot_dir)
+            generate_playlists(snapshot_dir)
         elif choice == '4':
-            manual_add_games(snapshot_dir)
+            apply_sales(snapshot_dir)
         elif choice == '5':
-            auto_add_games(snapshot_dir)
+            manual_add_games(snapshot_dir)
         elif choice == '6':
-            download_games(snapshot_dir)
+            auto_add_games(snapshot_dir)
         elif choice == '7':
-            convert_to_chd()
+            download_games(snapshot_dir)
         elif choice == '8':
-            count_new_rating_matches(snapshot_dir)
+            convert_to_chd()
         elif choice == '9':
-            enforce_download_targets(snapshot_dir)
+            count_new_rating_matches(snapshot_dir)
         elif choice == '10':
+            enforce_download_targets(snapshot_dir)
+        elif choice == '11':
             return prompt_yes_no('Restart wizard?')
 
 
