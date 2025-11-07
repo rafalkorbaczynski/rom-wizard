@@ -55,8 +55,8 @@ REGIONS = list(REGION_SYNONYMS.keys()) + ['Other']
 # Extensions considered "ROM" files for summary statistics and duplicate
 # detection.  Metadata like videos or gamelist files should be ignored.
 ROM_EXTS = {
-    'a26','a52','a78','bin','chd','gb','gba','gbc','iso','j64','int',
-    'md','nds','nes','ngc','pce','psvita','rvz','sfc','sms','xex','z64','zip','vb'
+    'a26','a52','a78','bin','chd','gb','gg','gba','gbc','iso','j64','int',
+    'md','nds','nes','ngc','pce','psvita','rvz','sfc','sms','sg','xex','z64','zip','vb'
 }
 
 # Some platforms (notably PS Vita) use directory-based dumps with a file
