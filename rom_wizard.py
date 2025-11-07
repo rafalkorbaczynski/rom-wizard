@@ -1298,40 +1298,83 @@ def count_new_rating_matches(snapshot_dir=None):
 
     for console_name in iter_progress(os.listdir(ROMS_ROOT), "Scanning ROMs"):
         console_dir = os.path.join(ROMS_ROOT, console_name)
-        gl_path = os.path.join(console_dir, 'gamelist.xml')
-        if not os.path.isfile(gl_path):
+        if not os.path.isdir(console_dir):
             continue
+
         ds_plat = PLAT_MAP.get(console_name.lower())
         if not ds_plat:
             continue
         if ds_plat.upper() in IGNORED_PLATFORMS:
             continue
+
+        gl_path = os.path.join(console_dir, 'gamelist.xml')
         ignore_ratings_platform = ds_plat.upper() in IGNORE_RATINGS_PLATFORMS
         plat_key = ds_plat.lower()
         rated_subset = platform_groups.get(plat_key)
         all_subset = all_platform_groups.get(plat_key)
 
-        tree = ET.parse(gl_path)
-        games = [
-            g for g in tree.getroot().findall('game')
-            if has_rom_extension(g.findtext('path') or '')
-        ]
-        if not games:
+        rom_entries: list[dict[str, str]] = []
+        gamelist_entry_paths: set[str] = set()
+
+        if os.path.isfile(gl_path):
+            tree = ET.parse(gl_path)
+            for g in tree.getroot().findall('game'):
+                path_text = g.findtext('path') or ''
+                if not has_rom_extension(path_text):
+                    continue
+                full_path, rel_path = normalize_rom_entry_path(console_dir, path_text)
+                if not full_path or not rel_path:
+                    continue
+                title = g.findtext('name') or ''
+                rom_entries.append({
+                    'title': title,
+                    'key': norm(title),
+                    'full_path': full_path,
+                    'rel_path': rel_path,
+                })
+                norm_rel = os.path.normcase(os.path.normpath(os.path.relpath(full_path, console_dir)))
+                gamelist_entry_paths.add(norm_rel)
+
+        for rel_path, entry_name in iter_rom_library_entries(console_dir):
+            norm_rel = os.path.normcase(os.path.normpath(rel_path))
+            if norm_rel in gamelist_entry_paths:
+                continue
+
+            full_path = os.path.normpath(os.path.join(console_dir, rel_path))
+            if not os.path.exists(full_path):
+                continue
+
+            try:
+                rom_rel_path = os.path.relpath(full_path, ROMS_ROOT)
+            except ValueError:
+                continue
+
+            if rom_rel_path.startswith('..'):
+                continue
+
+            candidate_name = os.path.splitext(entry_name)[0]
+            rom_entries.append({
+                'title': candidate_name,
+                'key': norm(candidate_name),
+                'full_path': full_path,
+                'rel_path': os.path.normpath(rom_rel_path),
+            })
+
+        if not rom_entries:
             continue
 
         platforms_scanned += 1
-        total_roms_scanned += len(games)
+        total_roms_scanned += len(rom_entries)
 
         match_keys = rated_subset['key'].tolist() if rated_subset is not None else []
         all_match_keys = all_subset['key'].tolist() if all_subset is not None else []
         key_to_rating = dict(zip(all_subset['key'], all_subset['new_rating'])) if all_subset is not None else {}
 
         matched = 0
-        for g in games:
-            title = g.findtext('name') or ''
-            key = norm(title)
+        for entry in rom_entries:
+            key = entry['key']
             matched_entry = False
-            if match_keys:
+            if key and match_keys:
                 res = process.extractOne(key, match_keys, scorer=fuzz.token_sort_ratio)
                 if res and res[1] >= threshold and token_set(key) == token_set(res[0]):
                     matched += 1
@@ -1341,14 +1384,15 @@ def count_new_rating_matches(snapshot_dir=None):
                 continue
 
             match_reason = 'no_dataset_entry'
-            if all_match_keys:
+            if key and all_match_keys:
                 res_all = process.extractOne(key, all_match_keys, scorer=fuzz.token_sort_ratio)
                 if res_all and res_all[1] >= threshold and token_set(key) == token_set(res_all[0]):
                     rating_val = key_to_rating.get(res_all[0])
                     if rating_val is None or not (3 <= rating_val <= 18) or pd.isna(rating_val):
                         match_reason = 'missing_new_rating'
 
-            full_path, rel_path = normalize_rom_entry_path(console_dir, g.findtext('path') or '')
+            full_path = entry['full_path']
+            rel_path = entry['rel_path']
             if not full_path or not rel_path:
                 continue
             if not os.path.exists(full_path):
@@ -1371,7 +1415,7 @@ def count_new_rating_matches(snapshot_dir=None):
             else:
                 unpopular_entries.append(entry)
 
-        rom_total = len(games)
+        rom_total = len(rom_entries)
         coverage = matched / rom_total * 100 if rom_total else 0
         summary_rows.append({
             'Platform': ds_plat,
