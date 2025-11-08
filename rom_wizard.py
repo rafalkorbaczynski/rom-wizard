@@ -429,9 +429,13 @@ def print_table(df: pd.DataFrame, sorted_col: str | None = None) -> None:
         if pd.api.types.is_numeric_dtype(df[col]):
             if col in {'ReleaseYear', 'Generation'}:
                 total_row[col] = ''
-            elif col == "ROMs%" and {"Matched ROMs", "ROMs"}.issubset(df.columns):
+            elif col == "ROMs%" and (
+                {"Sales ROMs", "ROMs"}.issubset(df.columns)
+                or {"Matched ROMs", "ROMs"}.issubset(df.columns)
+            ):
+                metric_col = "Sales ROMs" if "Sales ROMs" in df.columns else "Matched ROMs"
                 roms_total = df["ROMs"].sum()
-                matched_total = df["Matched ROMs"].sum()
+                matched_total = df[metric_col].sum()
                 pct = matched_total / roms_total * 100 if roms_total else 0
                 total_row[col] = round(pct, 1)
             elif (
@@ -796,6 +800,29 @@ def prompt_yes_no(prompt: str, default: bool = False) -> bool:
     return ans in {'y', 'yes'}
 
 
+def prompt_age_rating() -> int:
+    """Return the PEGI rating ceiling selected by the user."""
+
+    valid_choices = {'3', '7', '12', '16', '18'}
+    while True:
+        choice = input(
+            "Oldest allowed age rating (PEGI 3, 7, 12, 16, 18): "
+        ).strip()
+        if choice in valid_choices:
+            return int(choice)
+        console.print("[bold red]Please enter one of: 3, 7, 12, 16, 18.[/]")
+
+
+def update_kidgame_tag(game: ET.Element, value: bool | None) -> None:
+    """Set or clear the ``<kidgame>`` tag for ``game`` based on ``value``."""
+
+    for node in game.findall('kidgame'):
+        game.remove(node)
+    if value is None:
+        return
+    ET.SubElement(game, 'kidgame').text = 'true' if value else 'false'
+
+
 def normalize_rom_entry_path(console_dir: str, path_text: str) -> tuple[str | None, str | None]:
     """Return absolute and ROMS_ROOT-relative paths for a gamelist entry."""
 
@@ -1077,6 +1104,11 @@ def create_snapshot():
     sales = pd.read_csv(SALES_CSV, low_memory=False)
     sales = sales[~sales['Platform'].isin(IGNORED_PLATFORMS)]
     sales['key'] = sales['Name'].apply(norm)
+    if 'new_rating' in sales.columns:
+        sales['new_rating'] = pd.to_numeric(sales['new_rating'], errors='coerce')
+        sales.loc[~sales['new_rating'].between(3, 18, inclusive='both'), 'new_rating'] = math.nan
+    else:
+        sales['new_rating'] = math.nan
     max_sales = sales['Global_Sales'].max()
 
     summary_rows = []
@@ -1111,6 +1143,10 @@ def create_snapshot():
         match_keys = list(sales_subset['key'])
         sales_map = dict(zip(sales_subset['key'], sales_subset['Global_Sales']))
         name_map = dict(zip(sales_subset['key'], sales_subset['Name']))
+        rating_map = {}
+        for key, rating in zip(sales_subset['key'], sales_subset['new_rating']):
+            if key not in rating_map or pd.isna(rating_map[key]):
+                rating_map[key] = rating if pd.notna(rating) else None
         dataset_size = sales_subset['key'].nunique()
 
         folder_bytes = directory_size_bytes(console_dir, ROM_EXTS)
@@ -1125,6 +1161,7 @@ def create_snapshot():
 
         region_counts = {r: 0 for r in REGIONS}
         matched = 0
+        age_rated = 0
 
         for g in games:
             title = g.findtext('name') or ''
@@ -1137,6 +1174,9 @@ def create_snapshot():
             if res and res[1] >= threshold and token_set(k) == token_set(res[0]):
                 matched += 1
                 key = res[0]
+                rating_val = rating_map.get(key)
+                if pd.notna(rating_val):
+                    age_rated += 1
                 matched_records.append({
                     'Dataset Name': name_map[key],
                     'Platform': ds_plat,
@@ -1170,6 +1210,9 @@ def create_snapshot():
             ):
                 matched += 1
                 key = res[0]
+                rating_val = rating_map.get(key)
+                if pd.notna(rating_val):
+                    age_rated += 1
                 matched_records.append({
                     'Dataset Name': name_map[key],
                     'Platform': ds_plat,
@@ -1183,7 +1226,8 @@ def create_snapshot():
             'Platform': ds_plat,
             'ROMs': rom_total,
             'Dataset': dataset_size,
-            'Matched ROMs': matched,
+            'Sales ROMs': matched,
+            'Age ROMs': age_rated,
             'avg size': avg_size_mb,
             **region_counts
         })
@@ -1195,9 +1239,15 @@ def create_snapshot():
         if mapped.lower() in found_consoles:
             continue
         size = sales[sales['Platform'].str.lower() == code.lower()]['key'].nunique()
-        summary_rows.append({'Platform': code, 'ROMs': 0, 'Dataset': size,
-                             'Matched ROMs': 0, 'avg size': 0.0,
-                             **{r: 0 for r in REGIONS}})
+        summary_rows.append({
+            'Platform': code,
+            'ROMs': 0,
+            'Dataset': size,
+            'Sales ROMs': 0,
+            'Age ROMs': 0,
+            'avg size': 0.0,
+            **{r: 0 for r in REGIONS}
+        })
 
     summary_df = pd.DataFrame(summary_rows)
 
@@ -1226,9 +1276,13 @@ def create_snapshot():
         summary_df['Rating Coverage %'] = pd.Series([math.nan] * len(summary_df))
     if 'Ignore ratings' not in summary_df.columns:
         summary_df['Ignore ratings'] = 'No'
+    if 'Age ROMs' not in summary_df.columns:
+        summary_df['Age ROMs'] = 0
     if not summary_df.empty:
         summary_df['ROMs%'] = (
-            summary_df['Matched ROMs'] / summary_df['ROMs'].replace(0, 1) * 100
+            summary_df.get('Sales ROMs', summary_df.get('Matched ROMs', 0))
+            / summary_df['ROMs'].replace(0, 1)
+            * 100
         )
         summary_df['With new rating'] = (
             pd.to_numeric(summary_df['With new rating'], errors='coerce')
@@ -1237,6 +1291,11 @@ def create_snapshot():
         )
         summary_df['Rating Eligible ROMs'] = (
             pd.to_numeric(summary_df['Rating Eligible ROMs'], errors='coerce')
+            .fillna(0)
+            .astype('Int64')
+        )
+        summary_df['Age ROMs'] = (
+            pd.to_numeric(summary_df['Age ROMs'], errors='coerce')
             .fillna(0)
             .astype('Int64')
         )
@@ -1255,7 +1314,8 @@ def create_snapshot():
         metric_cols = [
             'ROMs',
             'Dataset',
-            'Matched ROMs',
+            'Sales ROMs',
+            'Age ROMs',
             'With new rating',
             'Rating Eligible ROMs',
             'Rating Coverage %',
@@ -1548,11 +1608,20 @@ def generate_playlists(snapshot_dir):
             print('Playlist created:', shorten_path(path))
 
 
-def apply_sales(snapshot_dir):
+def enrich_game_lists(snapshot_dir):
     threshold = ask_threshold()
+    enable_parental = prompt_yes_no('Turn on parental controls?')
+    allowed_rating = prompt_age_rating() if enable_parental else None
+    attach_sales = prompt_yes_no('Attach sales data to game lists?', True)
+
     sales = pd.read_csv(SALES_CSV, low_memory=False)
     sales = sales[~sales['Platform'].isin(IGNORED_PLATFORMS)]
     sales['key'] = sales['Name'].apply(norm)
+    if 'new_rating' in sales.columns:
+        sales['new_rating'] = pd.to_numeric(sales['new_rating'], errors='coerce')
+        sales.loc[~sales['new_rating'].between(3, 18, inclusive='both'), 'new_rating'] = math.nan
+    else:
+        sales['new_rating'] = math.nan
     max_sales = sales['Global_Sales'].max()
     unmatched_keys = set(zip(sales['Platform'], sales['key']))
     output_root = ensure_rom_state_dir(snapshot_dir, 'main')
@@ -1560,7 +1629,7 @@ def apply_sales(snapshot_dir):
     summary_rows = []
     found_consoles = set()
 
-    for console_name in iter_progress(os.listdir(ROMS_ROOT), "Applying sales data"):
+    for console_name in iter_progress(os.listdir(ROMS_ROOT), "Enriching game lists"):
         console_dir = os.path.join(ROMS_ROOT, console_name)
         gl_path = os.path.join(console_dir, 'gamelist.xml')
         if not os.path.isfile(gl_path):
@@ -1578,10 +1647,14 @@ def apply_sales(snapshot_dir):
         if not games:
             continue
 
-        subset = sales[sales['Platform'].str.lower() == ds_plat.lower()]
+        subset = sales[sales['Platform'].str.lower() == ds_plat.lower()].copy()
         match_keys = list(subset['key'])
         sales_map = dict(zip(subset['key'], subset['Global_Sales']))
         name_map = dict(zip(subset['key'], subset['Name']))
+        rating_map = {}
+        for key, rating in zip(subset['key'], subset['new_rating']):
+            if key not in rating_map or pd.isna(rating_map[key]):
+                rating_map[key] = rating if pd.notna(rating) else None
         dataset_size = subset['key'].nunique()
         rom_total = len(games)
         folder_bytes = directory_size_bytes(console_dir, ROM_EXTS)
@@ -1589,10 +1662,13 @@ def apply_sales(snapshot_dir):
 
         region_counts = {r: 0 for r in REGIONS}
         matched = 0
+        age_rated_count = 0
+        ignore_ratings_platform = ds_plat.upper() in IGNORE_RATINGS_PLATFORMS
 
         for g in games:
-            for tag in g.findall('rating') + g.findall('ratingMax'):
-                g.remove(tag)
+            if attach_sales:
+                for tag in g.findall('rating') + g.findall('ratingMax'):
+                    g.remove(tag)
 
             title = g.findtext('name') or ''
             k = norm(title)
@@ -1601,12 +1677,19 @@ def apply_sales(snapshot_dir):
             region_counts[region_key] += 1
 
             res = process.extractOne(k, match_keys, scorer=fuzz.token_sort_ratio)
+            game_rating_value = None
+            has_rating = False
             if res and res[1] >= threshold and token_set(k) == token_set(res[0]):
                 key = res[0]
                 gs = sales_map[key]
-                rating = gs / max_sales * 100
-                ET.SubElement(g, 'rating').text = f"{rating:.2f}"
-                ET.SubElement(g, 'ratingMax').text = '100'
+                game_rating_value = rating_map.get(key)
+                if pd.notna(game_rating_value):
+                    has_rating = True
+                    age_rated_count += 1
+                if attach_sales:
+                    rating = gs / max_sales * 100 if max_sales else 0
+                    ET.SubElement(g, 'rating').text = f"{rating:.2f}"
+                    ET.SubElement(g, 'ratingMax').text = '100'
                 match_rows.append({
                     'Dataset Name': name_map[key],
                     'Platform': ds_plat,
@@ -1616,6 +1699,14 @@ def apply_sales(snapshot_dir):
                 })
                 matched += 1
                 unmatched_keys.discard((ds_plat, key))
+            if enable_parental:
+                if has_rating:
+                    kidgame_value = float(game_rating_value) <= allowed_rating
+                else:
+                    kidgame_value = ignore_ratings_platform
+                update_kidgame_tag(g, kidgame_value)
+            else:
+                update_kidgame_tag(g, None)
 
         out_dir = os.path.join(output_root, console_name)
         os.makedirs(out_dir, exist_ok=True)
@@ -1624,7 +1715,8 @@ def apply_sales(snapshot_dir):
             'Platform': ds_plat,
             'ROMs': rom_total,
             'Dataset': dataset_size,
-            'Matched ROMs': matched,
+            'Sales ROMs': matched,
+            'Age ROMs': age_rated_count,
             'avg size': avg_size_mb,
             **region_counts
         })
@@ -1636,9 +1728,15 @@ def apply_sales(snapshot_dir):
         if mapped.lower() in found_consoles:
             continue
         size = sales[sales['Platform'].str.lower() == code.lower()]['key'].nunique()
-        summary_rows.append({'Platform': code, 'ROMs': 0, 'Dataset': size,
-                             'Matched ROMs': 0, 'avg size': 0.0,
-                             **{r: 0 for r in REGIONS}})
+        summary_rows.append({
+            'Platform': code,
+            'ROMs': 0,
+            'Dataset': size,
+            'Sales ROMs': 0,
+            'Age ROMs': 0,
+            'avg size': 0.0,
+            **{r: 0 for r in REGIONS}
+        })
 
     summary_df = pd.DataFrame(summary_rows)
 
@@ -1667,10 +1765,13 @@ def apply_sales(snapshot_dir):
         summary_df['Rating Coverage %'] = pd.Series([math.nan] * len(summary_df))
     if 'Ignore ratings' not in summary_df.columns:
         summary_df['Ignore ratings'] = 'No'
+    if 'Age ROMs' not in summary_df.columns:
+        summary_df['Age ROMs'] = 0
     if not summary_df.empty:
-        summary_df['ROMs%'] = (
-            summary_df['Matched ROMs'] / summary_df['ROMs'].replace(0, 1) * 100
-        )
+        if 'Sales ROMs' in summary_df.columns:
+            summary_df['ROMs%'] = (
+                summary_df['Sales ROMs'] / summary_df['ROMs'].replace(0, 1) * 100
+            )
         summary_df['With new rating'] = (
             pd.to_numeric(summary_df['With new rating'], errors='coerce')
             .fillna(0)
@@ -1678,6 +1779,11 @@ def apply_sales(snapshot_dir):
         )
         summary_df['Rating Eligible ROMs'] = (
             pd.to_numeric(summary_df['Rating Eligible ROMs'], errors='coerce')
+            .fillna(0)
+            .astype('Int64')
+        )
+        summary_df['Age ROMs'] = (
+            pd.to_numeric(summary_df['Age ROMs'], errors='coerce')
             .fillna(0)
             .astype('Int64')
         )
@@ -1696,7 +1802,8 @@ def apply_sales(snapshot_dir):
         metric_cols = [
             'ROMs',
             'Dataset',
-            'Matched ROMs',
+            'Sales ROMs',
+            'Age ROMs',
             'With new rating',
             'Rating Eligible ROMs',
             'Rating Coverage %',
@@ -1721,10 +1828,9 @@ def apply_sales(snapshot_dir):
     unmatched_df = unmatched_df[['Dataset Name','Platform','Sales']]
     unmatched_df.to_csv(os.path.join(snapshot_dir, 'unmatched_summary.csv'), index=False)
 
-    console.print('[bold green]Sales data applied.[/]')
+    console.print('[bold green]Game lists enriched.[/]')
     display_df = prepare_summary_display(summary_df)
     print_table(display_df)
-
 
 def _gap_rows_to_entries(df: pd.DataFrame) -> list[dict[str, str]]:
     """Convert gap rows into move-entry dictionaries."""
@@ -2444,9 +2550,14 @@ def enforce_download_targets(snapshot_dir):
     )
 
     plat_df['ignore'] = plat_df.get('ignore', False).astype(str).str.upper().isin(['TRUE', '1', 'YES'])
+    ignore_ratings_source = None
     if 'ignore_ratings' in plat_df.columns:
+        ignore_ratings_source = 'ignore_ratings'
+    elif 'ignore_rating' in plat_df.columns:
+        ignore_ratings_source = 'ignore_rating'
+    if ignore_ratings_source:
         plat_df['ignore_ratings'] = (
-            plat_df['ignore_ratings'].astype(str).str.upper().isin(['TRUE', '1', 'YES'])
+            plat_df[ignore_ratings_source].astype(str).str.upper().isin(['TRUE', '1', 'YES'])
         )
     else:
         plat_df['ignore_ratings'] = False
@@ -2642,10 +2753,14 @@ def enforce_download_targets(snapshot_dir):
             'Still Needed': still_needed,
         })
 
-    if not summary_df.empty and 'ROMs' in summary_df.columns and 'Matched ROMs' in summary_df.columns:
+    if not summary_df.empty and 'ROMs' in summary_df.columns and (
+        'Sales ROMs' in summary_df.columns or 'Matched ROMs' in summary_df.columns
+    ):
         with pd.option_context('mode.use_inf_as_na', True):
             summary_df['ROMs%'] = (
-                summary_df['Matched ROMs'] / summary_df['ROMs'].replace(0, 1) * 100
+                summary_df.get('Sales ROMs', summary_df['Matched ROMs'])
+                / summary_df['ROMs'].replace(0, 1)
+                * 100
             )
         if 'ROMs%' in summary_df.columns:
             summary_df['ROMs%'] = summary_df['ROMs%'].round(1)
@@ -2987,7 +3102,9 @@ def wizard_menu(snapshot_dir):
         console.print(f"1) {'[green]Re-detect duplicates[/]' if dup_exists else 'Detect duplicates'}")
         console.print('2) Remove duplicates, demos, prototypes and betas')
         console.print(f"3) {'[green]Re-generate .m3u playlists[/]' if m3u_exists else 'Generate .m3u playlists'}")
-        console.print(f"4) {'[green]Re-match gamelist.xml with sales data[/]' if gl_exists else 'Match gamelist.xml with sales data'}")
+        console.print(
+            f"4) {'[green]Re-enrich game lists[/]' if gl_exists else 'Enrich game lists'}"
+        )
         console.print('5) Add unmatched games to download list (manual filtering)')
         console.print('6) Add unmatched games to download list (automatic filtering)')
         console.print('7) Download unmatched games in list')
@@ -3005,7 +3122,7 @@ def wizard_menu(snapshot_dir):
         elif choice == '3':
             generate_playlists(snapshot_dir)
         elif choice == '4':
-            apply_sales(snapshot_dir)
+            enrich_game_lists(snapshot_dir)
         elif choice == '5':
             manual_add_games(snapshot_dir)
         elif choice == '6':
