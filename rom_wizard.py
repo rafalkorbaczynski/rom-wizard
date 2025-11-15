@@ -2012,7 +2012,7 @@ def count_new_rating_matches(snapshot_dir=None):
     """Prompt to move ROMs missing sales or rating data using stored results."""
 
     console.print(
-        "[bold cyan]Option 8 reviews the snapshot summary for rating gaps and offers to move "
+        "[bold cyan]Review the snapshot summary for rating gaps and optionally move "
         "ROMs missing sales or age rating data.[/]"
     )
     if not snapshot_dir:
@@ -2031,7 +2031,7 @@ def count_new_rating_matches(snapshot_dir=None):
         print('All ROMs have the necessary sales and age rating data.')
         platforms_scanned, total_roms_scanned, total_with_rating = _load_rating_summary_totals(snapshot_dir)
         console.print(
-            "[bold green]Option 8 complete:[/] scanned "
+            "[bold green]Rating gap review complete:[/] scanned "
             f"{platforms_scanned} platform(s), {total_roms_scanned} ROM(s), "
             f"and found {total_with_rating} with new-rating coverage."
         )
@@ -2090,7 +2090,7 @@ def count_new_rating_matches(snapshot_dir=None):
 
     platforms_scanned, total_roms_scanned, total_with_rating = _load_rating_summary_totals(snapshot_dir)
     console.print(
-        "[bold green]Option 8 complete:[/] scanned "
+        "[bold green]Rating gap review complete:[/] scanned "
         f"{platforms_scanned} platform(s), {total_roms_scanned} ROM(s), "
         f"and found {total_with_rating} with new-rating coverage."
     )
@@ -2615,8 +2615,8 @@ def enforce_download_targets(snapshot_dir):
     """Ensure each platform meets its configured download target."""
 
     console.print(
-        "[bold cyan]Option 9 reviews each platform's download target,"
-        " adds missing download links to download_list.csv, and respects ignore and rating settings.[/]"
+        "[bold cyan]Review each platform's download target, add missing download links to "
+        "download_list.csv, and respect ignore and rating settings.[/]"
     )
     summary_path = os.path.join(snapshot_dir, 'summary.csv')
     match_path = os.path.join(snapshot_dir, 'match_summary.csv')
@@ -2915,7 +2915,7 @@ def enforce_download_targets(snapshot_dir):
         print_table(results_df)
 
     console.print(
-        "[bold green]Option 9 complete:[/] added "
+        "[bold green]Download target review complete:[/] added "
         f"{total_added} download link(s) across {platforms_updated} platform(s)."
     )
 
@@ -3192,6 +3192,51 @@ def show_snapshot_summary(snapshot_dir):
         SUMMARY_CYCLE_IDX = (SUMMARY_CYCLE_IDX + 1) % len(SUMMARY_COLS)
 
 
+def manage_duplicates_menu(snapshot_dir: str) -> None:
+    """Provide a focused menu for duplicate detection and cleanup."""
+
+    while True:
+        dup_exists = os.path.isdir(get_rom_state_dir(snapshot_dir, 'duplicates'))
+        console.print("\n[bold cyan]Duplicate management[/]")
+        if dup_exists:
+            console.print("1) [green]Re-detect duplicates[/]")
+        else:
+            console.print("1) Detect duplicates")
+        console.print("2) Remove duplicates, demos, prototypes and betas")
+        console.print("3) Return to main menu")
+        choice = input('Select option: ').strip()
+        if choice == '1':
+            detect_duplicates(snapshot_dir)
+        elif choice == '2':
+            remove_duplicates_and_special_roms(snapshot_dir)
+        elif choice == '3':
+            return
+        else:
+            console.print('[red]Invalid selection. Please try again.[/]')
+
+
+def manage_download_list_menu(snapshot_dir: str) -> None:
+    """Provide a focused menu for download list operations."""
+
+    while True:
+        console.print("\n[bold cyan]Download list management[/]")
+        console.print("1) Add games to download list (manual filtering)")
+        console.print("2) Add games to download list (automatic filtering)")
+        console.print("3) Enforce download list targets")
+        console.print("4) Return to main menu")
+        choice = input('Select option: ').strip()
+        if choice == '1':
+            manual_add_games(snapshot_dir)
+        elif choice == '2':
+            auto_add_games(snapshot_dir)
+        elif choice == '3':
+            enforce_download_targets(snapshot_dir)
+        elif choice == '4':
+            return
+        else:
+            console.print('[red]Invalid selection. Please try again.[/]')
+
+
 def wizard_menu(snapshot_dir):
     """Main interactive menu for a given snapshot."""
     global SUMMARY_CYCLE_IDX, SUMMARY_COLS
@@ -3225,44 +3270,52 @@ def wizard_menu(snapshot_dir):
 
         console.print('\n[bold cyan]ROM Wizard Menu[/]')
         console.print(f"0) Show snapshot summary (sorted by: {sort_col or 'N/A'})")
-        console.print(f"1) {'[green]Re-detect duplicates[/]' if dup_exists else 'Detect duplicates'}")
-        console.print('2) Remove duplicates, demos, prototypes and betas')
-        console.print(f"3) {'[green]Re-generate .m3u playlists[/]' if m3u_exists else 'Generate .m3u playlists'}")
-        console.print(
-            f"4) {'[green]Re-enrich game lists[/]' if gl_exists else 'Enrich game lists'}"
-        )
-        console.print('5) Add unmatched games to download list (manual filtering)')
-        console.print('6) Add unmatched games to download list (automatic filtering)')
-        console.print('7) Download unmatched games in list')
-        console.print('8) Convert downloaded disc images to CHD')
-        console.print('9) Move ROMs missing sales or ratings')
-        console.print('10) Enforce download targets')
-        console.print('11) Quit')
+
+        console.print('\n[bold]Manage current ROM library[/]')
+        console.print('1) Move ROMs missing sales or ratings')
+        if dup_exists:
+            console.print('2) [green]Manage duplicates, demos, prototypes and betas[/]')
+        else:
+            console.print('2) Manage duplicates, demos, prototypes and betas')
+        if gl_exists:
+            console.print('3) [green]Re-enrich game lists[/]')
+        else:
+            console.print('3) Enrich game lists')
+        if m3u_exists:
+            console.print('4) [green]Re-generate .m3u playlists[/]')
+        else:
+            console.print('4) Generate .m3u playlists')
+
+        console.print('\n[bold]Build download queue[/]')
+        console.print('5) Manage download list')
+
+        console.print('\n[bold]Download and post-process[/]')
+        console.print('6) Download unmatched games in list')
+        console.print('7) Convert downloaded disc images to CHD')
+
+        console.print('\n[bold]Exit[/]')
+        console.print('8) Quit')
         choice = input('Select option: ').strip()
         if choice == '0':
             show_snapshot_summary(snapshot_dir)
         elif choice == '1':
-            detect_duplicates(snapshot_dir)
-        elif choice == '2':
-            remove_duplicates_and_special_roms(snapshot_dir)
-        elif choice == '3':
-            generate_playlists(snapshot_dir)
-        elif choice == '4':
-            enrich_game_lists(snapshot_dir)
-        elif choice == '5':
-            manual_add_games(snapshot_dir)
-        elif choice == '6':
-            auto_add_games(snapshot_dir)
-        elif choice == '7':
-            download_games(snapshot_dir)
-        elif choice == '8':
-            convert_to_chd()
-        elif choice == '9':
             count_new_rating_matches(snapshot_dir)
-        elif choice == '10':
-            enforce_download_targets(snapshot_dir)
-        elif choice == '11':
+        elif choice == '2':
+            manage_duplicates_menu(snapshot_dir)
+        elif choice == '3':
+            enrich_game_lists(snapshot_dir)
+        elif choice == '4':
+            generate_playlists(snapshot_dir)
+        elif choice == '5':
+            manage_download_list_menu(snapshot_dir)
+        elif choice == '6':
+            download_games(snapshot_dir)
+        elif choice == '7':
+            convert_to_chd()
+        elif choice == '8':
             return prompt_yes_no('Restart wizard?')
+        else:
+            console.print('[red]Invalid selection. Please try again.[/]')
 
 
 def main():
