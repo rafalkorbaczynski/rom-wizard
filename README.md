@@ -87,15 +87,15 @@ flowchart TD
     menu --> library{Manage ROM library}
     menu --> queue{Build download queue}
     menu --> download[Download & post-process]
-    library --> rating[count_new_rating_matches()]
-    library --> duplicates[manage_duplicates_menu()]
-    library --> enrich[enrich_game_lists()]
-    library --> playlists[generate_playlists()]
-    queue --> manual[manual_add_games()]
-    queue --> auto[auto_add_games()]
-    queue --> enforce[enforce_download_targets()]
-    download --> fetch[download_games()]
-    download --> chd[convert_to_chd()]
+    library --> rating["count_new_rating_matches()"]
+    library --> duplicates["manage_duplicates_menu()"]
+    library --> enrich["enrich_game_lists()"]
+    library --> playlists["generate_playlists()"]
+    queue --> manual["manual_add_games()"]
+    queue --> auto["auto_add_games()"]
+    queue --> enforce["enforce_download_targets()"]
+    download --> fetch["download_games()"]
+    download --> chd["convert_to_chd()"]
     fetch --> menu
     chd --> menu
 ```
