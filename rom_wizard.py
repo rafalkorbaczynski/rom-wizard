@@ -68,6 +68,17 @@ ROM_EXTS = {
 # recognises them as ROM entries when scanning the library.
 ROM_DIR_EXTS = {'psvita'}
 
+# Directory prefixes that correspond to firmware/system files that should be
+# ignored when scanning the ROM library.  The prefixes are relative to
+# ``ROMS_ROOT`` and compared in a case-insensitive manner.
+SYSTEM_PATH_PREFIXES = [
+    ('psp', 'psp_game'),
+    ('psvita', 'os0'),
+    ('psvita', 'pd0'),
+    ('psvita', 'ux0'),
+    ('psvita', 'vs0'),
+]
+
 
 def rom_extension(name: str) -> str:
     """Return the lower-case extension (without leading dot) for ``name``."""
@@ -87,6 +98,53 @@ def is_rom_directory_name(name: str) -> bool:
     return rom_extension(name) in ROM_DIR_EXTS
 
 
+def _normalized_parts(rel_path: str) -> list[str]:
+    """Return normalised, lower-case path components for ``rel_path``."""
+
+    if not rel_path:
+        return []
+    normalized = os.path.normpath(rel_path).replace('\\', '/').split('/')
+    return [part.lower() for part in normalized if part not in {'', '.'}]
+
+
+SYSTEM_PATH_PREFIXES = [tuple(part.lower() for part in prefix) for prefix in SYSTEM_PATH_PREFIXES]
+
+
+def is_system_rom_path(rel_path: str | os.PathLike[str] | None) -> bool:
+    """Return ``True`` if ``rel_path`` resides inside a known system directory."""
+
+    if rel_path is None:
+        return False
+    parts = _normalized_parts(str(rel_path))
+    if not parts:
+        return False
+    for prefix in SYSTEM_PATH_PREFIXES:
+        if len(parts) >= len(prefix) and parts[: len(prefix)] == list(prefix):
+            return True
+    return False
+
+
+def relative_to_roms_root(path: str) -> str | None:
+    """Return ``path`` relative to ``ROMS_ROOT`` or ``None`` if outside."""
+
+    try:
+        rel = os.path.relpath(path, ROMS_ROOT)
+    except ValueError:
+        return None
+    if rel.startswith('..'):
+        return None
+    return os.path.normpath(rel)
+
+
+def is_system_rom_full_path(path: str) -> bool:
+    """Return ``True`` if absolute ``path`` lives under a known system directory."""
+
+    rel = relative_to_roms_root(path)
+    if rel is None:
+        return False
+    return is_system_rom_path(rel)
+
+
 def directory_size_bytes(path: str, extensions: Optional[set[str]] = None) -> int:
     """Return the cumulative size of files under ``path``.
 
@@ -97,17 +155,28 @@ def directory_size_bytes(path: str, extensions: Optional[set[str]] = None) -> in
     """
 
     total = 0
-    for root, _, files in os.walk(path):
+    for root, dirnames, files in os.walk(path):
+        rel_root = relative_to_roms_root(root)
+        if is_system_rom_path(rel_root):
+            dirnames[:] = []
+            continue
+
+        dirnames[:] = [
+            d for d in dirnames if not is_system_rom_full_path(os.path.join(root, d))
+        ]
+
         if extensions is not None:
-            rel_root = os.path.relpath(root, path)
-            if rel_root == '.':
+            rel_root_local = os.path.relpath(root, path)
+            if rel_root_local == '.':
                 special_context = False
             else:
-                parts = [p for p in rel_root.split(os.sep) if p not in {'.', ''}]
+                parts = [p for p in rel_root_local.split(os.sep) if p not in {'.', ''}]
                 special_context = any(is_rom_directory_name(p) for p in parts)
         else:
             special_context = False
         for fname in files:
+            if is_system_rom_full_path(os.path.join(root, fname)):
+                continue
             if extensions is not None:
                 ext = rom_extension(fname)
                 if ext not in extensions and not special_context:
@@ -127,10 +196,20 @@ def count_rom_entries(path: str) -> int:
 
     total = 0
     for root, dirnames, files in os.walk(path):
+        rel_root = relative_to_roms_root(root)
+        if is_system_rom_path(rel_root):
+            dirnames[:] = []
+            continue
+
+        dirnames[:] = [
+            d for d in dirnames if not is_system_rom_full_path(os.path.join(root, d))
+        ]
         rom_dirs = [d for d in dirnames if is_rom_directory_name(d)]
         total += len(rom_dirs)
         dirnames[:] = [d for d in dirnames if d not in rom_dirs]
         for fname in files:
+            if is_system_rom_full_path(os.path.join(root, fname)):
+                continue
             if has_rom_extension(fname):
                 total += 1
     return total
@@ -143,14 +222,32 @@ def iter_rom_library_entries(path: str):
         return
 
     for root, dirnames, files in os.walk(path):
-        rom_dirs = [d for d in dirnames if is_rom_directory_name(d)]
+        rel_root_full = relative_to_roms_root(root)
+        if is_system_rom_path(rel_root_full):
+            dirnames[:] = []
+            continue
+
+        cleaned_dirnames: list[str] = []
+        rom_dirs: list[str] = []
+        for d in dirnames:
+            full_dir = os.path.join(root, d)
+            if is_system_rom_full_path(full_dir):
+                continue
+            if is_rom_directory_name(d):
+                rom_dirs.append(d)
+            else:
+                cleaned_dirnames.append(d)
+        dirnames[:] = cleaned_dirnames
+
         rel_root = os.path.relpath(root, path)
         rel_root = '' if rel_root == '.' else rel_root
         for d in rom_dirs:
             rel = os.path.join(rel_root, d) if rel_root else d
             yield os.path.normpath(rel), d
-        dirnames[:] = [d for d in dirnames if d not in rom_dirs]
+
         for fname in files:
+            if is_system_rom_full_path(os.path.join(root, fname)):
+                continue
             if has_rom_extension(fname):
                 rel = os.path.join(rel_root, fname) if rel_root else fname
                 yield os.path.normpath(rel), fname
@@ -588,7 +685,11 @@ def compute_rating_coverage(
                 if not has_rom_extension(path_text):
                     continue
                 full_path, rel_path = normalize_rom_entry_path(console_dir, path_text)
-                if not full_path or not rel_path:
+                if (
+                    not full_path
+                    or not rel_path
+                    or is_system_rom_path(rel_path)
+                ):
                     continue
                 title = g.findtext('name') or ''
                 rom_entries.append(
@@ -605,6 +706,9 @@ def compute_rating_coverage(
                 gamelist_entry_paths.add(norm_rel)
 
         for rel_path, entry_name in iter_rom_library_entries(console_dir):
+            rel_from_root = os.path.normpath(os.path.join(console_name, rel_path))
+            if is_system_rom_path(rel_from_root):
+                continue
             norm_rel = os.path.normcase(os.path.normpath(rel_path))
             if norm_rel in gamelist_entry_paths:
                 continue
@@ -1070,13 +1174,27 @@ def write_rom_filenames(root_dir: str, output_path: str) -> None:
 
     filenames = []
     for dirpath, dirnames, files in os.walk(root_dir):
+        rel_root = relative_to_roms_root(dirpath)
+        if is_system_rom_path(rel_root):
+            dirnames[:] = []
+            continue
+
+        dirnames[:] = [
+            d for d in dirnames if not is_system_rom_full_path(os.path.join(dirpath, d))
+        ]
+
         rom_dirs = [d for d in dirnames if rom_extension(d) in dir_allowed]
         if rom_dirs:
             dirnames[:] = [d for d in dirnames if d not in rom_dirs]
             for d in rom_dirs:
-                rel = os.path.relpath(os.path.join(dirpath, d), root_dir)
+                full_dir = os.path.join(dirpath, d)
+                if is_system_rom_full_path(full_dir):
+                    continue
+                rel = os.path.relpath(full_dir, root_dir)
                 filenames.append(rel)
         for fname in files:
+            if is_system_rom_full_path(os.path.join(dirpath, fname)):
+                continue
             ext = rom_extension(fname)
             if ext in allowed:
                 rel = os.path.relpath(os.path.join(dirpath, fname), root_dir)
@@ -1129,16 +1247,21 @@ def create_snapshot():
         gamelist_entry_paths: set[str] = set()
         if os.path.isfile(gl_path):
             tree = ET.parse(gl_path)
-            games = [
-                g for g in tree.getroot().findall('game')
-                if has_rom_extension(g.findtext('path') or '')
-            ]
-            for g in games:
-                full_path, _ = normalize_rom_entry_path(console_dir, g.findtext('path') or '')
-                if full_path:
-                    rel = os.path.relpath(full_path, console_dir)
-                    norm_rel = os.path.normcase(os.path.normpath(rel))
-                    gamelist_entry_paths.add(norm_rel)
+            for g in tree.getroot().findall('game'):
+                path_text = g.findtext('path') or ''
+                if not has_rom_extension(path_text):
+                    continue
+                full_path, rel_path = normalize_rom_entry_path(console_dir, path_text)
+                if (
+                    not full_path
+                    or not rel_path
+                    or is_system_rom_path(rel_path)
+                ):
+                    continue
+                games.append(g)
+                rel = os.path.relpath(full_path, console_dir)
+                norm_rel = os.path.normcase(os.path.normpath(rel))
+                gamelist_entry_paths.add(norm_rel)
         sales_subset = sales[sales['Platform'].str.lower() == ds_plat.lower()]
         match_keys = list(sales_subset['key'])
         sales_map = dict(zip(sales_subset['key'], sales_subset['Global_Sales']))
@@ -1187,6 +1310,9 @@ def create_snapshot():
                 unmatched_keys.discard((ds_plat, key))
 
         for rel_path, entry_name in iter_rom_library_entries(console_dir):
+            rel_from_root = os.path.normpath(os.path.join(console_name, rel_path))
+            if is_system_rom_path(rel_from_root):
+                continue
             norm_rel = os.path.normcase(os.path.normpath(rel_path))
             if norm_rel in gamelist_entry_paths:
                 continue
