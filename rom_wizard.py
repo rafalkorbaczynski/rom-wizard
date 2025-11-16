@@ -542,34 +542,71 @@ def print_table(df: pd.DataFrame, sorted_col: str | None = None) -> None:
                     'Matched ROMs',
                 ]
                 denominator_candidates = [
+                    'ROMs',
+                    'Total ROMs',
                     SUMMARY_DATASET_SALES_COL,
                     'Dataset',
-                    'ROMs',
                 ]
                 numerator_col = next((c for c in numerator_candidates if c in df.columns), None)
                 denominator_col = next((c for c in denominator_candidates if c in df.columns), None)
                 if numerator_col and denominator_col:
-                    denom_total = df[denominator_col].sum()
-                    num_total = df[numerator_col].sum()
+                    numerator_values = pd.to_numeric(df[numerator_col], errors='coerce').fillna(0)
+                    denominator_values = pd.to_numeric(df[denominator_col], errors='coerce').fillna(0)
+                    denom_total = denominator_values.sum()
+                    num_total = numerator_values.sum()
                     pct = num_total / denom_total * 100 if denom_total else 0
-                    total_row[col] = round(pct, 1)
+                    total_row[col] = round(pct)
                 else:
                     total_row[col] = 0
             elif col in {SUMMARY_AGE_COVERAGE_COL, 'Age Coverage %'}:
                 numerator_candidates = [SUMMARY_ROM_RATING_MATCH_COL, 'ROMs with age rating']
-                denominator_candidates = [SUMMARY_DATASET_RATING_COL, 'Age-eligible ROMs']
+                denominator_candidates = [
+                    'ROMs',
+                    'Total ROMs',
+                    SUMMARY_DATASET_RATING_COL,
+                    'Age-eligible ROMs',
+                ]
                 numerator_col = next((c for c in numerator_candidates if c in df.columns), None)
                 denominator_col = next((c for c in denominator_candidates if c in df.columns), None)
                 if numerator_col and denominator_col:
-                    denom_total = df[denominator_col].sum()
-                    num_total = df[numerator_col].sum()
-                    pct = num_total / denom_total * 100 if denom_total else 0
-                    total_row[col] = round(pct, 1)
+                    numerator_values = pd.to_numeric(df[numerator_col], errors='coerce').fillna(0)
+                    denominator_values = pd.to_numeric(df[denominator_col], errors='coerce').fillna(0)
+                    if SUMMARY_IGNORE_AGE_COL in df.columns:
+                        ignore_mask = (
+                            df[SUMMARY_IGNORE_AGE_COL]
+                            .astype(str)
+                            .str.strip()
+                            .str.lower()
+                            .isin(['yes', 'true', '1'])
+                        )
+                    else:
+                        ignore_mask = pd.Series(False, index=df.index)
+                    adjusted_numerator = numerator_values.copy()
+                    adjusted_numerator[ignore_mask] = denominator_values[ignore_mask]
+                    denom_total = denominator_values.sum()
+                    pct = (
+                        adjusted_numerator.sum() / denom_total * 100
+                        if denom_total
+                        else 0
+                    )
+                    total_row[col] = round(pct)
                 else:
                     total_row[col] = 0
+            elif col in {SUMMARY_AVG_SIZE_COL, 'Avg (MB)'}:
+                rom_col = next((c for c in ['ROMs', 'Total ROMs'] if c in df.columns), None)
+                value_series = pd.to_numeric(df[col], errors='coerce')
+                if rom_col:
+                    rom_counts = pd.to_numeric(df[rom_col], errors='coerce').fillna(0)
+                    total_roms = rom_counts.sum()
+                    weighted_sum = (value_series.fillna(0) * rom_counts).sum()
+                    avg_value = weighted_sum / total_roms if total_roms else 0
+                else:
+                    numeric_values = value_series.dropna()
+                    avg_value = numeric_values.mean() if not numeric_values.empty else 0
+                total_row[col] = round(avg_value, 1)
             elif col.endswith('%'):
                 numeric_values = pd.to_numeric(df[col], errors='coerce').dropna()
-                total_row[col] = round(numeric_values.mean(), 1) if not numeric_values.empty else 0
+                total_row[col] = round(numeric_values.mean()) if not numeric_values.empty else 0
             else:
                 total_row[col] = df[col].sum()
         elif i == 0:
@@ -595,7 +632,7 @@ def print_table(df: pd.DataFrame, sorted_col: str | None = None) -> None:
                 if col_name in {'Year', 'Generation'}:
                     formatted = str(int(round(value)))
                 elif col_name.endswith('%'):
-                    formatted = f"{value:.1f}"
+                    formatted = f"{value:.0f}"
                 elif value.is_integer():
                     formatted = str(int(round(value)))
                 else:
@@ -1510,8 +1547,8 @@ def create_snapshot():
             .fillna(0)
         )
         summary_df[SUMMARY_AVG_SIZE_COL] = summary_df[SUMMARY_AVG_SIZE_COL].round(1)
-        summary_df[SUMMARY_SALES_COVERAGE_COL] = summary_df[SUMMARY_SALES_COVERAGE_COL].round(1)
-        summary_df[SUMMARY_AGE_COVERAGE_COL] = summary_df[SUMMARY_AGE_COVERAGE_COL].round(1)
+        summary_df[SUMMARY_SALES_COVERAGE_COL] = summary_df[SUMMARY_SALES_COVERAGE_COL].round()
+        summary_df[SUMMARY_AGE_COVERAGE_COL] = summary_df[SUMMARY_AGE_COVERAGE_COL].round()
 
         plat_info = pd.read_csv(
             PLATFORMS_CSV, usecols=['Platform', 'FullName', 'ReleaseYear', 'Generation']
@@ -2056,8 +2093,8 @@ def enrich_game_lists(snapshot_dir):
             .fillna(0)
         )
         summary_df[SUMMARY_AVG_SIZE_COL] = summary_df[SUMMARY_AVG_SIZE_COL].round(1)
-        summary_df[SUMMARY_SALES_COVERAGE_COL] = summary_df[SUMMARY_SALES_COVERAGE_COL].round(1)
-        summary_df[SUMMARY_AGE_COVERAGE_COL] = summary_df[SUMMARY_AGE_COVERAGE_COL].round(1)
+        summary_df[SUMMARY_SALES_COVERAGE_COL] = summary_df[SUMMARY_SALES_COVERAGE_COL].round()
+        summary_df[SUMMARY_AGE_COVERAGE_COL] = summary_df[SUMMARY_AGE_COVERAGE_COL].round()
 
         plat_info = pd.read_csv(
             PLATFORMS_CSV, usecols=['Platform', 'FullName', 'ReleaseYear', 'Generation']
