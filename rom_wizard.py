@@ -1482,16 +1482,15 @@ def create_snapshot():
                 )
         summary_df[SUMMARY_IGNORE_AGE_COL] = summary_df[SUMMARY_IGNORE_AGE_COL].fillna('No')
         with pd.option_context('mode.use_inf_as_na', True):
-            sales_den = summary_df[SUMMARY_DATASET_SALES_COL].astype(float).replace(0, math.nan)
+            rom_den = summary_df['ROMs'].astype(float).replace(0, math.nan)
             summary_df[SUMMARY_SALES_COVERAGE_COL] = (
                 summary_df[SUMMARY_ROM_SALES_MATCH_COL]
-                / sales_den
+                / rom_den
                 * 100
             )
-            age_den = summary_df[SUMMARY_DATASET_RATING_COL].astype(float).replace(0, math.nan)
             summary_df[SUMMARY_AGE_COVERAGE_COL] = (
                 summary_df[SUMMARY_ROM_RATING_MATCH_COL]
-                / age_den
+                / rom_den
                 * 100
             )
         ignore_mask = (
@@ -2029,16 +2028,15 @@ def enrich_game_lists(snapshot_dir):
                 )
         summary_df[SUMMARY_IGNORE_AGE_COL] = summary_df[SUMMARY_IGNORE_AGE_COL].fillna('No')
         with pd.option_context('mode.use_inf_as_na', True):
-            sales_den = summary_df[SUMMARY_DATASET_SALES_COL].astype(float).replace(0, math.nan)
+            rom_den = summary_df['ROMs'].astype(float).replace(0, math.nan)
             summary_df[SUMMARY_SALES_COVERAGE_COL] = (
                 summary_df[SUMMARY_ROM_SALES_MATCH_COL]
-                / sales_den
+                / rom_den
                 * 100
             )
-            age_den = summary_df[SUMMARY_DATASET_RATING_COL].astype(float).replace(0, math.nan)
             summary_df[SUMMARY_AGE_COVERAGE_COL] = (
                 summary_df[SUMMARY_ROM_RATING_MATCH_COL]
-                / age_den
+                / rom_den
                 * 100
             )
         ignore_mask = (
