@@ -524,9 +524,9 @@ def print_table(df: pd.DataFrame, sorted_col: str | None = None) -> None:
     total_row = {}
     for i, col in enumerate(df.columns):
         if pd.api.types.is_numeric_dtype(df[col]):
-            if col in {'ReleaseYear', 'Generation'}:
+            if col in {'Year', 'Generation'}:
                 total_row[col] = ''
-            elif col == "ROMs%" and (
+            elif col == "Sales Coverage %" and (
                 {"Sales ROMs", "ROMs"}.issubset(df.columns)
                 or {"Matched ROMs", "ROMs"}.issubset(df.columns)
             ):
@@ -536,12 +536,12 @@ def print_table(df: pd.DataFrame, sorted_col: str | None = None) -> None:
                 pct = matched_total / roms_total * 100 if roms_total else 0
                 total_row[col] = round(pct, 1)
             elif (
-                col == "Rating Coverage %"
-                and {"With new rating", "Rating Eligible ROMs"}.issubset(df.columns)
+                col == "Age Coverage %"
+                and {"ROMs with age rating", "Age-eligible ROMs"}.issubset(df.columns)
             ):
-                eligible_mask = df["Rating Eligible ROMs"].fillna(0) > 0
-                denom = df.loc[eligible_mask, "Rating Eligible ROMs"].sum()
-                num = df.loc[eligible_mask, "With new rating"].sum()
+                eligible_mask = df["Age-eligible ROMs"].fillna(0) > 0
+                denom = df.loc[eligible_mask, "Age-eligible ROMs"].sum()
+                num = df.loc[eligible_mask, "ROMs with age rating"].sum()
                 total_row[col] = round(num / denom * 100, 1) if denom else 0
             elif col.endswith('%'):
                 numeric_values = pd.to_numeric(df[col], errors='coerce').dropna()
@@ -568,7 +568,7 @@ def print_table(df: pd.DataFrame, sorted_col: str | None = None) -> None:
                 display.append('')
                 continue
             if isinstance(value, float):
-                if col_name in {'ReleaseYear', 'Generation'}:
+                if col_name in {'Year', 'Generation'}:
                     formatted = str(int(round(value)))
                 elif col_name.endswith('%'):
                     formatted = f"{value:.1f}"
@@ -587,7 +587,7 @@ def prepare_summary_display(df: pd.DataFrame) -> pd.DataFrame:
     """Return ``df`` formatted for on-screen summary display."""
 
     display_df = df.copy()
-    for col in ['ReleaseYear', 'Generation']:
+    for col in ['Year', 'Generation']:
         if col in display_df.columns:
             display_df[col] = (
                 pd.to_numeric(display_df[col], errors='coerce')
@@ -807,9 +807,9 @@ def compute_rating_coverage(
         summary_rows.append(
             {
                 'Platform': ds_plat,
-                'With new rating': matched,
-                'Rating Eligible ROMs': eligible_roms,
-                'Rating Coverage %': coverage_pct,
+                'ROMs with age rating': matched,
+                'Age-eligible ROMs': eligible_roms,
+                'Age Coverage %': coverage_pct,
                 'Ignore ratings': 'Yes' if ignore_ratings_platform else 'No',
             }
         )
@@ -819,9 +819,9 @@ def compute_rating_coverage(
         coverage_df = coverage_df[
             [
                 'Platform',
-                'With new rating',
-                'Rating Eligible ROMs',
-                'Rating Coverage %',
+                'ROMs with age rating',
+                'Age-eligible ROMs',
+                'Age Coverage %',
                 'Ignore ratings',
             ]
         ]
@@ -1353,7 +1353,7 @@ def create_snapshot():
             'ROMs': rom_total,
             'Dataset': dataset_size,
             'Sales ROMs': matched,
-            'Age ROMs': age_rated,
+            'Age-rated ROMs': age_rated,
             'avg size': avg_size_mb,
             **region_counts
         })
@@ -1370,7 +1370,7 @@ def create_snapshot():
             'ROMs': 0,
             'Dataset': size,
             'Sales ROMs': 0,
-            'Age ROMs': 0,
+            'Age-rated ROMs': 0,
             'avg size': 0.0,
             **{r: 0 for r in REGIONS}
         })
@@ -1390,64 +1390,68 @@ def create_snapshot():
         )
     write_rating_gap_entries(snap_dir, rating_result.unmatched_entries)
 
-    if 'Unpopular ROMs' not in summary_df.columns:
-        summary_df['Unpopular ROMs'] = 0
-    if 'Extra Downloads' not in summary_df.columns:
-        summary_df['Extra Downloads'] = 0
-    if 'With new rating' not in summary_df.columns:
-        summary_df['With new rating'] = 0
-    if 'Rating Eligible ROMs' not in summary_df.columns:
-        summary_df['Rating Eligible ROMs'] = 0
-    if 'Rating Coverage %' not in summary_df.columns:
-        summary_df['Rating Coverage %'] = pd.Series([math.nan] * len(summary_df))
+    if 'ROMs with age rating' not in summary_df.columns:
+        summary_df['ROMs with age rating'] = 0
+    if 'Age-eligible ROMs' not in summary_df.columns:
+        summary_df['Age-eligible ROMs'] = 0
+    if 'Age Coverage %' not in summary_df.columns:
+        summary_df['Age Coverage %'] = pd.Series([math.nan] * len(summary_df))
     if 'Ignore ratings' not in summary_df.columns:
         summary_df['Ignore ratings'] = 'No'
-    if 'Age ROMs' not in summary_df.columns:
-        summary_df['Age ROMs'] = 0
+    if 'Age-rated ROMs' not in summary_df.columns:
+        summary_df['Age-rated ROMs'] = 0
     if not summary_df.empty:
-        summary_df['ROMs%'] = (
+        summary_df['Sales Coverage %'] = (
             summary_df.get('Sales ROMs', summary_df.get('Matched ROMs', 0))
             / summary_df['ROMs'].replace(0, 1)
             * 100
         )
-        summary_df['With new rating'] = (
-            pd.to_numeric(summary_df['With new rating'], errors='coerce')
+        summary_df['ROMs with age rating'] = (
+            pd.to_numeric(summary_df['ROMs with age rating'], errors='coerce')
             .fillna(0)
             .astype('Int64')
         )
-        summary_df['Rating Eligible ROMs'] = (
-            pd.to_numeric(summary_df['Rating Eligible ROMs'], errors='coerce')
+        summary_df['Age-eligible ROMs'] = (
+            pd.to_numeric(summary_df['Age-eligible ROMs'], errors='coerce')
             .fillna(0)
             .astype('Int64')
         )
-        summary_df['Age ROMs'] = (
-            pd.to_numeric(summary_df['Age ROMs'], errors='coerce')
+        summary_df['Age-rated ROMs'] = (
+            pd.to_numeric(summary_df['Age-rated ROMs'], errors='coerce')
             .fillna(0)
             .astype('Int64')
         )
-        summary_df['Rating Coverage %'] = pd.to_numeric(
-            summary_df['Rating Coverage %'], errors='coerce'
+        summary_df['Age Coverage %'] = pd.to_numeric(
+            summary_df['Age Coverage %'], errors='coerce'
         )
         summary_df['Ignore ratings'] = summary_df['Ignore ratings'].fillna('No')
+        ignore_mask = (
+            summary_df['Ignore ratings']
+            .astype(str)
+            .str.strip()
+            .str.lower()
+            .isin(['yes', 'true', '1'])
+        )
+        summary_df.loc[ignore_mask, 'Age Coverage %'] = 100.0
         for col in summary_df.select_dtypes(include='float'):
             summary_df[col] = summary_df[col].round(1)
 
         plat_info = pd.read_csv(
             PLATFORMS_CSV, usecols=['Platform', 'FullName', 'ReleaseYear', 'Generation']
         )
+        plat_info = plat_info.rename(columns={'ReleaseYear': 'Year'})
         summary_df = summary_df.merge(plat_info, on='Platform', how='left')
-        base_cols = ['Platform', 'FullName', 'ReleaseYear', 'Generation']
+        base_cols = ['Platform', 'FullName', 'Year', 'Generation']
         metric_cols = [
             'ROMs',
             'Dataset',
             'Sales ROMs',
-            'Age ROMs',
-            'With new rating',
-            'Rating Eligible ROMs',
-            'Rating Coverage %',
+            'Age-rated ROMs',
+            'ROMs with age rating',
+            'Age-eligible ROMs',
+            'Sales Coverage %',
+            'Age Coverage %',
             'Ignore ratings',
-            'Unpopular ROMs',
-            'Extra Downloads',
         ]
         ordered_metrics = [c for c in metric_cols if c in summary_df.columns]
         remaining = [
@@ -1455,7 +1459,7 @@ def create_snapshot():
             if c not in set(base_cols + ordered_metrics)
         ]
         summary_df = summary_df[base_cols + ordered_metrics + remaining]
-        for col in ['ReleaseYear', 'Generation']:
+        for col in ['Year', 'Generation']:
             if col in summary_df.columns:
                 summary_df[col] = (
                     pd.to_numeric(summary_df[col], errors='coerce')
@@ -1842,7 +1846,7 @@ def enrich_game_lists(snapshot_dir):
             'ROMs': rom_total,
             'Dataset': dataset_size,
             'Sales ROMs': matched,
-            'Age ROMs': age_rated_count,
+            'Age-rated ROMs': age_rated_count,
             'avg size': avg_size_mb,
             **region_counts
         })
@@ -1859,7 +1863,7 @@ def enrich_game_lists(snapshot_dir):
             'ROMs': 0,
             'Dataset': size,
             'Sales ROMs': 0,
-            'Age ROMs': 0,
+            'Age-rated ROMs': 0,
             'avg size': 0.0,
             **{r: 0 for r in REGIONS}
         })
@@ -1879,63 +1883,67 @@ def enrich_game_lists(snapshot_dir):
         )
     write_rating_gap_entries(snapshot_dir, rating_result.unmatched_entries)
 
-    if 'Unpopular ROMs' not in summary_df.columns:
-        summary_df['Unpopular ROMs'] = 0
-    if 'Extra Downloads' not in summary_df.columns:
-        summary_df['Extra Downloads'] = 0
-    if 'With new rating' not in summary_df.columns:
-        summary_df['With new rating'] = 0
-    if 'Rating Eligible ROMs' not in summary_df.columns:
-        summary_df['Rating Eligible ROMs'] = 0
-    if 'Rating Coverage %' not in summary_df.columns:
-        summary_df['Rating Coverage %'] = pd.Series([math.nan] * len(summary_df))
+    if 'ROMs with age rating' not in summary_df.columns:
+        summary_df['ROMs with age rating'] = 0
+    if 'Age-eligible ROMs' not in summary_df.columns:
+        summary_df['Age-eligible ROMs'] = 0
+    if 'Age Coverage %' not in summary_df.columns:
+        summary_df['Age Coverage %'] = pd.Series([math.nan] * len(summary_df))
     if 'Ignore ratings' not in summary_df.columns:
         summary_df['Ignore ratings'] = 'No'
-    if 'Age ROMs' not in summary_df.columns:
-        summary_df['Age ROMs'] = 0
+    if 'Age-rated ROMs' not in summary_df.columns:
+        summary_df['Age-rated ROMs'] = 0
     if not summary_df.empty:
         if 'Sales ROMs' in summary_df.columns:
-            summary_df['ROMs%'] = (
+            summary_df['Sales Coverage %'] = (
                 summary_df['Sales ROMs'] / summary_df['ROMs'].replace(0, 1) * 100
             )
-        summary_df['With new rating'] = (
-            pd.to_numeric(summary_df['With new rating'], errors='coerce')
+        summary_df['ROMs with age rating'] = (
+            pd.to_numeric(summary_df['ROMs with age rating'], errors='coerce')
             .fillna(0)
             .astype('Int64')
         )
-        summary_df['Rating Eligible ROMs'] = (
-            pd.to_numeric(summary_df['Rating Eligible ROMs'], errors='coerce')
+        summary_df['Age-eligible ROMs'] = (
+            pd.to_numeric(summary_df['Age-eligible ROMs'], errors='coerce')
             .fillna(0)
             .astype('Int64')
         )
-        summary_df['Age ROMs'] = (
-            pd.to_numeric(summary_df['Age ROMs'], errors='coerce')
+        summary_df['Age-rated ROMs'] = (
+            pd.to_numeric(summary_df['Age-rated ROMs'], errors='coerce')
             .fillna(0)
             .astype('Int64')
         )
-        summary_df['Rating Coverage %'] = pd.to_numeric(
-            summary_df['Rating Coverage %'], errors='coerce'
+        summary_df['Age Coverage %'] = pd.to_numeric(
+            summary_df['Age Coverage %'], errors='coerce'
         )
         summary_df['Ignore ratings'] = summary_df['Ignore ratings'].fillna('No')
+        ignore_mask = (
+            summary_df['Ignore ratings']
+            .astype(str)
+            .str.strip()
+            .str.lower()
+            .isin(['yes', 'true', '1'])
+        )
+        summary_df.loc[ignore_mask, 'Age Coverage %'] = 100.0
         for col in summary_df.select_dtypes(include='float'):
             summary_df[col] = summary_df[col].round(1)
 
         plat_info = pd.read_csv(
             PLATFORMS_CSV, usecols=['Platform', 'FullName', 'ReleaseYear', 'Generation']
         )
+        plat_info = plat_info.rename(columns={'ReleaseYear': 'Year'})
         summary_df = summary_df.merge(plat_info, on='Platform', how='left')
-        base_cols = ['Platform', 'FullName', 'ReleaseYear', 'Generation']
+        base_cols = ['Platform', 'FullName', 'Year', 'Generation']
         metric_cols = [
             'ROMs',
             'Dataset',
             'Sales ROMs',
-            'Age ROMs',
-            'With new rating',
-            'Rating Eligible ROMs',
-            'Rating Coverage %',
+            'Age-rated ROMs',
+            'ROMs with age rating',
+            'Age-eligible ROMs',
+            'Sales Coverage %',
+            'Age Coverage %',
             'Ignore ratings',
-            'Unpopular ROMs',
-            'Extra Downloads',
         ]
         ordered_metrics = [c for c in metric_cols if c in summary_df.columns]
         remaining = [
@@ -1943,6 +1951,13 @@ def enrich_game_lists(snapshot_dir):
             if c not in set(base_cols + ordered_metrics)
         ]
         summary_df = summary_df[base_cols + ordered_metrics + remaining]
+        for col in ['Year', 'Generation']:
+            if col in summary_df.columns:
+                summary_df[col] = (
+                    pd.to_numeric(summary_df[col], errors='coerce')
+                    .round()
+                    .astype('Int64')
+                )
 
     summary_df.to_csv(os.path.join(snapshot_dir, 'summary.csv'), index=False)
     pd.DataFrame(match_rows).to_csv(os.path.join(snapshot_dir, 'match_summary.csv'), index=False)
@@ -1983,7 +1998,7 @@ def _gap_rows_to_entries(df: pd.DataFrame) -> list[dict[str, str]]:
 
 
 def _load_rating_summary_totals(snapshot_dir: str) -> tuple[int, int, int]:
-    """Return (platforms, total ROMs, ROMs with new-rating coverage)."""
+    """Return (platforms, total ROMs, ROMs with age-rating coverage)."""
 
     summary_path = os.path.join(snapshot_dir, 'summary.csv')
     if not os.path.isfile(summary_path):
@@ -2001,7 +2016,7 @@ def _load_rating_summary_totals(snapshot_dir: str) -> tuple[int, int, int]:
     total_roms = int(roms_series.sum())
 
     with_rating_series = pd.to_numeric(
-        df.get('With new rating', pd.Series(dtype='float64')),
+        df.get('ROMs with age rating', pd.Series(dtype='float64')),
         errors='coerce',
     ).fillna(0)
     total_with_rating = int(with_rating_series.sum())
@@ -2883,13 +2898,13 @@ def enforce_download_targets(snapshot_dir):
         'Sales ROMs' in summary_df.columns or 'Matched ROMs' in summary_df.columns
     ):
         with pd.option_context('mode.use_inf_as_na', True):
-            summary_df['ROMs%'] = (
+            summary_df['Sales Coverage %'] = (
                 summary_df.get('Sales ROMs', summary_df['Matched ROMs'])
                 / summary_df['ROMs'].replace(0, 1)
                 * 100
             )
-        if 'ROMs%' in summary_df.columns:
-            summary_df['ROMs%'] = summary_df['ROMs%'].round(1)
+        if 'Sales Coverage %' in summary_df.columns:
+            summary_df['Sales Coverage %'] = summary_df['Sales Coverage %'].round(1)
 
     summary_df.to_csv(summary_path, index=False)
 
